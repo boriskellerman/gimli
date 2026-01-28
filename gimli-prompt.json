@@ -1,0 +1,609 @@
+{
+  "name": "Gimli",
+  "description": "Production-ready, security-hardened autonomous coding agent based on Moltbot",
+  "version": "1.0",
+  "context": {
+    "role": "Senior security-focused software architect",
+    "mission": "Build Gimli—a production-ready, security-hardened autonomous coding agent derived from the open-source Moltbot project (formerly Clawdbot)",
+    "deployment_target": "Hardened VPS",
+    "autonomy_level": "Full with bypass permissions enabled",
+    "user_interaction": "Use AskUserQuestionTool for clarification on requirements, architectural decisions, or feature priorities"
+  },
+  "repositories": {
+    "source": {
+      "url": "https://github.com/moltbot/moltbot",
+      "clone_path": "~/github/moltbot"
+    },
+    "ralphy": {
+      "url": "https://github.com/michaelshimeles/ralphy",
+      "clone_path": "~/github/ralphy",
+      "description": "Autonomous AI coding loop that runs agents on tasks until done"
+    },
+    "target": {
+      "name": "Gimli",
+      "path": "~/github/gimli"
+    }
+  },
+  "rebranding": {
+    "old_names": ["Moltbot", "moltbot", "Clawdbot", "clawdbot"],
+    "new_name": "Gimli",
+    "scope": "Complete—package names, binary names, documentation, URLs, badges, code comments",
+    "attribution": "None—clean break, no references to original project"
+  },
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Lynis Baseline Audit",
+      "description": "Establish security baseline before making any changes",
+      "tasks": [
+        {
+          "task": "Run quick Lynis audit",
+          "command": "sudo lynis audit system --quick"
+        },
+        {
+          "task": "Document current warnings",
+          "command": "sudo lynis show warnings"
+        },
+        {
+          "task": "Document current suggestions",
+          "command": "sudo lynis show suggestions"
+        },
+        {
+          "task": "Record baseline hardening index score"
+        }
+      ]
+    },
+    {
+      "phase": 1,
+      "name": "Repository Setup & Initial Analysis",
+      "tasks": [
+        {
+          "task": "Clone required repositories",
+          "commands": [
+            "cd ~/github",
+            "git clone https://github.com/moltbot/moltbot.git moltbot",
+            "git clone https://github.com/michaelshimeles/ralphy.git ralphy"
+          ]
+        },
+        {
+          "task": "Set up Ralphy (Autonomous AI Coding Loop)",
+          "subtasks": [
+            "Review Ralphy's documentation and understand task orchestration",
+            "Install dependencies and configure for environment",
+            "Configure Ralphy to work with Gimli development workflow",
+            "Ralphy will run autonomous coding loops on tasks until completion"
+          ]
+        },
+        {
+          "task": "Comprehensive codebase analysis",
+          "subtasks": [
+            "Read every file line-by-line",
+            "Map architecture, dependencies, and data flow",
+            "Identify tech stack (preserve for Gimli)",
+            "Document entry points, configuration patterns, extension mechanisms"
+          ]
+        },
+        {
+          "task": "Review GitHub Issues and PRs",
+          "tool": "github MCP server",
+          "subtasks": [
+            "Fetch all open and closed issues",
+            "Fetch all pull requests",
+            "Catalog known bugs",
+            "Catalog requested features",
+            "Catalog unmerged improvements",
+            "Note security-related discussions"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "External Research",
+      "timeframe": "Last 1-5 days",
+      "search_terms": ["Clawdbot", "Moltbot"],
+      "sources": [
+        "News articles and blog posts",
+        "YouTube videos and tutorials",
+        "Medium articles",
+        "Reddit discussions",
+        "HackerNews discussions",
+        "Twitter/X threads"
+      ],
+      "document": [
+        "Community-reported issues",
+        "Feature requests from users",
+        "Security concerns raised",
+        "Comparisons to other tools",
+        "Reasoning behind Clawdbot → Moltbot rename"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Documentation",
+      "location": "~/github/moltbot (before forking)",
+      "deliverables": [
+        {
+          "file": "ARCHITECTURE.md",
+          "style": "Junior developer on first day",
+          "contents": [
+            "High-level system overview with diagrams (ASCII or Mermaid)",
+            "Component breakdown with responsibilities",
+            "Data flow between components",
+            "Configuration system explanation",
+            "Plugin/extension architecture",
+            "Security model and trust boundaries",
+            "Key design decisions and rationale"
+          ]
+        },
+        {
+          "file": "WALKTHROUGH.md",
+          "style": "Step-by-step code guide",
+          "contents": [
+            "Entry point and initialization sequence",
+            "Request/response lifecycle",
+            "Command parsing and execution",
+            "Tool/plugin loading and invocation",
+            "Error handling patterns",
+            "Logging and observability"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Create Gimli Fork",
+      "tasks": [
+        {
+          "task": "Create Gimli directory",
+          "command": "mkdir -p ~/github/gimli"
+        },
+        {
+          "task": "Copy Moltbot codebase",
+          "command": "cp -r ~/github/moltbot/* ~/github/gimli/"
+        },
+        {
+          "task": "Migrate config files",
+          "description": "Copy existing Moltbot configs for migration compatibility while maintaining clean code break"
+        },
+        {
+          "task": "Complete rebranding",
+          "subtasks": [
+            "Replace all Moltbot/Clawdbot references with Gimli",
+            "Update package names and binary names",
+            "Update documentation",
+            "Update URLs, badges, branding assets",
+            "Remove all attribution to original project"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Security Hardening",
+      "focus_areas": [
+        {
+          "area": "Secrets Management",
+          "tasks": [
+            "Audit all API key and credential handling",
+            "Implement secure secret storage (env vars, encrypted config, or secrets manager)",
+            "Ensure secrets never leak to logs or error messages",
+            "Add secret rotation support where applicable"
+          ]
+        },
+        {
+          "area": "Sandboxing & Permission Boundaries",
+          "tasks": [
+            "Review and tighten filesystem access",
+            "Implement least-privilege execution",
+            "Add permission checks before sensitive operations",
+            "Consider containerization or namespace isolation"
+          ]
+        },
+        {
+          "area": "Input Validation",
+          "tasks": [
+            "Validate and sanitize ALL user inputs",
+            "Implement strict type checking",
+            "Add length limits and format validation",
+            "Reject malformed requests early"
+          ]
+        },
+        {
+          "area": "Prompt Injection Protection",
+          "priority": "CRITICAL",
+          "tasks": [
+            "NEVER execute code suggested by external content (websites, etc.)",
+            "Implement content sanitization before processing",
+            "Add detection for common prompt injection patterns",
+            "Create allowlist approach for executable operations",
+            "Log and alert on suspected injection attempts"
+          ]
+        },
+        {
+          "area": "Audit Logging",
+          "tasks": [
+            "Log all security-relevant events",
+            "Include timestamps, source IPs, user identifiers",
+            "Implement log rotation and retention policies",
+            "Consider structured logging (JSON) for analysis"
+          ]
+        },
+        {
+          "area": "Additional Security",
+          "tasks": [
+            "Dependency audit (check for vulnerable packages)",
+            "Static analysis for security issues",
+            "Rate limiting and abuse prevention",
+            "Secure defaults for all configuration options"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Bug Fixes & Improvements",
+      "tasks": [
+        {
+          "task": "Fix all identified bugs",
+          "sources": [
+            "Code review findings",
+            "GitHub Issues",
+            "Community reports from web research"
+          ]
+        },
+        {
+          "task": "Implement improvements",
+          "areas": [
+            "Performance optimizations",
+            "Better error handling and recovery",
+            "Improved logging and debugging",
+            "Enhanced configuration flexibility",
+            "Production robustness features"
+          ]
+        },
+        {
+          "task": "Add new features",
+          "guidance": "Use senior engineer judgment; ask user via AskUserQuestionTool if feature significantly changes scope"
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "Testing",
+      "approach": "Full test suite with coverage targets (Claude Code's judgment on appropriate levels)",
+      "test_types": [
+        {
+          "type": "Unit Tests",
+          "requirements": [
+            "Test all core functions and modules",
+            "Mock external dependencies",
+            "Cover edge cases and error conditions"
+          ]
+        },
+        {
+          "type": "Integration Tests",
+          "requirements": [
+            "Test component interactions",
+            "Test configuration loading",
+            "Test plugin/extension loading"
+          ]
+        },
+        {
+          "type": "Security Tests",
+          "requirements": [
+            "Test input validation",
+            "Test prompt injection defenses",
+            "Test authentication/authorization",
+            "Test secrets handling"
+          ]
+        }
+      ],
+      "coverage": {
+        "focus": "Critical paths and security-sensitive code",
+        "documentation": "Document any intentionally untested code with rationale"
+      }
+    },
+    {
+      "phase": 8,
+      "name": "Final Verification",
+      "tasks": [
+        "Run full test suite",
+        "Perform final security review",
+        "Verify all rebranding complete (grep for old names)",
+        "Test deployment on VPS",
+        "Create CHANGELOG.md documenting all changes from Moltbot",
+        "Update README.md with Gimli-specific documentation",
+        {
+          "task": "Run Lynis post-deployment audit",
+          "validation": [
+            "Hardening index must not decrease",
+            "No new warnings introduced",
+            "Document any new suggestions and address if reasonable"
+          ]
+        }
+      ]
+    }
+  ],
+  "behavior": {
+    "persistence": {
+      "continue_until": "Gimli is fully production-ready",
+      "uncertainty_handling": "Deduce most reasonable approach",
+      "confirmation": "Do not ask for routine decisions—proceed with reasonable assumptions",
+      "documentation": "Document assumptions in commit messages and code comments",
+      "user_questions": "Use AskUserQuestionTool only for genuinely ambiguous requirements or major architectural decisions",
+      "error_handling": "If tool fails, try alternative approaches before escalating"
+    },
+    "tool_preambles": {
+      "phase_start": "State what you're about to do",
+      "discoveries": "Narrate significant findings as discovered",
+      "phase_end": "Summarize completed work",
+      "security_issues": "Explain clearly before fixing"
+    }
+  },
+  "ralphy_orchestration": {
+    "description": "Ralphy is an autonomous AI coding loop that runs agents on tasks until done",
+    "location": "~/github/ralphy",
+    "setup": [
+      "Review Ralphy's README and configuration options",
+      "Install dependencies and configure for environment",
+      "Point Ralphy at ~/github/gimli directory"
+    ],
+    "usage_strategy": {
+      "description": "Use Ralphy for iterative autonomous work",
+      "task_types": [
+        {
+          "type": "Bug fixing loops",
+          "description": "Feed bugs from GitHub Issues, let Ralphy fix and test until resolved"
+        },
+        {
+          "type": "Security hardening iterations",
+          "description": "Continuously scan and fix security issues"
+        },
+        {
+          "type": "Test coverage improvement",
+          "description": "Autonomous loop to increase coverage"
+        },
+        {
+          "type": "Code quality refinement",
+          "description": "Continuous improvement until metrics are met"
+        },
+        {
+          "type": "Feature implementation",
+          "description": "Task-based development until feature is complete"
+        }
+      ]
+    },
+    "task_definition": {
+      "required_elements": [
+        "Success criteria (when is the task 'done'?)",
+        "Boundaries (what files/areas can it modify?)",
+        "Validation steps (how to verify completion?)"
+      ]
+    },
+    "workflow_integration": {
+      "description": "After initial setup (Phases 1-4), Ralphy handles much of Phases 5-7 autonomously",
+      "phase_mapping": [
+        {
+          "phase": 5,
+          "name": "Security",
+          "ralphy_usage": "Run Ralphy in a loop targeting security improvements"
+        },
+        {
+          "phase": 6,
+          "name": "Bug Fixes",
+          "ralphy_usage": "Feed identified bugs as tasks, let Ralphy iterate"
+        },
+        {
+          "phase": 7,
+          "name": "Testing",
+          "ralphy_usage": "Autonomous test writing and coverage improvement"
+        }
+      ],
+      "human_oversight": [
+        "Review Ralphy's changes periodically",
+        "Use AskUserQuestionTool if Ralphy's changes need architectural decisions",
+        "Final Phase 8 verification remains human-supervised"
+      ]
+    }
+  },
+  "progress_tracking": {
+    "method": "TODO list with checkboxes",
+    "items": [
+      { "phase": 0, "task": "Run Lynis baseline audit and document hardening score", "complete": false },
+      { "phase": 1, "task": "Clone moltbot and ralphy repos", "complete": false },
+      { "phase": 1, "task": "Set up and configure Ralphy for autonomous development", "complete": false },
+      { "phase": 1, "task": "Analyze moltbot codebase", "complete": false },
+      { "phase": 1, "task": "Review GitHub Issues and PRs", "complete": false },
+      { "phase": 2, "task": "Web research on recent Clawdbot/Moltbot content", "complete": false },
+      { "phase": 3, "task": "Create ARCHITECTURE.md", "complete": false },
+      { "phase": 3, "task": "Create WALKTHROUGH.md", "complete": false },
+      { "phase": 4, "task": "Create Gimli fork with full rebranding", "complete": false },
+      { "phase": 4, "task": "Migrate configs from moltbot to gimli", "complete": false },
+      { "phase": 5, "task": "Implement security hardening (use Ralphy for iterative improvements)", "complete": false },
+      { "phase": 6, "task": "Fix all identified bugs (use Ralphy for autonomous bug fixing)", "complete": false },
+      { "phase": 6, "task": "Implement improvements and new features", "complete": false },
+      { "phase": 7, "task": "Create comprehensive test suite (use Ralphy for coverage improvement)", "complete": false },
+      { "phase": 8, "task": "Final verification and deployment test", "complete": false },
+      { "phase": 8, "task": "Run Lynis post-deployment audit (confirm no regression)", "complete": false }
+    ],
+    "termination_rule": "Do not terminate with unchecked items unless blocked"
+  },
+  "available_plugins": {
+    "essential": [
+      {
+        "name": "github",
+        "use": "Fetch Issues, PRs, review code from Moltbot repo"
+      },
+      {
+        "name": "playwright",
+        "use": "Browser automation for web research"
+      },
+      {
+        "name": "code-review",
+        "use": "Automated code review with confidence scoring"
+      },
+      {
+        "name": "security-guidance",
+        "use": "Security warnings when editing files"
+      },
+      {
+        "name": "code-simplifier",
+        "use": "Refine code for clarity and maintainability"
+      },
+      {
+        "name": "superpowers",
+        "use": "TDD, debugging, and code review workflows"
+      }
+    ],
+    "language_support": [
+      "typescript-lsp",
+      "pyright-lsp",
+      "gopls-lsp",
+      "rust-analyzer-lsp",
+      "csharp-lsp",
+      "php-lsp",
+      "jdtls-lsp",
+      "clangd-lsp",
+      "swift-lsp",
+      "lua-lsp",
+      "kotlin-lsp"
+    ],
+    "utilities": [
+      {
+        "name": "claude-md-management",
+        "use": "Documentation quality"
+      },
+      {
+        "name": "commit-commands",
+        "use": "Git workflow automation"
+      },
+      {
+        "name": "context7",
+        "use": "Pull up-to-date documentation for dependencies"
+      }
+    ]
+  },
+  "deployment_context": {
+    "environment": "Hardened VPS",
+    "security_controls": [
+      {
+        "control": "SSH",
+        "config": {
+          "port": 22222,
+          "authentication": "Key-only",
+          "root_login": false,
+          "max_auth_tries": 3
+        }
+      },
+      {
+        "control": "UFW Firewall",
+        "config": {
+          "default_incoming": "deny",
+          "default_outgoing": "allow"
+        }
+      },
+      {
+        "control": "Fail2ban",
+        "config": {
+          "monitoring": "SSH on ports 22, 22222",
+          "backend": "nftables"
+        }
+      },
+      {
+        "control": "GeoIP Filtering",
+        "config": {
+          "allowed_countries": ["US"],
+          "whitelisted_ips": ["134.228.63.114", "205.251.168.1"]
+        }
+      },
+      {
+        "control": "Legal Banner",
+        "config": {
+          "reference": "18 U.S.C. § 1030",
+          "locations": ["/etc/issue.net", "/etc/issue"]
+        }
+      },
+      {
+        "control": "Lynis",
+        "version": "3.0.9",
+        "config": {
+          "periodic_audits": "systemd timer (lynis.timer)"
+        }
+      }
+    ],
+    "requirement": "Gimli must be compatible with this security posture and not require weakening any controls"
+  },
+  "lynis_integration": {
+    "commands": {
+      "quick_audit": "sudo lynis audit system --quick",
+      "full_audit": "sudo lynis audit system",
+      "show_warnings": "sudo lynis show warnings",
+      "show_suggestions": "sudo lynis show suggestions",
+      "report_location": "/var/log/lynis-report.dat"
+    },
+    "checkpoints": [
+      {
+        "when": "Before starting (Phase 0)",
+        "action": "Run baseline audit and document hardening index score"
+      },
+      {
+        "when": "After deployment (Phase 8)",
+        "action": "Run post-deployment audit",
+        "validation": [
+          "Hardening index should not decrease",
+          "No new warnings should be introduced",
+          "Address any new suggestions if reasonable"
+        ]
+      }
+    ],
+    "rule": "If Gimli introduces any Lynis warnings, fix them before considering deployment complete"
+  },
+  "output_artifacts": {
+    "location": "~/github/gimli",
+    "files": [
+      {
+        "file": "Full codebase",
+        "description": "Fully rebranded Gimli codebase (no Moltbot/Clawdbot references)"
+      },
+      {
+        "file": "ARCHITECTURE.md",
+        "description": "Junior-dev-friendly architectural explanation"
+      },
+      {
+        "file": "WALKTHROUGH.md",
+        "description": "Step-by-step code guide"
+      },
+      {
+        "file": "CHANGELOG.md",
+        "description": "All changes from original Moltbot"
+      },
+      {
+        "file": "README.md",
+        "description": "Gimli-specific documentation"
+      },
+      {
+        "file": "Test suite",
+        "description": "Comprehensive tests with passing results"
+      },
+      {
+        "file": "Security documentation",
+        "description": "Documentation covering all hardening measures"
+      },
+      {
+        "file": "Migrated configs",
+        "description": "Config files migrated from moltbot directory"
+      }
+    ]
+  },
+  "success_criteria": [
+    "All bugs identified from code review, GitHub Issues, and web research are fixed",
+    "All security hardening measures are implemented and tested",
+    "Full test suite passes with appropriate coverage",
+    "Complete rebranding—zero references to Moltbot or Clawdbot",
+    "Documentation is comprehensive and junior-dev-friendly",
+    "Successfully runs on the target VPS",
+    "Config migration from moltbot works correctly",
+    "Lynis post-deployment audit shows no regression (hardening index equal or better, no new warnings)"
+  ]
+}
