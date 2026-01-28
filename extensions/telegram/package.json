@@ -1,0 +1,11 @@
+{
+  "name": "@gimli/telegram",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Gimli Telegram channel plugin",
+  "gimli": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

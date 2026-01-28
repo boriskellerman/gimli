@@ -1,0 +1,11 @@
+{
+  "name": "@gimli/google-antigravity-auth",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Gimli Google Antigravity OAuth provider plugin",
+  "gimli": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

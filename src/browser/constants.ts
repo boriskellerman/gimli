@@ -1,0 +1,8 @@
+export const DEFAULT_GIMLI_BROWSER_ENABLED = true;
+export const DEFAULT_BROWSER_EVALUATE_ENABLED = false; // SECURITY: Disabled by default — arbitrary JS execution risk
+export const DEFAULT_GIMLI_BROWSER_COLOR = "#FF4500";
+export const DEFAULT_GIMLI_BROWSER_PROFILE_NAME = "gimli";
+export const DEFAULT_BROWSER_DEFAULT_PROFILE_NAME = "chrome";
+export const DEFAULT_AI_SNAPSHOT_MAX_CHARS = 80_000;
+export const DEFAULT_AI_SNAPSHOT_EFFICIENT_MAX_CHARS = 10_000;
+export const DEFAULT_AI_SNAPSHOT_EFFICIENT_DEPTH = 6;

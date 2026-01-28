@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: gimli
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: SETUP_PASSWORD
+        sync: false
+      - key: GIMLI_STATE_DIR
+        value: /data/.gimli
+      - key: GIMLI_WORKSPACE_DIR
+        value: /data/workspace
+      - key: GIMLI_GATEWAY_TOKEN
+        generateValue: true
+    disk:
+      name: gimli-data
+      mountPath: /data
+      sizeGB: 1

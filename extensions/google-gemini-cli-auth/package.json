@@ -1,0 +1,11 @@
+{
+  "name": "@gimli/google-gemini-cli-auth",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Gimli Gemini CLI OAuth provider plugin",
+  "gimli": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

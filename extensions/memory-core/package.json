@@ -1,0 +1,17 @@
+{
+  "name": "@gimli/memory-core",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Gimli core memory search plugin",
+  "gimli": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "gimli": ">=2026.1.26"
+  },
+  "devDependencies": {
+    "gimli": "workspace:*"
+  }
+}

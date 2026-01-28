@@ -1,0 +1,11 @@
+{
+  "name": "@gimli/discord",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Gimli Discord channel plugin",
+  "gimli": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

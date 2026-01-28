@@ -1,0 +1,11 @@
+{
+  "name": "@gimli/lobster",
+  "version": "2026.1.27-beta.1",
+  "type": "module",
+  "description": "Lobster workflow tool plugin (typed pipelines + resumable approvals)",
+  "gimli": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
