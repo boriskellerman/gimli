@@ -1872,3 +1872,106 @@ The browser control server automatically launches Chromium when needed:
 - Selector-based actions are rejected (ref required for security)
 - Browser operations auto-start browser when needed
 
+---
+
+# Task: Test `process` tool for running commands
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (28 tests) to verify the behavior of the `process` tool for managing background shell execution sessions. The tests cover all 10 actions (list, poll, log, write, send-keys, submit, paste, kill, clear, remove) plus scope isolation and error handling.
+
+## Test Coverage
+
+### 1. List Action Tests (4 tests)
+- Returns empty list when no sessions exist
+- Lists running sessions with correct metadata
+- Lists finished sessions with exit code
+- Lists multiple sessions
+
+### 2. Poll Action Tests (5 tests)
+- Returns new output from running session
+- Returns exit code when process completes
+- Returns failed status for non-zero exit code
+- Requires sessionId parameter
+- Returns error for non-existent session
+
+### 3. Log Action Tests (4 tests)
+- Returns full output from running session
+- Supports offset and limit pagination
+- Returns log from finished session
+- Requires sessionId parameter
+
+### 4. Write Action Tests (3 tests)
+- Writes data to session stdin
+- Closes stdin with eof flag
+- Returns error for non-existent session
+
+### 5. Paste Action Tests (2 tests)
+- Pastes text with bracketed paste mode by default
+- Pastes empty text with bracketed paste markers
+
+### 6. Kill Action Tests (2 tests)
+- Terminates a running session
+- Returns error for non-existent session
+
+### 7. Clear Action Tests (2 tests)
+- Removes a finished session from memory
+- Returns error when clearing running session
+
+### 8. Remove Action Tests (3 tests)
+- Kills and removes a running session
+- Clears a finished session
+- Returns error for non-existent session
+
+### 9. Unknown Action Tests (1 test)
+- Returns error for unknown action
+
+### 10. Scope Isolation Tests (2 tests)
+- Sessions are isolated by scope key
+- No scope key sees all sessions
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  28 passed (28)
+  Duration  6.32s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/bash-tools.process.test.ts` - Comprehensive process tool unit tests (710 lines)
+
+## Key Architecture Insights
+
+### Process Tool Overview
+The `process` tool manages background shell execution sessions created by the `exec` tool. It provides:
+- Session lifecycle management (list, poll, kill, clear, remove)
+- Output retrieval (poll for new output, log for aggregated output with pagination)
+- Input handling (write to stdin, send-keys for PTY, paste with bracketed mode)
+- Scope-based isolation for multi-agent environments
+
+### Tool Actions
+| Action | Purpose |
+|--------|---------|
+| list | List all running and finished sessions with status, runtime, command |
+| poll | Drain new output and check if process exited |
+| log | Read aggregated output with optional offset/limit pagination |
+| write | Send raw stdin data, optionally close stdin with eof flag |
+| send-keys | Send keyboard input (tokens, hex, literal) for PTY sessions |
+| submit | Send carriage return to PTY session |
+| paste | Send text with bracketed paste mode for PTY sessions |
+| kill | Terminate running session with SIGKILL |
+| clear | Remove finished session from memory |
+| remove | Kill if running, or clear if finished |
+
+### Session Scoping
+- Each agent can have its own scope via `scopeKey`
+- Scoped tools only see sessions with matching scopeKey
+- Unscoped tools (no scopeKey) can see all sessions
+- This enables multi-agent isolation in shared environments
+
