@@ -957,3 +957,109 @@ Based on the progress log from earlier Linux deployment work, the following manu
 - Environment variables provide automation-friendly configuration for CI/CD
 - The script gracefully handles missing dependencies and provides actionable guidance
 
+---
+
+# Task: Test session creation and isolation (main session vs group sessions)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (41 tests) to verify session creation and isolation behavior in Gimli. The tests cover main session vs group session creation, session key derivation, sandbox-based isolation, session store operations, and multi-agent session handling.
+
+## Test Coverage
+
+### 1. Main Session Creation (7 tests)
+- Creates main session key with default agent id (`agent:main:main`)
+- Creates main session key with custom agent id (`agent:alice:main`)
+- Creates main session key with custom main key (`agent:main:work`)
+- Creates global session key when scope is global (`global`)
+- Resolves agent-specific main session key
+- Canonicalizes main session aliases correctly
+- Canonicalizes to global when scope is global
+
+### 2. Group Session Creation (7 tests)
+- Creates group session key for WhatsApp groups (`whatsapp:group:12345@g.us`)
+- Creates group session key for Discord groups (`discord:group:123456789`)
+- Creates channel session key for Discord channels
+- Creates group session key for Telegram groups
+- Creates group session key for Slack channels
+- Returns null for DM messages
+- Returns null when no group indicators present
+
+### 3. Session Key Derivation (4 tests)
+- Derives per-sender key for DM
+- Derives group key for WhatsApp group
+- Derives global key when scope is global
+- Falls back to unknown when sender missing
+
+### 4. Session Key Resolution with Main Collapse (6 tests)
+- Collapses DM to main session
+- Collapses DM to custom main session key
+- Preserves group session key without collapsing
+- Preserves Discord group session key
+- Uses explicit session key when provided
+- Returns global for global scope
+
+### 5. Session Isolation via Sandboxing (6 tests)
+- Main session is not sandboxed in non-main mode
+- Group session is sandboxed in non-main mode
+- DM session that collapsed to main is not sandboxed
+- Custom named session is sandboxed in non-main mode
+- All sessions sandboxed in all mode
+- No sessions sandboxed in off mode
+
+### 6. Session Store Isolation (5 tests)
+- Stores main and group sessions separately
+- Updates main session without affecting group sessions
+- Deletes group session without affecting main session
+- Isolates multiple group sessions from each other
+
+### 7. Session Metadata Isolation (2 tests)
+- Stores channel-specific metadata per session
+- Preserves model override isolation between sessions
+
+### 8. Concurrent Session Operations Isolation (2 tests)
+- Handles concurrent updates to different sessions
+- Preserves session isolation during concurrent mixed operations
+
+### 9. Multi-Agent Session Isolation (3 tests)
+- Isolates sessions across different agents
+- Maintains agent-specific sandbox policies
+- Stores sessions for multiple agents separately
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  41 passed (41)
+  Duration  6.24s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/config/sessions/session-isolation.test.ts` - Comprehensive session isolation unit tests (355 lines)
+
+## Key Architecture Insights
+
+### Session Key Structure
+Session keys follow a hierarchical format: `agent:{agentId}:{rest}`
+- **Main session**: `agent:main:main` (default) or `agent:{agentId}:{customMainKey}`
+- **Group session**: `agent:{agentId}:{provider}:group:{id}` (e.g., `agent:main:whatsapp:group:12345@g.us`)
+- **Channel session**: `agent:{agentId}:{provider}:channel:{id}`
+- **Global session**: `global` (when scope is global)
+
+### Isolation Mechanisms
+1. **Key-based isolation**: Different session types get distinct keys
+2. **Main collapse**: DM sessions collapse to main session key for simplified routing
+3. **Group preservation**: Group sessions never collapse - they maintain isolation
+4. **Sandbox isolation**: Non-main mode sandboxes all sessions except the main session
+
+### Session Store Behavior
+- File-based store at `~/.gimli/sessions.json`
+- Concurrent-safe with lock file mechanism
+- Per-session metadata preservation
+- Multi-agent support with agent-prefixed keys
+
