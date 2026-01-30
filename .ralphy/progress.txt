@@ -821,3 +821,139 @@ When configuring channels in production:
 4. Keep `tools.elevated.enabled: false` if not needed
 5. Use environment variables for sensitive credentials
 
+---
+
+# Task: Document any manual steps and create a one-liner setup script if possible
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created a comprehensive Linux setup script (`scripts/setup-linux.sh`) that automates the Gimli server deployment process. The script handles Node.js verification, Gimli installation, systemd daemon setup, user linger enablement, and security verification.
+
+## Implementation
+
+### One-Liner Setup Script
+Created `scripts/setup-linux.sh` with the following features:
+
+**Core Functionality:**
+1. Platform verification (Linux only)
+2. Node.js 22+ version checking with installation instructions
+3. npm PATH verification
+4. Gimli installation via npm with `SHARP_IGNORE_GLOBAL_LIBVIPS=1`
+5. Onboarding with `--install-daemon` flag
+6. User linger enablement for boot auto-start
+7. `gimli doctor` verification
+8. Security configuration verification
+
+**CLI Options:**
+- `--skip-node-check`: Skip Node.js version verification
+- `--skip-onboard`: Skip onboarding (install only)
+- `--dry-run`: Print what would be done without making changes
+- `--verbose`: Enable verbose output
+- `--help`: Show usage information
+
+**Environment Variables:**
+- `GIMLI_SKIP_NODE_CHECK=1`
+- `GIMLI_SKIP_ONBOARD=1`
+- `GIMLI_DRY_RUN=1`
+- `GIMLI_VERBOSE=1`
+
+**Security Verification:**
+- Checks credentials directory permissions (expects 700)
+- Verifies gateway binds to loopback only
+- Reports any security issues found
+
+**Usage:**
+```bash
+# Full setup (one-liner)
+curl -fsSL https://gimli.bot/setup-linux.sh | bash
+
+# Dry run
+curl -fsSL https://gimli.bot/setup-linux.sh | bash -s -- --dry-run
+
+# Skip onboarding
+curl -fsSL https://gimli.bot/setup-linux.sh | bash -s -- --skip-onboard
+```
+
+## Tests Created
+
+Created `src/scripts/setup-linux.test.ts` with 24 tests covering:
+
+**Script structure (5 tests):**
+- Script file exists and is readable
+- Has valid bash shebang
+- Uses strict mode (set -euo pipefail)
+- Passes bash syntax check
+- Has required functions defined
+
+**Help output (3 tests):**
+- Displays help with --help flag
+- Displays help with -h flag
+- Documents environment variables
+
+**Argument parsing (1 test):**
+- Rejects unknown options
+
+**Dry-run mode (2 tests):**
+- Does not execute commands in dry-run mode
+- Respects GIMLI_DRY_RUN environment variable
+
+**Platform detection (1 test):**
+- Script contains Linux platform check
+
+**Node.js version checking (3 tests):**
+- Script checks for Node.js 22+
+- Script provides nvm installation instructions when Node is missing
+- Extracts major version correctly
+
+**Security verification (2 tests):**
+- Script checks credentials directory permissions
+- Script checks gateway bind address
+
+**Systemd integration (2 tests):**
+- Script enables user linger
+- Script checks linger status
+
+**Installation (3 tests):**
+- Script uses SHARP_IGNORE_GLOBAL_LIBVIPS
+- Script runs gimli onboard with daemon flag
+- Script runs gimli doctor for verification
+
+**Documentation output (2 tests):**
+- Script prints next steps after completion
+- Script includes documentation URL
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  24 passed (24)
+  Duration  5.20s
+```
+
+## Linting
+- Shell script passes bash syntax check (`bash -n`)
+- Test file passes oxlint with 0 errors
+
+## Files Added
+- `scripts/setup-linux.sh` - Linux server setup script (338 lines)
+- `src/scripts/setup-linux.test.ts` - Comprehensive tests (228 lines)
+
+## Manual Steps Documented
+Based on the progress log from earlier Linux deployment work, the following manual steps were identified and automated in the script:
+
+1. **Node.js verification**: The script checks for Node.js 22+ and provides clear installation instructions if missing
+2. **npm PATH configuration**: The script warns if npm global bin is not in PATH
+3. **Gimli installation**: Uses `SHARP_IGNORE_GLOBAL_LIBVIPS=1` to avoid sharp build issues
+4. **Daemon installation**: Runs `gimli onboard --install-daemon` automatically
+5. **User linger**: Enables `loginctl enable-linger` for boot auto-start
+6. **Security verification**: Checks credentials permissions and gateway bind address
+7. **Diagnostics**: Runs `gimli doctor` to verify setup
+
+## Key Insights
+- The script follows security-first principles by verifying security configuration after installation
+- Dry-run mode allows users to preview what will happen before making changes
+- Environment variables provide automation-friendly configuration for CI/CD
+- The script gracefully handles missing dependencies and provides actionable guidance
+
