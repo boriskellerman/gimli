@@ -3,10 +3,10 @@
   "name": "Gimli",
   "theme": "mint",
   "logo": {
-    "light": "/assets/pixel-lobster.svg",
-    "dark": "/assets/pixel-lobster.svg"
+    "light": "/assets/gimi-logo.png",
+    "dark": "/assets/gimi-logo.png"
   },
-  "favicon": "/assets/pixel-lobster.svg",
+  "favicon": "/assets/gimi-logo.png",
   "colors": {
     "primary": "#FF5A36"
   },
@@ -820,6 +820,7 @@
         "group": "Start Here",
         "pages": [
           "index",
+          "user-guide",
           "start/getting-started",
           "start/wizard",
           "start/setup",
@@ -843,6 +844,9 @@
         "group": "Install & Updates",
         "pages": [
           "install/index",
+          "install/requirements",
+          "install/deployment",
+          "hosting-setup",
           "install/installer",
           "install/updating",
           "install/development-channels",
@@ -909,6 +913,7 @@
           "concepts/oauth",
           "concepts/agent-workspace",
           "concepts/memory",
+          "concepts/learnings",
           "concepts/multi-agent",
           "concepts/compaction",
           "concepts/session",
