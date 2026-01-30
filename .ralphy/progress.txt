@@ -1340,3 +1340,108 @@ New test file passes linting with 0 errors.
 - Message body is cleaned (directive stripped) after extraction
 - Case-insensitive matching
 
+---
+
+# Task: Verify agent-to-agent session tools: sessions_list, sessions_history, sessions_send
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (30 tests) to verify the behavior of agent-to-agent session tools. The tests validate cross-agent access control, sandbox visibility restrictions, session reference resolution, and main session alias handling.
+
+## Test Coverage
+
+### 1. sessions_list with A2A enabled (5 tests)
+- includes sessions from other agents when A2A is enabled with wildcard allow
+- filters sessions by allow patterns when restrictive patterns are set
+- includes same-agent sessions even when requester not in allow list
+- excludes all cross-agent sessions when A2A is disabled
+- correctly classifies session kinds (main, group, cron, hook, node, other)
+
+### 2. sessions_history with A2A enabled (7 tests)
+- allows cross-agent history access when A2A is enabled and allowed
+- blocks cross-agent history when A2A is disabled
+- blocks cross-agent history when agent not in allow list
+- allows same-agent history access without A2A
+- filters tool messages by default
+- includes tool messages when includeTools is true
+- handles session not found error
+
+### 3. sessions_send with A2A enabled (8 tests)
+- allows cross-agent send when A2A is enabled
+- blocks cross-agent send when agent not in allow list
+- returns accepted status for fire-and-forget mode
+- returns timeout status when agent.wait times out
+- requires either sessionKey or label
+- rejects both sessionKey and label
+- uses nested lane for agent invocation
+- includes agent-to-agent context in extraSystemPrompt
+
+### 4. Sandbox visibility restrictions (3 tests)
+- sessions_list restricts to spawned sessions when sandboxed
+- sessions_history returns forbidden for non-spawned sessions when sandboxed
+- sessions_send returns forbidden for non-spawned sessions when sandboxed
+
+### 5. Session reference resolution (4 tests)
+- sessions_history resolves sessionId to sessionKey
+- sessions_send resolves sessionId to sessionKey
+- sessions_send resolves label to sessionKey
+- sessions_send returns error when label not found
+
+### 6. Main session alias handling (3 tests)
+- sessions_list returns display key for main alias
+- sessions_history handles main alias input
+- sessions_send handles main alias input
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  30 passed (30)
+  Duration  6.62s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/tools/sessions-a2a-integration.test.ts` - Comprehensive A2A session tools tests (430 lines)
+
+## Key Architecture Insights
+
+### Agent-to-Agent (A2A) Policy
+The A2A policy is configured via `cfg.tools.agentToAgent`:
+- `enabled: boolean` - Master switch for cross-agent access
+- `allow: string[]` - Patterns that BOTH requester AND target must match
+
+The `isAllowed(requesterAgentId, targetAgentId)` function:
+1. Same-agent access is always allowed (requester === target)
+2. Cross-agent access requires `enabled=true` AND both agents matching allow patterns
+3. Empty allow list allows all agents; wildcard `"*"` matches any agent
+
+### Session Reference Resolution
+The tools support multiple ways to identify sessions:
+1. **sessionKey**: Direct session key (e.g., "main", "agent:main:discord:group:123")
+2. **sessionId**: UUID-based session identifier (resolved via gateway)
+3. **label**: Named session label (resolved via `sessions.resolve` RPC)
+
+Resolution priority:
+- If input looks like a well-formed key → use directly
+- If input looks like a sessionId → call `sessions.resolve` with `sessionId` param
+- Label resolution → call `sessions.resolve` with `label` param
+
+### Sandbox Visibility
+When `sandboxed=true` and `sessionToolsVisibility="spawned"`:
+- sessions_list only returns sessions spawned by the requester
+- sessions_history/sessions_send return "forbidden" for non-spawned sessions
+
+### Session Kind Classification
+Session kinds are derived from key patterns:
+- "main" alias match → "main"
+- "cron:" prefix → "cron"
+- "hook:" prefix → "hook"
+- "node:" or "node-" prefix → "node"
+- ":group:" or ":channel:" in key, or gatewayKind="group" → "group"
+- Everything else → "other"
+
