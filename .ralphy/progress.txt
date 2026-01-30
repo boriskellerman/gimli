@@ -143,3 +143,87 @@ This task should remain blocked until API credentials are configured. The next s
 1. Obtain an Anthropic API key or Claude setup-token
 2. Configure credentials using `gimli models auth paste-token --provider anthropic`
 3. Re-run `gimli agent --message "test" --thinking high` to verify
+
+---
+
+# Task: Verify systemd/launchd daemon is installed and auto-starts on boot
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the systemd user service for gimli-gateway is properly installed, enabled, and configured to auto-start on boot. Also added comprehensive unit tests for the linger status and service enabled functionality.
+
+## Verification Performed
+
+### 1. Service Status Check
+```bash
+systemctl --user status gimli-gateway.service
+```
+**Result:** Active (running) for ~1h 35min
+- Loaded: `/home/gimli/.config/systemd/user/gimli-gateway.service`
+- Status: `enabled; preset: enabled`
+- Active: `active (running)`
+- Main PID: 198974
+
+### 2. Service Enabled Check
+```bash
+systemctl --user is-enabled gimli-gateway.service
+```
+**Result:** `enabled`
+
+### 3. Linger Status Check (Critical for Boot Auto-Start)
+```bash
+loginctl show-user gimli | grep -i linger
+```
+**Result:** `Linger=yes`
+
+This is crucial because:
+- Without linger, systemd user services only run when a user has an active login session
+- With `Linger=yes`, the user's service manager starts at boot and persists
+- The linger file exists at `/var/lib/systemd/linger/gimli`
+
+### 4. Service Unit Configuration Review
+The service unit at `~/.config/systemd/user/gimli-gateway.service` contains:
+- `WantedBy=default.target` - Ensures service starts with user session
+- `Restart=always` with `RestartSec=5` - Ensures automatic restart on crash
+- Proper PATH and environment variables configured
+
+## Tests Added
+
+Created two new test files with 13 total tests:
+
+### `src/daemon/systemd-linger.test.ts` (8 tests)
+- Returns linger=yes when enabled
+- Returns linger=no when disabled
+- Returns null when user cannot be determined
+- Returns null when loginctl fails
+- Returns null when linger status is unexpected value
+- Uses LOGNAME when USER is not set
+- Handles whitespace in output
+- Handles case-insensitive linger values
+
+### `src/daemon/systemd-enabled.test.ts` (5 tests)
+- Returns true when service is enabled
+- Returns false when service is disabled
+- Uses correct service name from GIMLI_PROFILE
+- Uses default service name when GIMLI_PROFILE is default
+- Uses GIMLI_SYSTEMD_UNIT when provided
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  13 passed (13)
+```
+
+## Files Added
+- `src/daemon/systemd-linger.test.ts` - Tests for linger status reading
+- `src/daemon/systemd-enabled.test.ts` - Tests for service enabled checking
+
+## Key Insights
+The auto-start mechanism on Linux requires two components:
+1. **Service enabled** - `systemctl --user enable` creates symlinks in `~/.config/systemd/user/default.target.wants/`
+2. **User linger enabled** - `loginctl enable-linger` ensures the user's systemd instance starts at boot
+
+Both are properly configured on this system.
