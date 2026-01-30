@@ -1975,3 +1975,124 @@ The `process` tool manages background shell execution sessions created by the `e
 - Unscoped tools (no scopeKey) can see all sessions
 - This enables multi-agent isolation in shared environments
 
+---
+
+# Task: List installed skills with `gimli skills list`
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the `gimli skills list` command works correctly and displays all installed skills with their status (ready/missing). Created comprehensive unit tests (25 tests) to validate the skills list functionality including CLI execution, skill loading, formatting, and workspace skills.
+
+## Manual Verification Performed
+
+### 1. CLI Command Execution
+```bash
+pnpm gimli skills list
+```
+**Result:** Successfully displays all 49 skills with status (6/49 ready):
+- Ready skills: bluebubbles, coding-agent, github, skill-creator, tmux, weather
+- Missing skills show required dependencies not installed
+
+### 2. JSON Output Mode
+```bash
+pnpm gimli skills list --json
+```
+**Result:** Produces valid JSON output with skill metadata including name, description, source, eligibility, and missing requirements.
+
+### 3. Eligible Filter
+```bash
+pnpm gimli skills list --eligible
+```
+**Result:** Shows only the 6 ready-to-use skills.
+
+### 4. Skills Check
+```bash
+pnpm gimli skills check
+```
+**Result:** Shows summary counts (eligible, disabled, blocked, missing requirements).
+
+### 5. Skill Info
+```bash
+pnpm gimli skills info github
+```
+**Result:** Shows detailed information for the github skill including requirements status.
+
+## Tests Added
+
+Created `src/commands/skills-list.test.ts` with 25 tests covering:
+
+### CLI Command Execution (4 tests)
+1. executes gimli skills list without errors
+2. executes gimli skills list with --eligible flag
+3. executes gimli skills check without errors
+4. executes gimli skills info for a bundled skill
+
+### buildWorkspaceSkillStatus (4 tests)
+1. loads bundled skills from repository
+2. categorizes skills by eligibility correctly
+3. populates skill metadata correctly
+4. identifies skill source correctly
+
+### formatSkillsList Output (6 tests)
+1. shows ready/missing status indicators
+2. shows count of ready vs total skills
+3. filters to eligible only when requested
+4. outputs valid JSON when requested
+5. includes gimlihub hint in non-JSON output
+6. excludes gimlihub hint in JSON output
+
+### formatSkillInfo Output (5 tests)
+1. shows skill details
+2. shows requirements status
+3. shows install options for missing skills
+4. returns not found for unknown skill
+5. outputs valid JSON when requested
+
+### formatSkillsCheck Output (4 tests)
+1. shows summary counts
+2. lists ready skills
+3. lists skills with missing requirements
+4. outputs valid JSON summary when requested
+
+### Workspace Skills Loading (2 tests)
+1. loads skills from workspace skills directory
+2. handles missing workspace skills directory gracefully
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  25 passed (25)
+  Duration  44.09s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/commands/skills-list.test.ts` - Comprehensive skills list command tests (469 lines)
+
+## Key Architecture Insights
+
+### Skills System
+- Skills are markdown files (`SKILL.md`) with YAML frontmatter containing metadata
+- Skills can come from three sources:
+  - `gimli-bundled`: Bundled with Gimli in the `skills/` directory
+  - `gimli-workspace`: User workspace at `~/gimli/skills/`
+  - `gimli-managed`: Managed skills directory
+- Each skill has requirements (bins, anyBins, env, config, os) that determine eligibility
+- Skills are marked "ready" when all requirements are satisfied
+
+### Skill Status Report
+The `buildWorkspaceSkillStatus()` function returns a comprehensive report:
+- `workspaceDir`: Path to workspace skills
+- `managedSkillsDir`: Path to managed skills
+- `skills`: Array of skill entries with:
+  - name, description, source, filePath
+  - emoji, homepage, primaryEnv
+  - always, disabled, blockedByAllowlist, eligible
+  - requirements and missing arrays
+  - configChecks and install options
+
