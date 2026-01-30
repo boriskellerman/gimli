@@ -2198,3 +2198,107 @@ Skills can specify requirements in their YAML frontmatter metadata:
 
 Later sources override earlier ones when skills have the same name.
 
+---
+
+# Task: Test workspace skill installation from ~/gimli/skills/
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (29 tests) to verify that workspace skills can be properly installed, loaded, and filtered from the workspace skills directory (`<workspace>/skills/`). The tests validate skill loading, precedence, filtering, snapshot generation, and the `installSkill` function.
+
+## Test Coverage
+
+### 1. Loading skills from workspace skills directory (5 tests)
+- Loads skill installed in workspace skills directory
+- Loads multiple skills from workspace skills directory
+- Workspace skill overrides managed skill with same name
+- Workspace skill overrides bundled skill with same name
+- Loads skill with metadata and requirements from workspace
+
+### 2. Workspace skill filtering (6 tests)
+- Includes workspace skill when requirements are met
+- Excludes workspace skill when required binary is missing
+- Excludes workspace skill when required env var is missing
+- Includes workspace skill with always=true despite missing requirements
+- Respects disabled flag for workspace skills
+- Workspace skills are not affected by bundled allowlist
+
+### 3. Workspace skill snapshot and prompt generation (3 tests)
+- Includes workspace skill in snapshot
+- Includes workspace skill in prompt
+- Filters workspace skills by skillFilter parameter
+
+### 4. Workspace skill file path resolution (1 test)
+- Resolves correct file path for workspace skill
+
+### 5. Workspace skill invocation policy (3 tests)
+- Loads user-invocable skill from workspace
+- Loads skill with model invocation disabled
+- Excludes model-disabled skills from prompt but includes in snapshot
+
+### 6. installSkill function (4 tests)
+- Returns error when skill not found
+- Returns error when installer not found
+- Finds skill with install spec by id
+- Handles download install spec with missing url
+
+### 7. Workspace skills directory creation (2 tests)
+- Handles missing workspace skills directory gracefully
+- Loads skills after directory is created
+
+### 8. Workspace skill with special characters (3 tests)
+- Handles skill name with underscores
+- Handles skill name with hyphens
+- Handles skill with unicode content in body
+
+### 9. Workspace skill precedence chain (2 tests)
+- Follows correct precedence: extra < bundled < managed < workspace
+- Managed overrides bundled when workspace is absent
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  29 passed (29)
+  Duration  6.65s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/skills.workspace-skill-installation.test.ts` - Comprehensive workspace skill installation tests (680 lines)
+
+## Key Architecture Insights
+
+### Workspace Skills Directory Structure
+- Workspace skills live in `<workspaceDir>/skills/<skill-name>/SKILL.md`
+- Each skill is a directory containing a `SKILL.md` file with YAML frontmatter
+- Skills can include additional files (scripts, templates) alongside SKILL.md
+
+### Skill Precedence System
+Skills from multiple sources are merged by name with this precedence:
+1. Extra dirs (lowest) - from `config.skills.load.extraDirs`
+2. Bundled skills - from `skills/` in package
+3. Managed skills - from `~/.gimli/skills/`
+4. Workspace skills (highest) - from `<workspace>/skills/`
+
+This means workspace skills can override any bundled or managed skill by using the same name.
+
+### installSkill Function
+The `installSkill` function supports multiple installer types:
+- `brew`: Homebrew formula installation
+- `node`: npm/pnpm/yarn/bun global package installation
+- `go`: Go module installation
+- `uv`: Python UV tool installation
+- `download`: Direct download with optional archive extraction
+
+Each skill can define multiple install options in its `metadata.install` array.
+
+### Skill Invocation Policies
+Skills can control their invocation behavior through frontmatter:
+- `user-invocable: true/false` - Whether users can invoke via slash command
+- `disable-model-invocation: true/false` - Whether to hide from model's prompt
+
