@@ -630,3 +630,66 @@ This verification confirms Gimli's security-first approach to session sandboxing
 - **Agent override support**: Per-agent security policies can be stricter than global
 - **Tool restrictions**: Sandboxed sessions have limited tool access (no browser, canvas, cron, channels)
 
+---
+
+# Task: Run `gimli doctor` security checks and address any warnings
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Ran `gimli doctor` and `gimli security audit --deep` to verify the security posture of the Gimli installation. All security checks pass with no critical issues. The warnings present are informational and expected for the current deployment configuration.
+
+## Verification Performed
+
+### 1. Doctor Command
+```bash
+pnpm gimli doctor
+```
+**Results:**
+- **Security**: No channel security warnings detected ✅
+- **Gateway**: Binds to loopback only (secure) ✅
+- **State integrity**: Minor warnings about missing transcript files (non-security)
+- **Gateway runtime**: Using NVM-managed Node (recommended to use system Node, but not a security issue)
+
+### 2. Deep Security Audit
+```bash
+pnpm gimli security audit --deep
+```
+**Results:**
+- **0 critical issues** ✅
+- **1 warning**: `gateway.trusted_proxies_missing` - Expected for loopback-only deployments
+- **1 info**: Attack surface summary showing secure defaults
+
+### 3. Doctor Fix Applied
+```bash
+pnpm gimli doctor --fix
+```
+- Config backup created: `~/.gimli/gimli.json.bak`
+- Config updated: `~/.gimli/gimli.json`
+
+## Security Audit Details
+
+### Warnings Analyzed
+
+| Issue | Severity | Status | Notes |
+|-------|----------|--------|-------|
+| trusted_proxies_missing | warn | Expected | Gateway binds to loopback only; reverse proxy config not needed |
+| attack_surface | info | Good | No open groups, elevated tools enabled (expected), hooks disabled |
+
+### Security Tests Verified
+- `src/commands/doctor-security.test.ts`: 4/4 tests passing
+- `src/security/credentials-permissions.test.ts`: 11/11 tests passing
+
+## Conclusion
+The Gimli installation has a secure configuration:
+- Gateway binds to loopback only (127.0.0.1 and ::1)
+- No channels exposed to network
+- DM pairing policy enabled by default
+- Credentials directory has proper permissions (700)
+- Sandbox mode ready for non-main sessions
+
+No code changes were required as all security configurations are already correct.
+
+
