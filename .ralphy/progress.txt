@@ -1445,3 +1445,106 @@ Session kinds are derived from key patterns:
 - ":group:" or ":channel:" in key, or gatewayKind="group" → "group"
 - Everything else → "other"
 
+---
+
+# Task: Test WebChat connection via Gateway
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (20 tests) to verify WebChat connection functionality via the Gateway. The tests validate client identification, authentication, chat operations, concurrent connections, event broadcasting, and connection lifecycle.
+
+## Test Coverage
+
+### 1. WebChat Client Identification (3 tests)
+- webchat client connects with WEBCHAT mode
+- webchat client connects with WEBCHAT client id
+- webchat client connects with control-ui id and webchat mode
+
+### 2. WebChat Client Authentication (2 tests)
+- webchat client authenticates with valid token
+- webchat client rejected with invalid token
+
+### 3. WebChat chat.send Functionality (3 tests)
+- webchat client can send chat message
+- webchat client can send message to subagent session
+- webchat client can send message with thinking directive
+
+### 4. WebChat chat.history Functionality (2 tests)
+- webchat client can retrieve chat history
+- webchat client can retrieve history with limit
+
+### 5. WebChat chat.abort Functionality (2 tests)
+- webchat client can abort chat run
+- webchat client can abort specific run by id
+
+### 6. WebChat Multiple Concurrent Connections (2 tests)
+- multiple webchat clients can connect simultaneously
+- multiple webchat clients can send messages independently
+
+### 7. WebChat Event Broadcasting (1 test)
+- webchat client receives chat events
+
+### 8. WebChat sessions.list Functionality (1 test)
+- webchat client can list sessions
+
+### 9. WebChat Connection Lifecycle (2 tests)
+- webchat client can disconnect and reconnect
+- webchat hello-ok contains expected fields
+
+### 10. WebChat Image Attachments (2 tests)
+- webchat client can send message with image attachment
+- webchat client can send image-only message
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  20 passed (20)
+  Duration  24.89s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/webchat-connection.test.ts` - Comprehensive WebChat connection unit tests (393 lines)
+
+## Key Architecture Insights
+
+### WebChat Protocol Flow
+1. **Connection**: WebSocket opens to gateway port (e.g., ws://127.0.0.1:18789)
+2. **Challenge**: Server sends `connect.challenge` event with nonce
+3. **Connect Request**: Client sends `connect` RPC with:
+   - Protocol version
+   - Client info (id, version, platform, mode=WEBCHAT)
+   - Auth credentials (token or password)
+   - Device identity (optional)
+4. **Hello-OK Response**: Server responds with:
+   - Protocol version
+   - Server info (version, commit, host, connId)
+   - Features (available methods and events)
+   - Auth confirmation (role, scopes)
+   - Policy limits (maxPayload, tickInterval)
+
+### WebChat Client Modes
+- `GATEWAY_CLIENT_MODES.WEBCHAT` = "webchat"
+- Client IDs: `WEBCHAT_UI`, `WEBCHAT`, `CONTROL_UI`
+
+### Chat RPC Methods
+- `chat.send`: Send message with optional thinking directive, attachments
+- `chat.history`: Retrieve conversation history with optional limit
+- `chat.abort`: Cancel in-progress chat run
+- `sessions.list`: List all sessions
+
+### Event Broadcasting
+- Chat events use state machine: delta → final | aborted | error
+- All connected WebChat clients receive broadcasts for their sessions
+
+## Security Implications
+- WebChat clients authenticate via token or password
+- Invalid tokens are rejected with appropriate error messages
+- Multiple concurrent connections are supported with instance isolation
+- Session-based isolation ensures clients only access their own data
+
