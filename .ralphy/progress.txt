@@ -289,3 +289,91 @@ New test file passes linting with 0 errors.
 - Multiple concurrent connections are supported
 - The gateway uses protocol version defined in `src/gateway/protocol/index.ts`
 
+---
+
+# Task: Verify Gateway binds to loopback only by default (not 0.0.0.0)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the Gateway binds to loopback (127.0.0.1 and ::1) by default and never silently falls back to 0.0.0.0. Added comprehensive unit tests to validate this security-critical behavior.
+
+## Live Verification
+```bash
+ss -ltnp | grep 18789
+```
+**Result:**
+- Listening on `127.0.0.1:18789` (IPv4 loopback)
+- Listening on `[::1]:18789` (IPv6 loopback)
+- NOT listening on `0.0.0.0` (all interfaces)
+
+## Code Analysis
+
+### Security-First Binding Logic (`src/gateway/net.ts:96-148`)
+The `resolveGatewayBindHost` function implements these security defaults:
+
+1. **Default mode is `"loopback"`** (line 100): `const mode = bind ?? "loopback"`
+2. **Never falls back to 0.0.0.0** - All fallback paths return loopback addresses
+3. **Only `mode === "lan"` uses 0.0.0.0** - Requires explicit opt-in
+4. **Security warnings** logged when binding to all interfaces
+
+### Bind Mode Behavior
+| Mode | Bind Address | Fallback |
+|------|--------------|----------|
+| `undefined` | 127.0.0.1 | ::1 → 127.0.0.1 |
+| `loopback` | 127.0.0.1 | ::1 → 127.0.0.1 |
+| `lan` | 0.0.0.0 | (none - explicit) |
+| `tailnet` | Tailnet IP | 127.0.0.1 |
+| `auto` | 127.0.0.1 | 127.0.0.1 |
+| `custom` | Custom IP | 127.0.0.1 |
+
+## Tests Added
+
+Extended `src/gateway/net.test.ts` with 18 new tests:
+
+### `isLoopbackAddress` (7 tests)
+- Returns true for 127.0.0.1
+- Returns true for other 127.x.x.x addresses
+- Returns true for IPv6 loopback ::1
+- Returns true for IPv4-mapped IPv6 loopback
+- Returns false for 0.0.0.0
+- Returns false for LAN addresses
+- Returns false for undefined
+
+### `isLoopbackHost` (2 tests)
+- Returns true for loopback addresses
+- Returns false for non-loopback addresses
+
+### `resolveGatewayBindHost - Security Defaults` (9 tests)
+- defaults to loopback when bind mode is undefined
+- defaults to loopback when bind mode is 'loopback'
+- never falls back to 0.0.0.0 for 'loopback' mode
+- uses 0.0.0.0 only when 'lan' mode is explicitly set
+- falls back to loopback for 'tailnet' mode when tailnet unavailable
+- falls back to loopback for 'auto' mode
+- falls back to loopback for 'custom' mode with empty host
+- falls back to loopback for 'custom' mode with undefined host
+- falls back to loopback for unknown bind mode
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  21 passed (21)
+  Duration  4.85s
+```
+
+## Linting
+New test additions pass linting with 0 errors.
+
+## Files Modified
+- `src/gateway/net.test.ts` - Added 18 new tests for loopback binding verification
+
+## Security Implications
+This verification confirms that Gimli follows security-first principles:
+- **Default secure**: Out-of-the-box configuration binds only to loopback
+- **Explicit opt-in required**: Network exposure requires setting `bind="lan"`
+- **No silent fallbacks**: Failed bindings never silently fall back to 0.0.0.0
+- **Warning logged**: When `lan` mode is used, a security warning is logged
+
