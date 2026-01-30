@@ -62,3 +62,84 @@ Verified that Node.js v22.22.0 is installed, which meets the ≥22 requirement.
 
 ## Result
 No installation was needed - the system already has Node.js 22+ installed and configured correctly.
+
+---
+
+# Task: Test `gimli agent --message "test" --thinking high` completes without errors
+
+## Status: BLOCKED - Missing Anthropic API Credentials
+
+## Date: 2026-01-30
+
+## Summary
+The command cannot complete successfully because no Anthropic API key or setup-token is configured for the main agent. This is a **prerequisite/configuration issue**, not a code bug.
+
+## Testing Performed
+
+### 1. Direct Command Execution
+```bash
+pnpm gimli agent --agent main --message "test" --thinking high
+```
+
+**Result:** Exit code 1
+**Error:**
+```
+FailoverError: No API key found for provider "anthropic".
+Auth store: /home/gimli/.gimli/agents/main/agent/auth-profiles.json (agentDir: /home/gimli/.gimli/agents/main/agent).
+Configure auth for this agent (gimli agents add <id>) or copy auth-profiles.json from the main agentDir.
+```
+
+### 2. Unit Test Verification
+Ran all agent command unit tests:
+```bash
+pnpm vitest run src/commands/agent.test.ts
+```
+
+**Result:** All 16 tests passed, including:
+- "persists thinking and verbose overrides" - tests `--thinking high` parameter
+- "defaults thinking to low for reasoning-capable models"
+
+### 3. Configuration Check
+- `~/.gimli/credentials/` directory is empty
+- `ANTHROPIC_API_KEY` environment variable is not set
+- No auth-profiles.json exists for the main agent
+
+## Root Cause
+The Gimli installation completed successfully (gateway running, systemd service active), but model provider authentication was not configured during onboarding.
+
+## Resolution Required
+Configure Anthropic API credentials using one of these methods:
+
+**Option A: API Key**
+```bash
+gimli onboard --anthropic-api-key "$ANTHROPIC_API_KEY"
+# or
+gimli models auth paste-token --provider anthropic
+```
+
+**Option B: Claude Setup Token**
+```bash
+# On a machine with Claude CLI installed:
+claude setup-token
+
+# Then on gateway host:
+gimli models auth paste-token --provider anthropic
+```
+
+## Code Verification
+The agent command code itself works correctly:
+- Command parsing and option handling: ✅
+- Thinking level parameter (`--thinking high`): ✅
+- Unit tests: 16/16 passing
+- The error occurs at the model authentication layer, not the command layer
+
+## Files Examined
+- `src/commands/agent.ts` - Agent command implementation
+- `src/commands/agent.test.ts` - 16 passing unit tests
+- `docs/providers/anthropic.md` - Authentication documentation
+
+## Recommendation
+This task should remain blocked until API credentials are configured. The next steps are:
+1. Obtain an Anthropic API key or Claude setup-token
+2. Configure credentials using `gimli models auth paste-token --provider anthropic`
+3. Re-run `gimli agent --message "test" --thinking high` to verify
