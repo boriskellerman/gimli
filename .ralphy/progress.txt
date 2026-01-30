@@ -1141,3 +1141,85 @@ Session persistence maintains Gimli's security-first principles:
 - Session keys are prefixed with agent ID for isolation
 - Sandbox isolation decisions are persisted per-session
 
+---
+
+# Task: Test `/status`, `/new`, `/reset`, `/compact` chat commands
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (23 tests) to verify the behavior of the four core chat commands: `/status`, `/new`, `/reset`, and `/compact`. The tests validate command handling, authorization, session reset triggers, and edge cases across multiple messaging surfaces.
+
+## Test Coverage
+
+### `/status` Command Tests (4 tests)
+1. **returns status information for /status command** - Verifies status output includes Gimli version and session info
+2. **includes session key in status output** - Tests custom session key handling
+3. **includes model info in status output** - Tests provider/model display
+4. **blocks /status from unauthorized sender** - Verifies silent ignore for unauthorized users
+
+### `/new` Command Tests (3 tests)
+1. **triggers hook for /new command** - Verifies internal hook is called
+2. **triggers hook for /new with arguments** - Tests `/new take notes` style usage
+3. **accepts /new with model hint** - Tests `/new claude summarize this` style usage
+
+### `/reset` Command Tests (2 tests)
+1. **triggers hook for /reset command** - Verifies internal hook is called
+2. **triggers hook for /reset with arguments** - Tests `/reset clean slate` style usage
+
+### `initSessionState` Reset Trigger Tests (5 tests)
+1. **/new creates new session for authorized sender** - Verifies new session ID is generated
+2. **/new with arguments strips command and preserves arguments** - Tests body stripping logic
+3. **/reset creates new session for authorized sender** - Verifies reset creates new session
+4. **/new is case-insensitive** - Tests `/NEW` works same as `/new`
+5. **unauthorized sender cannot reset session** - Verifies security enforcement
+
+### `/compact` Command Tests (3 tests)
+1. **returns unavailable message when session id is missing** - Tests graceful error handling
+2. **blocks /compact from unauthorized sender** - Verifies authorization check
+3. **accepts /compact with custom instructions** - Tests `/compact focus on key decisions` style usage
+
+### Cross-Channel Authorization Tests (3 tests)
+1. **/status respects channel allowFrom** - Tests Telegram channel authorization
+2. **commands work on Discord surface** - Verifies Discord surface support
+3. **commands work on Slack surface** - Verifies Slack surface support
+
+### Edge Case Tests (3 tests)
+1. **handles /status with extra whitespace** - Tests `  /status  ` parsing
+2. **non-command messages continue to agent** - Verifies passthrough behavior
+3. **unknown slash commands continue to agent** - Tests `/unknowncommand` handling
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  23 passed (23)
+  Duration  ~15s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/auto-reply/reply/chat-commands.test.ts` - Comprehensive chat commands unit tests (380 lines)
+
+## Key Findings
+
+### Command Architecture
+- Commands are registered in `src/auto-reply/commands-registry.data.ts`
+- `/status` is handled by `handleStatusCommand` in `commands-info.ts`
+- `/new` and `/reset` are session reset triggers handled in `session.ts`
+- `/compact` is handled by `handleCompactCommand` in `commands-compact.ts`
+
+### Reset Trigger Behavior
+- Reset triggers (`/new`, `/reset`) are case-insensitive
+- Only authorized senders can trigger session resets
+- Arguments after reset triggers are preserved in `bodyStripped`
+- Session ID changes on reset, but session key remains the same
+
+### Authorization Flow
+- Commands check `isAuthorizedSender` from `buildCommandContext`
+- Unauthorized senders receive no reply (silent ignore)
+- Authorization respects per-channel `allowFrom` configuration
+
