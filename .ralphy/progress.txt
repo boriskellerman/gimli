@@ -227,3 +227,65 @@ The auto-start mechanism on Linux requires two components:
 2. **User linger enabled** - `loginctl enable-linger` ensures the user's systemd instance starts at boot
 
 Both are properly configured on this system.
+
+---
+
+# Task: Test the Gateway WebSocket is accessible locally (ws://127.0.0.1:18789)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the Gateway WebSocket is accessible locally on ws://127.0.0.1:18789. The gateway accepts WebSocket upgrade requests and can handle multiple concurrent connections.
+
+## Manual Verification Performed
+
+### 1. Gateway Port Check
+```bash
+ss -ltnp | grep 18789
+```
+**Result:** Gateway listening on 127.0.0.1:18789 and [::1]:18789 (loopback only - secure!)
+
+### 2. WebSocket Upgrade Test
+Tested WebSocket upgrade via raw HTTP request:
+- Status: 101 (Switching Protocols)
+- Headers received: `upgrade: websocket`, `connection: Upgrade`, `sec-websocket-accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=`
+
+### 3. Connection Verification
+Successfully established WebSocket connection and verified:
+- Connection opens correctly
+- Messages can be sent and received
+- Multiple concurrent connections are supported
+- Connections close gracefully
+
+## Tests Added
+
+Created `src/gateway/websocket-accessibility.test.ts` with 6 unit tests:
+
+1. **accepts WebSocket upgrade on loopback address** - Verifies HTTP 101 upgrade response with correct headers
+2. **WebSocket connection opens on 127.0.0.1** - Confirms connection establishment on loopback
+3. **multiple concurrent WebSocket connections on loopback** - Tests 3 concurrent connections
+4. **WebSocket can send and receive messages** - Tests bidirectional message flow
+5. **WebSocket closes gracefully** - Verifies clean connection termination
+6. **WebSocket protocol version is current** - Verifies PROTOCOL_VERSION constant
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  6 passed (6)
+  Duration  5.39s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/websocket-accessibility.test.ts` - WebSocket accessibility unit tests
+
+## Key Findings
+- Gateway correctly binds to loopback only (127.0.0.1 and ::1), not 0.0.0.0
+- WebSocket upgrade handshake follows RFC 6455 correctly
+- Multiple concurrent connections are supported
+- The gateway uses protocol version defined in `src/gateway/protocol/index.ts`
+
