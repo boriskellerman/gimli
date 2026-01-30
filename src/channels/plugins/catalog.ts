@@ -50,7 +50,6 @@ type ExternalCatalogEntry = {
   name?: string;
   version?: string;
   description?: string;
-  gimli?: GimliPackageManifest;
   [LEGACY_MANIFEST_KEY]?: GimliPackageManifest;
 };
 

@@ -21,7 +21,6 @@ type PackageManifest = {
   name?: string;
   version?: string;
   dependencies?: Record<string, string>;
-  gimli?: { extensions?: string[] };
   [LEGACY_MANIFEST_KEY]?: { extensions?: string[] };
 };
 
@@ -55,7 +54,7 @@ function safeFileName(input: string): string {
 }
 
 async function ensureGimliExtensions(manifest: PackageManifest) {
-  const extensions = manifest.gimli?.extensions ?? manifest[LEGACY_MANIFEST_KEY]?.extensions;
+  const extensions = manifest[LEGACY_MANIFEST_KEY]?.extensions;
   if (!Array.isArray(extensions)) {
     throw new Error("package.json missing gimli.extensions");
   }

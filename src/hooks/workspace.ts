@@ -22,7 +22,6 @@ import type {
 
 type HookPackageManifest = {
   name?: string;
-  gimli?: { hooks?: string[] };
   [LEGACY_MANIFEST_KEY]?: { hooks?: string[] };
 };
 
@@ -46,7 +45,7 @@ function readHookPackageManifest(dir: string): HookPackageManifest | null {
 }
 
 function resolvePackageHooks(manifest: HookPackageManifest): string[] {
-  const raw = manifest.gimli?.hooks ?? manifest[LEGACY_MANIFEST_KEY]?.hooks;
+  const raw = manifest[LEGACY_MANIFEST_KEY]?.hooks;
   if (!Array.isArray(raw)) return [];
   return raw.map((entry) => (typeof entry === "string" ? entry.trim() : "")).filter(Boolean);
 }

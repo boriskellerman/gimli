@@ -23,7 +23,6 @@ type HookPackageManifest = {
   name?: string;
   version?: string;
   dependencies?: Record<string, string>;
-  gimli?: { hooks?: string[] };
   [LEGACY_MANIFEST_KEY]?: { hooks?: string[] };
 };
 
@@ -57,7 +56,7 @@ export function resolveHookInstallDir(hookId: string, hooksDir?: string): string
 }
 
 async function ensureGimliHooks(manifest: HookPackageManifest) {
-  const hooks = manifest.gimli?.hooks ?? manifest[LEGACY_MANIFEST_KEY]?.hooks;
+  const hooks = manifest[LEGACY_MANIFEST_KEY]?.hooks;
   if (!Array.isArray(hooks)) {
     throw new Error("package.json missing gimli.hooks");
   }
