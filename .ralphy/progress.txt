@@ -1063,3 +1063,81 @@ Session keys follow a hierarchical format: `agent:{agentId}:{rest}`
 - Per-session metadata preservation
 - Multi-agent support with agent-prefixed keys
 
+---
+
+# Task: Verify session persistence across gateway restarts
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that session state correctly persists across gateway restarts by implementing comprehensive unit tests (9 tests) that simulate gateway restart scenarios and validate session data integrity.
+
+## Implementation
+
+### Test Coverage (`src/gateway/session-persistence.test.ts`)
+
+Created 9 comprehensive tests covering:
+
+1. **sessions persist to disk and survive gateway restart** - Tests that session metadata (tokens, thinking level, verbose level, channels) survives a complete gateway restart
+2. **session patches persist across gateway restart** - Tests that patches made via `sessions.patch` RPC are durably stored and available after restart
+3. **session reset creates new session ID that persists** - Tests that `sessions.reset` creates a new sessionId that survives restart
+4. **session deletion persists across gateway restart** - Tests that `sessions.delete` permanently removes sessions across restarts
+5. **multiple sessions persist independently across restart** - Tests that multiple sessions across different channels (Telegram, Discord, Slack, WhatsApp) all persist correctly
+6. **session store survives corrupt file gracefully on restart** - Tests graceful degradation when session store file is corrupted (gateway returns empty store, doesn't crash)
+7. **session delivery context persists across restart** - Tests that delivery routing info (channel, to, accountId, threadId) persists
+8. **session token usage accumulates and persists** - Tests that inputTokens, outputTokens, totalTokens counts persist
+9. **spawned session relationships persist across restart** - Tests that spawnedBy relationships for subagent sessions persist
+
+### Test Methodology
+
+Each test follows this pattern:
+1. Create session store with test data via `writeSessionStore()`
+2. Connect to gateway and verify initial state via WebSocket RPC
+3. Close connection, restart gateway (server.close() + startGatewayServer())
+4. Reconnect and verify session data survived the restart
+
+### Key Persistence Mechanisms Validated
+
+| Data Type | Persisted In | Verification |
+|-----------|--------------|--------------|
+| Session metadata | `sessions.json` | Survives restart |
+| Token counts | `sessions.json` | Accumulates correctly |
+| Thinking/verbose levels | `sessions.json` | Patches persist |
+| Delivery context | `sessions.json` | Routing info intact |
+| Channel info | `sessions.json` | Per-channel sessions work |
+| Spawned relationships | `sessions.json` | Subagent hierarchy maintained |
+| Transcript files | `*.jsonl` | Referenced by sessionId |
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  9 passed (9)
+  Duration  ~20s
+```
+
+## Linting
+Test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/session-persistence.test.ts` - Comprehensive session persistence unit tests (392 lines)
+
+## Architecture Insights
+
+Session persistence in Gimli is robust due to:
+
+1. **Immediate disk writes**: Sessions are saved to disk after each modification via `saveSessionStore()`
+2. **File locking**: `withSessionStoreLock()` prevents concurrent write corruption
+3. **Atomic writes**: Temp file + rename ensures consistency on Unix
+4. **TTL cache**: 45-second cache with mtime validation for performance
+5. **Graceful degradation**: Corrupt files are treated as empty (gateway doesn't crash)
+
+## Security Implications
+
+Session persistence maintains Gimli's security-first principles:
+- Session files use 0o600 permissions (owner read/write only)
+- Credentials are stored separately from session metadata
+- Session keys are prefixed with agent ID for isolation
+- Sandbox isolation decisions are persisted per-session
+
