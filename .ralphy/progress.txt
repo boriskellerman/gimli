@@ -692,4 +692,132 @@ The Gimli installation has a secure configuration:
 
 No code changes were required as all security configurations are already correct.
 
+---
+
+# Task: Review `~/.gimli/gimli.json` for any overly permissive settings
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Reviewed the current `~/.gimli/gimli.json` configuration for overly permissive settings. The configuration is properly hardened with secure defaults. Created comprehensive unit tests (31 tests) to validate security configuration patterns and detect overly permissive settings.
+
+## Configuration Review
+
+### Current Settings Analysis
+
+| Setting | Value | Security Status |
+|---------|-------|-----------------|
+| `gateway.bind` | `"loopback"` | ✅ Secure - only localhost |
+| `gateway.mode` | `"local"` | ✅ Secure - local mode |
+| `gateway.auth.mode` | `"token"` | ✅ Secure - token auth enabled |
+| `gateway.auth.token` | 48-char hex | ✅ Secure - adequate length |
+| `gateway.tailscale.mode` | `"off"` | ✅ Secure - no tailscale exposure |
+| `agents.defaults.workspace` | `/home/gimli/gimli` | ✅ Local path |
+| `agents.defaults.compaction.mode` | `"safeguard"` | ✅ Safeguard mode preserves context |
+| `messages.ackReactionScope` | `"group-mentions"` | ✅ Limited scope |
+| `commands.native` | `"auto"` | ℹ️ Info - auto-detection |
+| `commands.nativeSkills` | `"auto"` | ℹ️ Info - auto-detection |
+| No `channels` section | - | ✅ Secure - no channels exposed |
+
+### Security Assessment
+- **No overly permissive settings detected**
+- Gateway binds to loopback only (127.0.0.1)
+- Token authentication is enabled with adequate token length
+- No channels are exposed to the network
+- Tailscale exposure is disabled
+- No open group policies configured
+
+## Tests Added
+
+Created `src/config/config-security-review.test.ts` with 31 tests covering:
+
+### Gateway Security Settings (10 tests)
+**Bind address security (3 tests):**
+1. accepts loopback bind (secure default)
+2. accepts lan bind with explicit config (requires user awareness)
+3. defaults bind to loopback when not specified
+
+**Authentication mode security (3 tests):**
+1. accepts token auth (recommended)
+2. accepts password auth (valid but less recommended than token)
+3. defaults to token auth when no auth config specified (secure default)
+
+**Tailscale mode security (4 tests):**
+1. accepts tailscale off (secure default)
+2. accepts tailscale serve mode (requires user awareness)
+3. accepts tailscale funnel mode (most permissive - exposes to internet)
+
+### Channel Security Settings (5 tests)
+**groupPolicy security (4 tests):**
+1. accepts allowlist groupPolicy (secure default)
+2. accepts disabled groupPolicy (most restrictive)
+3. accepts open groupPolicy (permissive - requires user awareness)
+4. defaults groupPolicy to allowlist when not specified
+
+**dmPolicy security (1 test):**
+1. defaults dmPolicy to pairing for all channels
+
+### Tools Security Settings (4 tests)
+**Elevated tools security (2 tests):**
+1. accepts elevated tools enabled (default - user should be aware)
+2. accepts elevated tools disabled (more restrictive)
+
+**Tool allow/deny policies (2 tests):**
+1. accepts explicit deny list for dangerous tools
+2. accepts explicit allow list for restricted access
+
+### Sandbox Security Settings (3 tests)
+1. accepts sandbox mode off (default - main session trusted)
+2. accepts sandbox mode non-main (recommended for multi-user)
+3. accepts sandbox mode all (most restrictive)
+
+### Hooks Security Settings (2 tests)
+1. accepts hooks with adequate token length
+2. accepts hooks disabled (secure default)
+
+### Agent Security Settings (3 tests)
+**Workspace isolation (1 test):**
+1. accepts explicit workspace path
+
+**Concurrency limits (2 tests):**
+1. accepts reasonable maxConcurrent limit
+2. accepts subagent concurrency limit
+
+### Secure Configuration Patterns (4 tests)
+1. validates a production-ready secure configuration
+2. detects overly permissive settings in a config
+3. reports secure surface for restrictive config
+4. flags open groupPolicy with elevated tools as critical
+5. does not flag allowlist groupPolicy
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  31 passed (31)
+  Duration  ~14s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/config/config-security-review.test.ts` - Comprehensive security config review tests
+
+## Key Findings
+The current `~/.gimli/gimli.json` configuration follows Gimli's security-first principles:
+- **Default secure**: All settings follow least-privilege defaults
+- **No channel exposure**: No messaging channels configured (prevents unauthorized access)
+- **Authentication enforced**: Token-based gateway authentication with adequate token length
+- **Network isolation**: Gateway bound to loopback only
+- **Sandboxing ready**: Default sandbox mode available for non-main sessions
+
+## Recommendations (for future reference)
+When configuring channels in production:
+1. Use `dmPolicy: "pairing"` (default) for DM access control
+2. Use `groupPolicy: "allowlist"` (default) for group access control
+3. Enable `sandbox.mode: "non-main"` for multi-user deployments
+4. Keep `tools.elevated.enabled: false` if not needed
+5. Use environment variables for sensitive credentials
 
