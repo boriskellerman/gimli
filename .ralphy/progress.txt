@@ -377,3 +377,77 @@ This verification confirms that Gimli follows security-first principles:
 - **No silent fallbacks**: Failed bindings never silently fall back to 0.0.0.0
 - **Warning logged**: When `lan` mode is used, a security warning is logged
 
+---
+
+# Task: Confirm DM pairing policy is enabled (dmPolicy="pairing")
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that DM pairing policy defaults to "pairing" for all messaging channels. This is a security-first default that requires explicit approval before accepting DMs from unknown senders. Created comprehensive unit tests (22 tests) to validate this behavior.
+
+## Verification Performed
+
+### 1. Schema Analysis
+Reviewed the Zod schema files to confirm `dmPolicy` defaults:
+- `src/config/zod-schema.providers-core.ts`: Telegram, Signal, iMessage, BlueBubbles, MSTeams all default to `"pairing"`
+- `src/config/zod-schema.providers-whatsapp.ts`: WhatsApp defaults to `"pairing"`
+- Extensions (Mattermost, Nextcloud-Talk, Line) also default to `"pairing"`
+
+### 2. Current Configuration Check
+Reviewed `~/.gimli/gimli.json`:
+- No `channels` section configured (no channels exposed)
+- Gateway bound to loopback (secure)
+- Gateway auth token configured
+
+### 3. Unit Tests Created
+Created `src/config/dm-policy-defaults.test.ts` with 22 tests covering:
+
+**DM policy defaults to pairing (6 tests):**
+- Telegram defaults to pairing
+- WhatsApp defaults to pairing
+- Signal defaults to pairing
+- iMessage defaults to pairing
+- BlueBubbles defaults to pairing
+- MS Teams defaults to pairing
+
+**DM policy security validation (8 tests):**
+- Rejects dmPolicy="open" without allowFrom "*" for Telegram, WhatsApp, Signal, iMessage
+- Accepts dmPolicy="open" with allowFrom "*" for all channels
+
+**DM policy allowlist mode (2 tests):**
+- Accepts dmPolicy="allowlist" with explicit entries
+
+**DM policy disabled mode (2 tests):**
+- Accepts dmPolicy="disabled" for Telegram and WhatsApp
+
+**DM policy type safety (2 tests):**
+- Rejects invalid dmPolicy values
+- Validates DmPolicy enum values
+
+**Empty config security defaults (2 tests):**
+- Empty config has no channels (secure by default)
+- Gateway defaults to loopback binding
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  22 passed (22)
+  Duration  8.87s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/config/dm-policy-defaults.test.ts` - Comprehensive DM policy verification tests
+
+## Security Implications
+This verification confirms Gimli's security-first approach to DM access:
+- **Default secure**: All channels default to `dmPolicy="pairing"` which requires pairing codes for unknown senders
+- **Explicit opt-in for open**: `dmPolicy="open"` requires `allowFrom: ["*"]` to prevent accidental exposure
+- **Schema-level enforcement**: Zod schemas enforce these defaults at config parsing time
+- **No channel exposure by default**: Empty config has no channels configured
+
