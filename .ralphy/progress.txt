@@ -1548,3 +1548,110 @@ New test file passes linting with 0 errors.
 - Multiple concurrent connections are supported with instance isolation
 - Session-based isolation ensures clients only access their own data
 
+---
+
+# Task: Test `bash` tool execution (should run on host for main session)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (34 tests) to verify that the bash tool executes commands correctly on the gateway host for main sessions. The tests validate session identification, host execution vs sandbox distinction, security/approval workflows, PATH handling, exit codes, timeout behavior, and elevated command execution.
+
+## Test Coverage
+
+### 1. Main Session Runs on Gateway Host (5 tests)
+- Executes command on gateway host when session is main
+- Executes complex commands on gateway host for main session
+- Can read environment variables on gateway host for main session
+- Can access filesystem on gateway host for main session
+- Respects workdir parameter on gateway host for main session
+
+### 2. Main Session Identification (3 tests)
+- Identifies agent:main:main as main session
+- Identifies agent:{agentId}:main as main session for custom agent
+- Identifies custom main key session
+
+### 3. Host Execution vs Sandbox Distinction (3 tests)
+- Uses configured host for execution
+- Defaults host to sandbox when not specified
+- Overrides host to gateway for elevated commands
+
+### 4. Security and Approval for Main Session (4 tests)
+- Uses allowlist security mode for gateway host with ask off
+- Can use full security mode to bypass allowlist
+- Rejects elevated commands when not allowed
+- Triggers approval-pending when ask is on-miss and command is not allowlisted
+
+### 5. PATH Handling for Main Session (2 tests)
+- Prepends configured path entries for main session
+- Inherits shell PATH for gateway execution
+
+### 6. Exit Code and Status for Main Session (4 tests)
+- Reports completed status for successful commands
+- Throws error for non-zero exit code
+- Throws error for command not found
+- Captures stdout for main session execution
+- Captures stderr for main session execution
+
+### 7. Timeout Handling for Main Session (2 tests)
+- Respects timeout parameter by backgrounding long commands
+- Uses default timeout when not specified
+
+### 8. Provider Context for Main Session (2 tests)
+- Includes provider in error messages
+- Includes session in error messages
+
+### 9. Non-Main Session Execution Context (3 tests)
+- Identifies group sessions as non-main
+- Identifies DM sessions as non-main
+- Identifies named sessions as non-main
+
+### 10. Session Scoping (2 tests)
+- Scopes process sessions by session key
+- Background sessions are isolated by scope key
+
+### 11. Elevated Execution for Main Session (3 tests)
+- Elevated commands run on gateway host regardless of configured host
+- Elevated mode full bypasses all approvals
+- Elevated mode off does not default to elevated
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  34 passed (34)
+  Duration  ~6s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/bash-tools.main-session.test.ts` - Comprehensive bash tool main session tests (788 lines)
+
+## Key Architecture Insights
+
+### Bash Tool Execution Hosts
+The bash tool supports three execution hosts:
+1. **sandbox** - Docker container (default for untrusted sessions)
+2. **gateway** - Direct host execution (for main session, elevated commands)
+3. **node** - Remote execution on companion devices
+
+### Main Session Behavior
+- Main session key format: `agent:{agentId}:main` (e.g., `agent:main:main`)
+- Main sessions run on gateway host when sandbox mode is "non-main"
+- Elevated commands always force gateway execution regardless of host config
+- Session key comparison determines sandbox vs host execution
+
+### Security Model
+- `security: "full"` - Bypasses allowlist checks (used in tests)
+- `security: "allowlist"` - Requires commands to be pre-approved
+- `ask: "off"` - Executes without approval prompts
+- `ask: "on-miss"` - Prompts for approval if command not in allowlist
+
+### Error Handling
+- Non-zero exit codes throw errors with exit code in message
+- Command not found throws errors with descriptive messages
+- Approval required returns `approval-pending` status
+
