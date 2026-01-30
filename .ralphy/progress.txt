@@ -1,3 +1,7 @@
+# Ralphy Progress Log
+
+---
+
 # Task: Run `gimli onboard --install-daemon` on Linux server
 
 ## Date: 2026-01-30
@@ -34,3 +38,27 @@ After fixes, the command succeeded:
 - `src/gateway/hooks.ts` - Added missing type property
 - `docs/reference/templates/IDENTITY.md` - Created new template file
 - `docs/reference/templates/USER.md` - Created new template file
+
+---
+
+# Task: Verify Node ≥22 is installed; if not, install it
+
+## Status: COMPLETED
+
+## Summary
+Verified that Node.js v22.22.0 is installed, which meets the ≥22 requirement.
+
+## Details
+- Node.js version: v22.22.0
+- npm version: 10.9.4
+- Installation method: NVM (Node Version Manager)
+- Binary location: /home/gimli/.nvm/versions/node/v22.22.0/bin/node
+
+## Verification Steps Performed
+1. Checked Node.js version with `node --version` - returned v22.22.0
+2. Programmatically verified major version >= 22 - confirmed true
+3. Verified npm is working - version 10.9.4
+4. Confirmed binary locations via `which node` and `which npm`
+
+## Result
+No installation was needed - the system already has Node.js 22+ installed and configured correctly.
