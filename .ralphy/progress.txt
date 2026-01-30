@@ -2713,3 +2713,112 @@ The media pipeline implements robust memory management through:
 
 No memory leaks were identified in the current implementation. The codebase follows security-first memory management principles.
 
+
+---
+
+# Task: Test long conversation sessions don't cause performance degradation
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (27 tests) to verify that long conversation sessions don't cause performance degradation. The tests validate token estimation scaling, session store operations, compaction chunking, recency buffer performance, hook session pruning, and overall conversation lifecycle performance.
+
+## Test Coverage
+
+### 1. Token Estimation Performance (5 tests)
+- estimates tokens for small conversation (10 messages) quickly
+- estimates tokens for medium conversation (100 messages) in reasonable time
+- estimates tokens for large conversation (500 messages) without timeout
+- maintains linear scaling with message count
+- handles empty message array efficiently
+
+### 2. Message Splitting Performance (compaction) (4 tests)
+- splits small conversation (10 messages) into chunks quickly
+- splits medium conversation (100 messages) in reasonable time
+- splits large conversation (500 messages) without timeout
+- handles many chunk parts efficiently
+
+### 3. Context Pruning Performance (4 tests)
+- prunes small conversation quickly
+- prunes medium conversation in reasonable time
+- prunes large conversation without timeout
+- tracks all dropped messages correctly for large pruning
+
+### 4. Recency Buffer Performance (4 tests)
+- applies recency buffer to small conversation quickly
+- applies recency buffer to large conversation efficiently
+- isInRecencyBuffer check is constant time
+- normalizes buffer size without performance issues
+
+### 5. Adaptive Chunk Ratio Performance (2 tests)
+- computes adaptive ratio for varying message sizes
+- handles empty message array
+
+### 6. Session Store Performance with Many Sessions (4 tests)
+- loads session store with few sessions quickly
+- loads session store with many sessions in reasonable time
+- updates session store with lock contention handled
+- cache hit provides significant speedup
+
+### 7. Hook Session Pruning Performance (2 tests)
+- prunes expired hook sessions during save
+- limits total hook sessions to prevent unbounded growth
+
+### 8. Overall Conversation Lifecycle Performance (2 tests)
+- simulates realistic long conversation without degradation
+- handles very long conversations with many compaction cycles
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  27 passed (27)
+  Duration  5.61s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/long-conversation-performance.test.ts` - Comprehensive long conversation performance tests (650 lines)
+
+## Key Performance Findings
+
+The codebase implements robust performance patterns for long conversations:
+
+### Token Estimation (O(n) linear scaling)
+- `estimateMessagesTokens()` iterates through messages once
+- 500 messages estimated in < 1 second
+- Linear scaling confirmed: 4x messages ≈ 4x time
+
+### Session Store Operations
+- Cache provides 2x+ speedup on repeated loads
+- Lock contention handled gracefully with 25ms polling
+- 500 sessions load in < 500ms
+
+### Compaction Performance
+- `splitMessagesByTokenShare()` handles 500 messages in < 1.5s
+- `pruneHistoryForContextShare()` handles 500 messages in < 3s
+- Recency buffer slicing is O(n) but fast (< 50ms for 1000 messages)
+
+### Memory Management
+- Hook sessions auto-pruned after 48 hours
+- Maximum 500 hook sessions enforced
+- Session store cache with TTL validation
+
+### Conversation Lifecycle
+- Multiple compaction cycles don't cause degradation
+- Average compaction time stays under 500ms
+- Final message count remains manageable after 10+ cycles
+
+## Architecture Insights
+
+The system prevents performance degradation through:
+
+1. **Linear algorithms**: Token estimation and message splitting are O(n)
+2. **Caching**: Session store cached with TTL (45 seconds default)
+3. **Lazy pruning**: Hook sessions cleaned during save operations
+4. **Recency buffer**: Last 10 messages preserved, reducing summarization overhead
+5. **Adaptive chunking**: Chunk ratio adjusts based on message sizes
+
