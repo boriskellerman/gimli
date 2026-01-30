@@ -1655,3 +1655,118 @@ The bash tool supports three execution hosts:
 - Command not found throws errors with descriptive messages
 - Approval required returns `approval-pending` status
 
+---
+
+# Task: Test `read`, `write`, `edit` file tools
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (49 tests) to verify the behavior of the `read`, `write`, and `edit` file tools. The tests validate core functionality, Claude Code parameter compatibility (file_path, old_string, new_string aliases), sandboxed execution with path guards, parameter normalization, and edge cases.
+
+## Test Coverage
+
+### 1. Read Tool - Basic Functionality (5 tests)
+- reads a text file successfully
+- reads a file with line numbers
+- handles empty files
+- throws error for non-existent file
+- reads file using file_path alias (Claude Code compatibility)
+
+### 2. Read Tool - Sandboxed (5 tests)
+- reads files within sandbox root
+- blocks reading files outside sandbox root
+- blocks reading files using file_path alias outside sandbox
+- blocks path traversal attempts
+- reads file using relative path within sandbox
+
+### 3. Write Tool - Basic Functionality (6 tests)
+- creates a new file
+- overwrites existing file
+- creates file using file_path alias (Claude Code compatibility)
+- creates nested directories if needed
+- writes multiline content
+- writes empty content
+
+### 4. Write Tool - Sandboxed (3 tests)
+- writes files within sandbox root
+- blocks writing files outside sandbox root
+- blocks path traversal attempts on write
+
+### 5. Edit Tool - Basic Functionality (6 tests)
+- replaces text in a file
+- replaces multiline text
+- uses Claude Code parameter aliases (old_string, new_string)
+- rejects empty newText (delete operations require non-empty replacement)
+- inserts text (replace empty match)
+- throws error when old text not found
+
+### 6. Edit Tool - Sandboxed (3 tests)
+- edits files within sandbox root
+- blocks editing files outside sandbox root
+- blocks path traversal attempts on edit
+
+### 7. Parameter Normalization - normalizeToolParams (7 tests)
+- converts file_path to path
+- converts old_string to oldText
+- converts new_string to newText
+- preserves path when both file_path and path are present
+- preserves oldText when both old_string and oldText are present
+- handles multiple aliases at once
+- returns undefined for non-object input
+
+### 8. Parameter Normalization - assertRequiredParams (7 tests)
+- passes when at least one key in group is present
+- passes when alias key is present
+- throws when no key in group is present
+- throws when value is empty string
+- validates all groups for edit tool
+- throws when edit tool is missing oldText
+- throws for undefined or null params
+
+### 9. Integration - Full Workflow (2 tests)
+- performs read-edit-read cycle correctly
+- sandboxed tools maintain isolation across operations
+
+### 10. Edge Cases (5 tests)
+- handles files with special characters in name
+- handles files with unicode content
+- handles very long file paths
+- handles binary content in write tool
+- preserves file permissions after edit
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  49 passed (49)
+  Duration  5.20s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/file-tools.test.ts` - Comprehensive file tools unit tests (530 lines)
+
+## Key Architecture Insights
+
+### File Tool Providers
+The `read`, `write`, and `edit` tools are provided by `@mariozechner/pi-coding-agent` and wrapped by Gimli with:
+1. **MIME detection** - Normalizes image MIME types using file-magic detection
+2. **Sandbox path guards** - Prevents access outside sandbox root
+3. **Claude Code compatibility** - Normalizes `file_path`→`path`, `old_string`→`oldText`, `new_string`→`newText`
+4. **Image sanitization** - Resizes oversized images before sending to providers
+
+### Sandbox Path Security
+- `assertSandboxPath()` validates paths stay within sandbox root
+- Blocks path traversal (`../..`) attempts
+- Blocks symlink traversal
+- Supports both absolute and relative paths
+
+### Parameter Normalization
+- `normalizeToolParams()` converts Claude Code conventions to pi-coding-agent conventions
+- `assertRequiredParams()` enforces required parameter groups (path OR file_path must be provided)
+- The edit tool requires non-empty `newText` to prevent accidental deletions
+
