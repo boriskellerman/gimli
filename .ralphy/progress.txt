@@ -2822,3 +2822,197 @@ The system prevents performance degradation through:
 4. **Recency buffer**: Last 10 messages preserved, reducing summarization overhead
 5. **Adaptive chunking**: Chunk ratio adjusts based on message sizes
 
+
+---
+
+# Task: Add or improve error messages for common failure modes
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Improved error messages across the codebase to be more actionable, providing users with clear guidance on how to resolve issues. Created comprehensive unit tests (19 tests) to verify the improved error messages.
+
+## Improvements Made
+
+### 1. MissingEnvVarError (`src/config/env-substitution.ts`)
+**Before:**
+```
+Missing env var "ANTHROPIC_API_KEY" referenced at config path: models.providers.anthropic.apiKey
+```
+
+**After:**
+```
+Missing environment variable "ANTHROPIC_API_KEY" referenced in config at "models.providers.anthropic.apiKey".
+
+To fix this, set the environment variable using one of these methods:
+  1. Export in your shell: export ANTHROPIC_API_KEY="your-value"
+  2. Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+  3. Set in gimli.json under "env.vars": { "ANTHROPIC_API_KEY": "your-value" }
+
+If this is a sensitive value like an API key, use method 1 or 2.
+Run 'gimli doctor' to check your configuration.
+```
+
+### 2. Session Store Lock Timeout (`src/config/sessions/store.ts`)
+**Before:**
+```
+timeout acquiring session store lock: /home/user/.gimli/sessions.json.lock
+```
+
+**After:**
+```
+Timeout after 10s waiting for session store lock: /home/user/.gimli/sessions.json.lock
+
+This usually means another process is holding the lock. Possible causes:
+  - Another gimli process is currently writing to the session store
+  - A previous process crashed without releasing the lock
+
+To resolve this:
+  1. Check for other gimli processes: ps aux | grep gimli
+  2. If no other processes are running, remove the stale lock: rm "/home/user/.gimli/sessions.json.lock"
+  3. Restart the gateway: gimli gateway restart
+```
+
+### 3. Model Auth Profile Not Found (`src/agents/model-auth.ts`)
+**Before:**
+```
+No credentials found for profile "my-profile".
+```
+
+**After:**
+```
+No credentials found for auth profile "my-profile".
+
+This profile may not exist or may not have valid credentials configured.
+
+To fix this:
+  1. List available profiles: gimli models auth list
+  2. Add credentials for this profile: gimli models auth add --profile "my-profile"
+  3. Or use a different profile by updating your agent configuration
+
+For more information, see: gimli models auth --help
+```
+
+### 4. Config Validation Error (`src/config/io.ts`)
+**Before:**
+```
+Invalid config
+```
+
+**After:**
+```
+Invalid configuration in /home/user/.gimli/gimli.json:
+- gateway.port: expected number, got string
+
+To fix this:
+  1. Check the syntax of your gimli.json file
+  2. Run 'gimli doctor' to diagnose common issues
+  3. Compare with the default config: gimli config get --defaults
+  4. Restore from backup if available: ~/.gimli/gimli.json.bak
+```
+
+### 5. Config Write Validation Error (`src/config/io.ts`)
+**Before:**
+```
+Config validation failed: gateway.port: invalid
+```
+
+**After:**
+```
+Config validation failed at "gateway.port": expected number, got string
+
+The configuration cannot be saved because it contains invalid values.
+Please check the value at this path and ensure it matches the expected format.
+Run 'gimli config get --defaults' to see valid configuration options.
+```
+
+### 6. Config Read Error (`src/config/io.ts`)
+**Before:**
+```
+Failed to read config at /home/user/.gimli/gimli.json [error]
+```
+
+**After:** Now includes context-specific hints:
+- ENOENT: "The config file does not exist. Run 'gimli onboard' to create one."
+- EACCES/EPERM: "Permission denied. Check file permissions: ls -la [path]"
+- JSON errors: "The config file may contain invalid JSON. Check for syntax errors."
+- Other: "Run 'gimli doctor' to diagnose configuration issues."
+
+### 7. Circular Include Error (`src/config/includes.ts`)
+**Before:**
+```
+Circular include detected: /home/user/config.json -> /home/user/base.json -> /home/user/config.json
+```
+
+**After:**
+```
+Circular include detected in configuration files:
+  /home/user/config.json
+  -> /home/user/base.json
+  -> /home/user/config.json
+
+The file "/home/user/config.json" creates a circular dependency.
+
+To fix this:
+  1. Review the $include directives in each file above
+  2. Remove or reorganize includes to break the cycle
+  3. Consider extracting shared config into a separate base file
+```
+
+## Tests Added
+
+### `src/config/error-messages.test.ts` (12 tests)
+**MissingEnvVarError (7 tests):**
+1. includes the variable name and config path
+2. provides export command example
+3. suggests adding to shell profile
+4. suggests gimli.json env.vars alternative
+5. recommends running gimli doctor
+6. warns about sensitive values
+7. has correct error name
+
+**CircularIncludeError (5 tests):**
+1. shows the include chain clearly
+2. identifies the file causing the cycle
+3. provides actionable fix suggestions
+4. has correct error name
+5. formats multi-file chains readably
+
+### `src/config/sessions/store-lock-error.test.ts` (7 tests)
+1. includes elapsed time in timeout error
+2. includes lock file path in error
+3. explains possible causes
+4. provides recovery instructions
+5. successfully acquires lock when no contention
+6. releases lock after function completes
+7. releases lock even when function throws
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  19 passed (19)
+  Duration  44.40s
+```
+
+## Linting
+All modified files pass linting with 0 errors.
+
+## Files Modified
+- `src/config/env-substitution.ts` - Enhanced MissingEnvVarError with actionable guidance
+- `src/config/sessions/store.ts` - Enhanced lock timeout error with recovery instructions
+- `src/agents/model-auth.ts` - Enhanced profile not found error with setup guidance
+- `src/config/io.ts` - Enhanced config validation and read errors with context-specific hints
+- `src/config/includes.ts` - Enhanced circular include error with clear chain visualization
+
+## Files Added
+- `src/config/error-messages.test.ts` - Tests for MissingEnvVarError and CircularIncludeError
+- `src/config/sessions/store-lock-error.test.ts` - Tests for session store lock timeout
+
+## Key Principles Applied
+1. **Specificity**: Each error clearly states what went wrong
+2. **Actionability**: Every error provides concrete steps to resolve the issue
+3. **Context**: Errors include relevant file paths, elapsed times, and configuration details
+4. **Examples**: Where applicable, errors show exact commands to run
+

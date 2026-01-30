@@ -243,7 +243,18 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
           loggedInvalidConfigs.add(configPath);
           deps.logger.error(`Invalid config at ${configPath}:\\n${details}`);
         }
-        const error = new Error("Invalid config");
+        const error = new Error(
+          [
+            `Invalid configuration in ${configPath}:`,
+            details,
+            "",
+            "To fix this:",
+            "  1. Check the syntax of your gimli.json file",
+            "  2. Run 'gimli doctor' to diagnose common issues",
+            "  3. Compare with the default config: gimli config get --defaults",
+            "  4. Restore from backup if available: ~/.gimli/gimli.json.bak",
+          ].join("\n"),
+        );
         (error as { code?: string; details?: string }).code = "INVALID_CONFIG";
         (error as { code?: string; details?: string }).details = details;
         throw error;
@@ -297,7 +308,19 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
       if (error?.code === "INVALID_CONFIG") {
         return {};
       }
-      deps.logger.error(`Failed to read config at ${configPath}`, err);
+      const errCode = (err as { code?: string })?.code;
+      const errMsg = err instanceof Error ? err.message : String(err);
+      let hint = "";
+      if (errCode === "ENOENT") {
+        hint = "The config file does not exist. Run 'gimli onboard' to create one.";
+      } else if (errCode === "EACCES" || errCode === "EPERM") {
+        hint = `Permission denied. Check file permissions: ls -la "${configPath}"`;
+      } else if (errMsg.includes("JSON") || errMsg.includes("parse")) {
+        hint = "The config file may contain invalid JSON. Check for syntax errors.";
+      } else {
+        hint = "Run 'gimli doctor' to diagnose configuration issues.";
+      }
+      deps.logger.error(`Failed to read config at ${configPath}: ${errMsg}\n${hint}`);
       return {};
     }
   }
@@ -465,7 +488,16 @@ export function createConfigIO(overrides: ConfigIoDeps = {}) {
     if (!validated.ok) {
       const issue = validated.issues[0];
       const pathLabel = issue?.path ? issue.path : "<root>";
-      throw new Error(`Config validation failed: ${pathLabel}: ${issue?.message ?? "invalid"}`);
+      const issueMsg = issue?.message ?? "invalid value";
+      throw new Error(
+        [
+          `Config validation failed at "${pathLabel}": ${issueMsg}`,
+          "",
+          "The configuration cannot be saved because it contains invalid values.",
+          "Please check the value at this path and ensure it matches the expected format.",
+          "Run 'gimli config get --defaults' to see valid configuration options.",
+        ].join("\n"),
+      );
     }
     if (validated.warnings.length > 0) {
       const details = validated.warnings

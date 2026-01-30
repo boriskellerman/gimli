@@ -29,7 +29,18 @@ export class MissingEnvVarError extends Error {
     public readonly varName: string,
     public readonly configPath: string,
   ) {
-    super(`Missing env var "${varName}" referenced at config path: ${configPath}`);
+    const message = [
+      `Missing environment variable "${varName}" referenced in config at "${configPath}".`,
+      "",
+      "To fix this, set the environment variable using one of these methods:",
+      `  1. Export in your shell: export ${varName}="your-value"`,
+      `  2. Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)`,
+      `  3. Set in gimli.json under "env.vars": { "${varName}": "your-value" }`,
+      "",
+      "If this is a sensitive value like an API key, use method 1 or 2.",
+      "Run 'gimli doctor' to check your configuration.",
+    ].join("\n");
+    super(message);
     this.name = "MissingEnvVarError";
   }
 }
