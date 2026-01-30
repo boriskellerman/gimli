@@ -1770,3 +1770,105 @@ The `read`, `write`, and `edit` tools are provided by `@mariozechner/pi-coding-a
 - `assertRequiredParams()` enforces required parameter groups (path OR file_path must be provided)
 - The edit tool requires non-empty `newText` to prevent accidental deletions
 
+---
+
+# Task: Test `browser` tool - verify Chromium launches and snapshots work
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive integration tests (27 tests) to verify that the browser tool correctly launches Chromium via the control server and that snapshot functionality works. The tests validate browser launch flow, snapshot functionality (AI and aria formats), tab management, navigation, screenshots, browser actions, error handling, and profile management.
+
+## Test Coverage
+
+### 1. Browser Launch Flow (5 tests)
+- reports not running before browser is started
+- launches Chromium when start endpoint is called
+- reports running status after browser starts
+- stops Chromium when stop endpoint is called
+- does not relaunch browser if already running
+
+### 2. Snapshot Functionality (5 tests)
+- takes AI format snapshot successfully
+- takes aria format snapshot successfully
+- respects maxChars parameter for AI snapshots
+- snapshots specific targetId when provided
+- snapshot auto-starts browser when needed
+
+### 3. Tab Management (4 tests)
+- lists tabs when browser is running
+- opens new tab with URL
+- focuses specific tab by targetId
+- closes tab by targetId
+
+### 4. Navigation (2 tests)
+- navigates to URL successfully
+- navigates specific tab by targetId
+
+### 5. Screenshot (2 tests)
+- takes screenshot successfully
+- takes screenshot with fullPage option
+
+### 6. Browser Actions (5 tests)
+- performs click action
+- performs type action
+- performs key press action
+- performs hover action
+- performs drag action
+
+### 7. Error Handling (3 tests)
+- action auto-starts browser when needed and succeeds
+- returns 400 for invalid action kind
+- rejects selector-based actions (ref required)
+
+### 8. Profiles (1 test)
+- lists browser profiles
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  27 passed (27)
+  Duration  5.59s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/browser/browser-tool-integration.test.ts` - Comprehensive browser tool integration tests (644 lines)
+
+## Key Architecture Insights
+
+### Browser Control Server Architecture
+The browser tool uses a multi-layer architecture:
+1. **Agent layer** (`browser-tool.ts`) - Tool definition for AI agents
+2. **Client layer** (`client.ts`) - HTTP client for communicating with browser control server
+3. **Server layer** (`bridge-server.ts`, `routes/`) - Express-based HTTP server managing browser instances
+4. **Playwright layer** (`pw-*.ts`) - Underlying automation using `playwright-core`
+
+### Launch Flow
+1. Client calls `POST /start` endpoint
+2. Server calls `launchGimliChrome()` which spawns Chromium with CDP enabled
+3. Server waits for CDP to become reachable on loopback
+4. Server returns status with pid and profile name
+
+### Snapshot Flow
+1. Client calls `GET /snapshot?format=ai|aria` endpoint
+2. Server calls `ensureTabAvailable()` which auto-starts browser if needed
+3. For AI format: Uses Playwright's `snapshotAiViaPlaywright()` for accessibility tree
+4. For aria format: Uses CDP's `snapshotAria()` directly via WebSocket
+5. Returns snapshot with format, targetId, url, and content
+
+### Auto-Start Behavior
+The browser control server automatically launches Chromium when needed:
+- `ensureTabAvailable()` checks if browser is running
+- If not running, calls `ensureBrowserAvailable()` to launch
+- This enables lazy browser startup on first action
+
+### Error Handling
+- Invalid actions return 400 status
+- Selector-based actions are rejected (ref required for security)
+- Browser operations auto-start browser when needed
+
