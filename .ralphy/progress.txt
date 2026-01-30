@@ -2096,3 +2096,105 @@ The `buildWorkspaceSkillStatus()` function returns a comprehensive report:
   - requirements and missing arrays
   - configChecks and install options
 
+---
+
+# Task: Test loading a bundled skill
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (32 tests) to verify that bundled skills can be properly loaded, filtered, and included in skill snapshots and prompts. The tests validate the complete skill loading pipeline from directory resolution through eligibility filtering.
+
+## Test Coverage
+
+### 1. resolveBundledSkillsDir (2 tests)
+- Uses GIMLI_BUNDLED_SKILLS_DIR environment variable when set
+- Falls back to package root skills directory
+
+### 2. loadWorkspaceSkillEntries with bundled skills (4 tests)
+- Loads skills from bundled directory
+- Workspace skills override bundled skills with same name
+- Loads multiple bundled skills
+- Loads bundled skill with metadata requirements
+
+### 3. Bundled allowlist filtering (5 tests)
+- resolveBundledAllowlist returns undefined when not configured
+- resolveBundledAllowlist returns normalized list when configured
+- isBundledSkillAllowed returns true when no allowlist
+- isBundledSkillAllowed filters bundled skills by allowlist
+- isBundledSkillAllowed always allows non-bundled skills
+
+### 4. filterWorkspaceSkillEntries for bundled skills (2 tests)
+- Filters bundled skills by allowlist in config
+- Filters bundled skills by disabled flag
+
+### 5. buildWorkspaceSkillSnapshot with bundled skills (3 tests)
+- Includes bundled skills in snapshot prompt
+- Excludes bundled skills not in allowlist from prompt
+- Includes bundled skill location in prompt for model to read
+
+### 6. buildWorkspaceSkillsPrompt with bundled skills (2 tests)
+- Generates prompt with bundled skills
+- Filters bundled skills using skillFilter parameter
+
+### 7. Bundled skill eligibility requirements (7 tests)
+- Excludes bundled skill when required binary is missing
+- Includes bundled skill when required binary exists
+- Includes bundled skill when anyBins requirement is met
+- Excludes bundled skill when required env var is missing
+- Includes bundled skill with always=true regardless of requirements
+- Excludes bundled skill when OS does not match
+- Includes bundled skill when OS matches
+
+### 8. Loading real bundled skills (4 tests)
+- Loads skills from the actual bundled skills directory
+- Includes well-known bundled skills like github
+- Parses metadata correctly for bundled skills
+- Generates valid snapshot from real bundled skills
+
+### 9. hasBinary utility (3 tests)
+- Returns true for common binaries like node
+- Returns false for nonexistent binaries
+- Returns true for common system binaries
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  32 passed (32)
+  Duration  5.30s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/skills.bundled-skill-loading.test.ts` - Comprehensive bundled skill loading tests (430 lines)
+
+## Key Architecture Insights
+
+### Skill Loading Pipeline
+Skills are loaded through a multi-stage process:
+1. **Directory resolution**: `resolveBundledSkillsDir()` finds skills at package root or via env var
+2. **Entry loading**: `loadWorkspaceSkillEntries()` merges skills from 4 sources (extra < bundled < managed < workspace)
+3. **Filtering**: `filterWorkspaceSkillEntries()` applies eligibility checks (bins, env, os, config, allowlist)
+4. **Prompt building**: `buildWorkspaceSkillSnapshot()` creates formatted prompt with eligible skills
+
+### Eligibility Requirements
+Skills can specify requirements in their YAML frontmatter metadata:
+- `requires.bins`: All listed binaries must exist
+- `requires.anyBins`: At least one listed binary must exist
+- `requires.env`: All listed environment variables must be set
+- `requires.config`: All listed config paths must be truthy
+- `os`: Skill only loads on specified operating systems
+- `always: true`: Bypasses all requirement checks
+
+### Skill Sources (Precedence)
+1. Extra dirs (lowest) - from `config.skills.load.extraDirs`
+2. Bundled skills - from `skills/` in package
+3. Managed skills - from `~/.gimli/skills/`
+4. Workspace skills (highest) - from `<workspace>/skills/`
+
+Later sources override earlier ones when skills have the same name.
+
