@@ -1223,3 +1223,120 @@ New test file passes linting with 0 errors.
 - Unauthorized senders receive no reply (silent ignore)
 - Authorization respects per-channel `allowFrom` configuration
 
+---
+
+# Task: Test `/think` levels (off/minimal/low/medium/high/xhigh)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (49 tests) to verify the `/think` command behavior across all thinking levels. The tests validate directive parsing, level normalization, session persistence, command aliases, and edge cases.
+
+## Test Coverage
+
+### 1. extractThinkDirective - Level Parsing (6 tests)
+- Parses `/think off`
+- Parses `/think minimal`
+- Parses `/think low`
+- Parses `/think medium`
+- Parses `/think high`
+- Parses `/think xhigh`
+
+### 2. extractThinkDirective - Aliases (4 tests)
+- Parses `/thinking` as an alias for `/think`
+- Parses `/t` as an alias for `/think`
+- Parses `/think:high` (colon variant)
+- Parses `/t: medium` (colon with space)
+
+### 3. extractThinkDirective - With Message Body (3 tests)
+- Extracts think directive from message start
+- Extracts think directive from message middle
+- Extracts think directive from message end
+
+### 4. normalizeThinkLevel - Level Synonyms (10 tests)
+- Normalizes `on` to `low`
+- Normalizes `enable` to `low`
+- Normalizes `min` to `minimal`
+- Normalizes `mid` to `medium`
+- Normalizes `med` to `medium`
+- Normalizes `ultra` to `high`
+- Normalizes `max` to `high`
+- Normalizes `x-high` to `xhigh`
+- Returns undefined for invalid levels
+- Returns undefined for empty/null/undefined
+
+### 5. listThinkingLevels (4 tests)
+- Returns base levels for standard models (off, minimal, low, medium, high)
+- Includes `xhigh` for `gpt-5.2` model
+- Includes `xhigh` for `gpt-5.2-codex` model
+- Includes `xhigh` for `gpt-5.1-codex` model
+
+### 6. parseInlineDirectives - /think Command (4 tests)
+- Detects `/think high` as a directive
+- Detects `/think off` as a directive
+- Detects `/t minimal` as a directive
+- Preserves message body after stripping think directive
+
+### 7. persistInlineDirectives - Thinking Level (5 tests)
+- Persists `/think low` to session entry
+- Persists `/think medium` to session entry
+- Persists `/think high` to session entry
+- Removes thinking level when set to off
+- Updates existing thinking level
+
+### 8. handleCommands - /think Directive-Only (2 tests)
+- `/think high` alone continues to agent with directive applied
+- `/t low` with message body continues to agent
+
+### 9. /think Command - Edge Cases (6 tests)
+- Handles `/think` without level argument
+- Handles `/think:` with no level
+- Handles `/think` with invalid level
+- Is case-insensitive (HIGH, Low, MEDIUM all work)
+- Does not match `/think` followed by extra letters
+- Does not match `/think` inside a URL
+
+### 10. /think Levels - Full Coverage (6 tests)
+- Tests all levels: off, minimal, low, medium, high, xhigh
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  49 passed (49)
+  Duration  17.95s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/auto-reply/reply/think-command.test.ts` - Comprehensive /think command unit tests (393 lines)
+
+## Key Findings
+
+### Think Level Architecture
+- Think levels: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`
+- `xhigh` is only available for specific models (gpt-5.2, gpt-5.2-codex, gpt-5.1-codex)
+- Command aliases: `/think`, `/thinking`, `/t`
+- Supports colon syntax: `/think:high`, `/t: low`
+
+### Level Normalization
+- `on`/`enable` → `low`
+- `min` → `minimal`
+- `mid`/`med` → `medium`
+- `ultra`/`max` → `high`
+- `x-high` → `xhigh`
+
+### Session Persistence
+- Thinking level persists in session entry as `thinkingLevel`
+- Setting level to `off` removes the `thinkingLevel` property
+- Persistence happens via `persistInlineDirectives`
+
+### Directive Processing
+- Think directives are extracted via `extractThinkDirective`
+- Directive can appear at start, middle, or end of message
+- Message body is cleaned (directive stripped) after extraction
+- Case-insensitive matching
+
