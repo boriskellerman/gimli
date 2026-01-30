@@ -531,3 +531,102 @@ This verification confirms Gimli's security-first approach to credentials storag
 - **Auto-fix available**: `gimli security fix` repairs permissions automatically
 - **Cross-platform**: Supports both POSIX (chmod) and Windows (ACL) permission models
 
+---
+
+# Task: Test that sandbox mode is active for non-main sessions
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that sandbox mode correctly activates for non-main sessions when `mode: "non-main"` is configured. Created comprehensive unit tests (20 tests) that verify the sandboxing behavior across all modes and session types.
+
+## Implementation Analysis
+
+### Core Logic (`src/agents/sandbox/runtime-status.ts`)
+The `shouldSandboxSession()` function implements the key security decision:
+```typescript
+function shouldSandboxSession(cfg: SandboxConfig, sessionKey: string, mainSessionKey: string) {
+  if (cfg.mode === "off") return false;
+  if (cfg.mode === "all") return true;
+  return sessionKey.trim() !== mainSessionKey.trim(); // non-main mode
+}
+```
+
+### Sandbox Modes
+| Mode | Main Session | Non-Main Sessions |
+|------|--------------|-------------------|
+| `off` | Not sandboxed | Not sandboxed |
+| `non-main` | Not sandboxed | **Sandboxed** |
+| `all` | Sandboxed | Sandboxed |
+
+### What Sandbox Mode Provides
+When a session is sandboxed:
+1. **Docker Isolation**: Read-only root, no network, dropped capabilities
+2. **Tool Restrictions**: Limited allowlist (file ops, sessions only)
+3. **Workspace Isolation**: Separate directory per session/agent
+4. **Resource Limits**: Memory, CPU, PID constraints
+
+## Tests Added
+
+Created `src/agents/sandbox/runtime-status.test.ts` with 20 tests:
+
+**Non-main mode sandboxes non-main sessions (7 tests):**
+1. sandboxes sessions that do not match the main session key
+2. sandboxes named sessions different from main
+3. sandboxes group sessions
+4. sandboxes DM sessions
+5. does not sandbox the main session
+6. does not sandbox custom main session key
+7. sandboxes sessions when main key is customized but session differs
+
+**All mode sandboxes all sessions (2 tests):**
+1. sandboxes the main session
+2. sandboxes non-main sessions
+
+**Off mode sandboxes nothing (2 tests):**
+1. does not sandbox main session
+2. does not sandbox non-main sessions
+
+**Default mode is off (2 tests):**
+1. defaults to off when no sandbox config specified
+2. defaults to off with empty config
+
+**Agent-specific sandbox overrides (2 tests):**
+1. uses agent-specific mode over global defaults
+2. applies global defaults when agent has no override
+
+**Global session scope (2 tests):**
+1. uses global main key when scope is global
+2. sandboxes non-global sessions when scope is global
+
+**Tool policy in runtime status (1 test):**
+1. includes tool policy in result
+
+**Empty or missing session key (2 tests):**
+1. does not sandbox when session key is empty
+2. does not sandbox when session key is undefined
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  20 passed (20)
+  Duration  5.61s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/sandbox/runtime-status.test.ts` - Comprehensive sandbox runtime status unit tests
+
+## Security Implications
+This verification confirms Gimli's security-first approach to session sandboxing:
+- **Default secure**: Default mode is `off` (no surprise sandboxing)
+- **Opt-in security**: `mode: "non-main"` enables automatic sandboxing of untrusted sessions
+- **Main session exempt**: The main session (trusted, direct user interaction) bypasses sandbox
+- **All non-main sandboxed**: Group chats, DMs, and named sessions are isolated
+- **Agent override support**: Per-agent security policies can be stricter than global
+- **Tool restrictions**: Sandboxed sessions have limited tool access (no browser, canvas, cron, channels)
+
