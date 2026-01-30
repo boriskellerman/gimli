@@ -1,0 +1,36 @@
+# Task: Run `gimli onboard --install-daemon` on Linux server
+
+## Date: 2026-01-30
+
+## Summary
+Successfully ran `gimli onboard --install-daemon` on Linux server. The command installed a systemd user service for the gimli gateway.
+
+## Errors Encountered
+
+### 1. Build Error: Missing `allowUnsafeExternalContent` type property
+- **File:** `src/gateway/server-http.ts:141`
+- **Error:** `Property 'allowUnsafeExternalContent' does not exist on type 'HookAgentPayload'`
+- **Resolution:** Added `allowUnsafeExternalContent?: boolean` to `HookAgentPayload` type in `src/gateway/hooks.ts`
+
+### 2. Missing Workspace Templates
+- **Error:** `Missing workspace template: IDENTITY.md (/tmp/tmp.1h0LJfCPN0/agent-1/docs/reference/templates/IDENTITY.md). Ensure docs/reference/templates are packaged.`
+- **Root Cause:** The repository had `IDENTITY.dev.md` and `USER.dev.md` but was missing the non-dev versions (`IDENTITY.md` and `USER.md`) that the onboard command expects
+- **Resolution:** Created the missing template files:
+  - `docs/reference/templates/IDENTITY.md`
+  - `docs/reference/templates/USER.md`
+
+### 3. Doctor Warning (non-blocking)
+- **Warning:** `State dir migration skipped: target already exists (/home/gimli/.gimli). Remove or merge manually.`
+- **Nature:** Non-blocking warning about existing state directory
+
+## Result
+
+After fixes, the command succeeded:
+- Systemd service installed at: `/home/gimli/.config/systemd/user/gimli-gateway.service`
+- Service status: `active (running)`
+- Gateway running on port 18789
+
+## Files Modified
+- `src/gateway/hooks.ts` - Added missing type property
+- `docs/reference/templates/IDENTITY.md` - Created new template file
+- `docs/reference/templates/USER.md` - Created new template file
