@@ -3490,3 +3490,139 @@ Reminder Shown → Agent Turn → turn:complete Hook
 3. Connect to learning system for recommendation improvements
 4. Add scheduler for periodic metrics recalculation
 5. Implement auto-apply for high-confidence adjustments
+
+---
+
+# Task: Define pattern types to track (time-based, event-based, context-based)
+
+## Status: COMPLETED
+
+## Date: 2026-01-31
+
+## Summary
+Defined the three pattern types for Gimli's anticipation system, with comprehensive type definitions, matching logic, and utility functions. Created design documentation and 41 unit tests.
+
+## Pattern Types Implemented
+
+### 1. Time-Based Patterns
+Triggered by temporal conditions:
+- **TimeOfDayTrigger**: e.g., "at 9:00 AM"
+- **DayOfWeekTrigger**: e.g., "Monday mornings"
+- **IntervalTrigger**: e.g., "every 2 hours"
+
+### 2. Event-Based Patterns
+Triggered by specific events:
+- **ToolCallTrigger**: After running a tool (git commit, test run)
+- **ErrorTrigger**: After errors occur
+- **CommandTrigger**: After /commands
+- **SessionEventTrigger**: Session start/end/reset
+- **UserMentionTrigger**: Keywords in user messages
+
+### 3. Context-Based Patterns
+Triggered by semantic context:
+- Keyword matching
+- Optional semantic similarity scoring
+- Related memory chunk linking
+
+## Key Features
+
+### Confidence Calculation
+- Based on observation count (asymptotic to 0.7)
+- Recency decay (halves every 14 days)
+- Consistency scoring
+- Formula: `0.5 * countFactor + 0.3 * consistency + 0.2 * recency`
+
+### Pattern Lifecycle
+1. Observation → 2. Detection → 3. Recording → 4. Activation → 5. Reminder Linking → 6. Decay
+
+### Matching Functions
+- `doesTimePatternMatch()` - Time pattern matching with tolerance
+- `doesEventTriggerMatch()` - Event pattern matching with regex support
+- `doesContextPatternMatch()` - Keyword + semantic matching
+
+## Files Created
+
+### Design Documentation
+- `docs/design/pattern-types.md` - Comprehensive design document
+
+### Source Files
+- `src/patterns/types.ts` - Type definitions and utility functions (~450 lines)
+- `src/patterns/index.ts` - Public exports
+
+### Test Files
+- `src/patterns/types.test.ts` - 41 unit tests
+
+## Test Coverage (41 tests)
+
+**Configuration** (1 test)
+- Default config values
+
+**Confidence Calculation** (5 tests)
+- Low confidence for few observations
+- Higher confidence for more observations
+- Recency decay
+- Consistency impact
+- Range clamping
+
+**Pattern Activation** (4 tests)
+- Meets thresholds
+- Below confidence threshold
+- Below observation threshold
+- Custom config
+
+**Pattern Archival** (3 tests)
+- Recent patterns not archived
+- Old patterns archived
+- Custom archive days
+
+**Time Pattern Matching** (7 tests)
+- Time-of-day within tolerance
+- Time-of-day outside tolerance
+- Days of week constraint
+- Day-of-week matching
+- Day-of-week with time
+- Interval elapsed
+- Interval never triggered
+
+**Event Trigger Matching** (10 tests)
+- Tool call name matching
+- Tool call result patterns
+- Error type matching
+- Error message patterns
+- Command matching
+- Session event matching
+- User mention keywords
+- Case insensitivity
+
+**Context Pattern Matching** (3 tests)
+- Keyword matching
+- Semantic score matching
+- Fallback to keywords
+
+**Formatting** (8 tests)
+- Day of week names
+- Time-of-day formatting
+- Day-of-week formatting
+- Interval formatting
+- Pattern descriptions
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  41 passed (41)
+  Duration  3.61s
+```
+
+## Linting
+All pattern files pass linting with 0 errors.
+
+## Phase 5 Design Status
+
+All four design tasks are now COMPLETE:
+1. [x] Design how reminders integrate with existing memory architecture
+2. [x] Design reminder priority system (urgent vs gentle nudge vs background)
+3. [x] Design feedback loop for reminder effectiveness
+4. [x] Define pattern types to track (time-based, event-based, context-based)
+
+Ready to proceed to Implementation phase.
+
