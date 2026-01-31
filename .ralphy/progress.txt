@@ -1,0 +1,379 @@
+# Ralphy Progress Log
+
+---
+
+# Task: Run `gimli onboard --install-daemon` on Linux server
+
+## Date: 2026-01-30
+
+## Summary
+Successfully ran `gimli onboard --install-daemon` on Linux server. The command installed a systemd user service for the gimli gateway.
+
+## Errors Encountered
+
+### 1. Build Error: Missing `allowUnsafeExternalContent` type property
+- **File:** `src/gateway/server-http.ts:141`
+- **Error:** `Property 'allowUnsafeExternalContent' does not exist on type 'HookAgentPayload'`
+- **Resolution:** Added `allowUnsafeExternalContent?: boolean` to `HookAgentPayload` type in `src/gateway/hooks.ts`
+
+### 2. Missing Workspace Templates
+- **Error:** `Missing workspace template: IDENTITY.md (/tmp/tmp.1h0LJfCPN0/agent-1/docs/reference/templates/IDENTITY.md). Ensure docs/reference/templates are packaged.`
+- **Root Cause:** The repository had `IDENTITY.dev.md` and `USER.dev.md` but was missing the non-dev versions (`IDENTITY.md` and `USER.md`) that the onboard command expects
+- **Resolution:** Created the missing template files:
+  - `docs/reference/templates/IDENTITY.md`
+  - `docs/reference/templates/USER.md`
+
+### 3. Doctor Warning (non-blocking)
+- **Warning:** `State dir migration skipped: target already exists (/home/gimli/.gimli). Remove or merge manually.`
+- **Nature:** Non-blocking warning about existing state directory
+
+## Result
+
+After fixes, the command succeeded:
+- Systemd service installed at: `/home/gimli/.config/systemd/user/gimli-gateway.service`
+- Service status: `active (running)`
+- Gateway running on port 18789
+
+## Files Modified
+- `src/gateway/hooks.ts` - Added missing type property
+- `docs/reference/templates/IDENTITY.md` - Created new template file
+- `docs/reference/templates/USER.md` - Created new template file
+
+---
+
+# Task: Verify Node ≥22 is installed; if not, install it
+
+## Status: COMPLETED
+
+## Summary
+Verified that Node.js v22.22.0 is installed, which meets the ≥22 requirement.
+
+## Details
+- Node.js version: v22.22.0
+- npm version: 10.9.4
+- Installation method: NVM (Node Version Manager)
+- Binary location: /home/gimli/.nvm/versions/node/v22.22.0/bin/node
+
+## Verification Steps Performed
+1. Checked Node.js version with `node --version` - returned v22.22.0
+2. Programmatically verified major version >= 22 - confirmed true
+3. Verified npm is working - version 10.9.4
+4. Confirmed binary locations via `which node` and `which npm`
+
+## Result
+No installation was needed - the system already has Node.js 22+ installed and configured correctly.
+
+---
+
+# Task: Test `gimli agent --message "test" --thinking high` completes without errors
+
+## Status: BLOCKED - Missing Anthropic API Credentials
+
+## Date: 2026-01-30
+
+## Summary
+The command cannot complete successfully because no Anthropic API key or setup-token is configured for the main agent. This is a **prerequisite/configuration issue**, not a code bug.
+
+## Testing Performed
+
+### 1. Direct Command Execution
+```bash
+pnpm gimli agent --agent main --message "test" --thinking high
+```
+
+**Result:** Exit code 1
+**Error:**
+```
+FailoverError: No API key found for provider "anthropic".
+Auth store: /home/gimli/.gimli/agents/main/agent/auth-profiles.json (agentDir: /home/gimli/.gimli/agents/main/agent).
+Configure auth for this agent (gimli agents add <id>) or copy auth-profiles.json from the main agentDir.
+```
+
+### 2. Unit Test Verification
+Ran all agent command unit tests:
+```bash
+pnpm vitest run src/commands/agent.test.ts
+```
+
+**Result:** All 16 tests passed, including:
+- "persists thinking and verbose overrides" - tests `--thinking high` parameter
+- "defaults thinking to low for reasoning-capable models"
+
+### 3. Configuration Check
+- `~/.gimli/credentials/` directory is empty
+- `ANTHROPIC_API_KEY` environment variable is not set
+- No auth-profiles.json exists for the main agent
+
+## Root Cause
+The Gimli installation completed successfully (gateway running, systemd service active), but model provider authentication was not configured during onboarding.
+
+## Resolution Required
+Configure Anthropic API credentials using one of these methods:
+
+**Option A: API Key**
+```bash
+gimli onboard --anthropic-api-key "$ANTHROPIC_API_KEY"
+# or
+gimli models auth paste-token --provider anthropic
+```
+
+**Option B: Claude Setup Token**
+```bash
+# On a machine with Claude CLI installed:
+claude setup-token
+
+# Then on gateway host:
+gimli models auth paste-token --provider anthropic
+```
+
+## Code Verification
+The agent command code itself works correctly:
+- Command parsing and option handling: ✅
+- Thinking level parameter (`--thinking high`): ✅
+- Unit tests: 16/16 passing
+- The error occurs at the model authentication layer, not the command layer
+
+## Files Examined
+- `src/commands/agent.ts` - Agent command implementation
+- `src/commands/agent.test.ts` - 16 passing unit tests
+- `docs/providers/anthropic.md` - Authentication documentation
+
+## Recommendation
+This task should remain blocked until API credentials are configured. The next steps are:
+1. Obtain an Anthropic API key or Claude setup-token
+2. Configure credentials using `gimli models auth paste-token --provider anthropic`
+3. Re-run `gimli agent --message "test" --thinking high` to verify
+
+---
+
+# Task: Verify systemd/launchd daemon is installed and auto-starts on boot
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the systemd user service for gimli-gateway is properly installed, enabled, and configured to auto-start on boot. Also added comprehensive unit tests for the linger status and service enabled functionality.
+
+## Verification Performed
+
+### 1. Service Status Check
+```bash
+systemctl --user status gimli-gateway.service
+```
+**Result:** Active (running) for ~1h 35min
+- Loaded: `/home/gimli/.config/systemd/user/gimli-gateway.service`
+- Status: `enabled; preset: enabled`
+- Active: `active (running)`
+- Main PID: 198974
+
+### 2. Service Enabled Check
+```bash
+systemctl --user is-enabled gimli-gateway.service
+```
+**Result:** `enabled`
+
+### 3. Linger Status Check (Critical for Boot Auto-Start)
+```bash
+loginctl show-user gimli | grep -i linger
+```
+**Result:** `Linger=yes`
+
+This is crucial because:
+- Without linger, systemd user services only run when a user has an active login session
+- With `Linger=yes`, the user's service manager starts at boot and persists
+- The linger file exists at `/var/lib/systemd/linger/gimli`
+
+### 4. Service Unit Configuration Review
+The service unit at `~/.config/systemd/user/gimli-gateway.service` contains:
+- `WantedBy=default.target` - Ensures service starts with user session
+- `Restart=always` with `RestartSec=5` - Ensures automatic restart on crash
+- Proper PATH and environment variables configured
+
+## Tests Added
+
+Created two new test files with 13 total tests:
+
+### `src/daemon/systemd-linger.test.ts` (8 tests)
+- Returns linger=yes when enabled
+- Returns linger=no when disabled
+- Returns null when user cannot be determined
+- Returns null when loginctl fails
+- Returns null when linger status is unexpected value
+- Uses LOGNAME when USER is not set
+- Handles whitespace in output
+- Handles case-insensitive linger values
+
+### `src/daemon/systemd-enabled.test.ts` (5 tests)
+- Returns true when service is enabled
+- Returns false when service is disabled
+- Uses correct service name from GIMLI_PROFILE
+- Uses default service name when GIMLI_PROFILE is default
+- Uses GIMLI_SYSTEMD_UNIT when provided
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  13 passed (13)
+```
+
+## Files Added
+- `src/daemon/systemd-linger.test.ts` - Tests for linger status reading
+- `src/daemon/systemd-enabled.test.ts` - Tests for service enabled checking
+
+## Key Insights
+The auto-start mechanism on Linux requires two components:
+1. **Service enabled** - `systemctl --user enable` creates symlinks in `~/.config/systemd/user/default.target.wants/`
+2. **User linger enabled** - `loginctl enable-linger` ensures the user's systemd instance starts at boot
+
+Both are properly configured on this system.
+
+---
+
+# Task: Test the Gateway WebSocket is accessible locally (ws://127.0.0.1:18789)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the Gateway WebSocket is accessible locally on ws://127.0.0.1:18789. The gateway accepts WebSocket upgrade requests and can handle multiple concurrent connections.
+
+## Manual Verification Performed
+
+### 1. Gateway Port Check
+```bash
+ss -ltnp | grep 18789
+```
+**Result:** Gateway listening on 127.0.0.1:18789 and [::1]:18789 (loopback only - secure!)
+
+### 2. WebSocket Upgrade Test
+Tested WebSocket upgrade via raw HTTP request:
+- Status: 101 (Switching Protocols)
+- Headers received: `upgrade: websocket`, `connection: Upgrade`, `sec-websocket-accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=`
+
+### 3. Connection Verification
+Successfully established WebSocket connection and verified:
+- Connection opens correctly
+- Messages can be sent and received
+- Multiple concurrent connections are supported
+- Connections close gracefully
+
+## Tests Added
+
+Created `src/gateway/websocket-accessibility.test.ts` with 6 unit tests:
+
+1. **accepts WebSocket upgrade on loopback address** - Verifies HTTP 101 upgrade response with correct headers
+2. **WebSocket connection opens on 127.0.0.1** - Confirms connection establishment on loopback
+3. **multiple concurrent WebSocket connections on loopback** - Tests 3 concurrent connections
+4. **WebSocket can send and receive messages** - Tests bidirectional message flow
+5. **WebSocket closes gracefully** - Verifies clean connection termination
+6. **WebSocket protocol version is current** - Verifies PROTOCOL_VERSION constant
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  6 passed (6)
+  Duration  5.39s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/websocket-accessibility.test.ts` - WebSocket accessibility unit tests
+
+## Key Findings
+- Gateway correctly binds to loopback only (127.0.0.1 and ::1), not 0.0.0.0
+- WebSocket upgrade handshake follows RFC 6455 correctly
+- Multiple concurrent connections are supported
+- The gateway uses protocol version defined in `src/gateway/protocol/index.ts`
+
+---
+
+# Task: Verify Gateway binds to loopback only by default (not 0.0.0.0)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the Gateway binds to loopback (127.0.0.1 and ::1) by default and never silently falls back to 0.0.0.0. Added comprehensive unit tests to validate this security-critical behavior.
+
+## Live Verification
+```bash
+ss -ltnp | grep 18789
+```
+**Result:**
+- Listening on `127.0.0.1:18789` (IPv4 loopback)
+- Listening on `[::1]:18789` (IPv6 loopback)
+- NOT listening on `0.0.0.0` (all interfaces)
+
+## Code Analysis
+
+### Security-First Binding Logic (`src/gateway/net.ts:96-148`)
+The `resolveGatewayBindHost` function implements these security defaults:
+
+1. **Default mode is `"loopback"`** (line 100): `const mode = bind ?? "loopback"`
+2. **Never falls back to 0.0.0.0** - All fallback paths return loopback addresses
+3. **Only `mode === "lan"` uses 0.0.0.0** - Requires explicit opt-in
+4. **Security warnings** logged when binding to all interfaces
+
+### Bind Mode Behavior
+| Mode | Bind Address | Fallback |
+|------|--------------|----------|
+| `undefined` | 127.0.0.1 | ::1 → 127.0.0.1 |
+| `loopback` | 127.0.0.1 | ::1 → 127.0.0.1 |
+| `lan` | 0.0.0.0 | (none - explicit) |
+| `tailnet` | Tailnet IP | 127.0.0.1 |
+| `auto` | 127.0.0.1 | 127.0.0.1 |
+| `custom` | Custom IP | 127.0.0.1 |
+
+## Tests Added
+
+Extended `src/gateway/net.test.ts` with 18 new tests:
+
+### `isLoopbackAddress` (7 tests)
+- Returns true for 127.0.0.1
+- Returns true for other 127.x.x.x addresses
+- Returns true for IPv6 loopback ::1
+- Returns true for IPv4-mapped IPv6 loopback
+- Returns false for 0.0.0.0
+- Returns false for LAN addresses
+- Returns false for undefined
+
+### `isLoopbackHost` (2 tests)
+- Returns true for loopback addresses
+- Returns false for non-loopback addresses
+
+### `resolveGatewayBindHost - Security Defaults` (9 tests)
+- defaults to loopback when bind mode is undefined
+- defaults to loopback when bind mode is 'loopback'
+- never falls back to 0.0.0.0 for 'loopback' mode
+- uses 0.0.0.0 only when 'lan' mode is explicitly set
+- falls back to loopback for 'tailnet' mode when tailnet unavailable
+- falls back to loopback for 'auto' mode
+- falls back to loopback for 'custom' mode with empty host
+- falls back to loopback for 'custom' mode with undefined host
+- falls back to loopback for unknown bind mode
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  21 passed (21)
+  Duration  4.85s
+```
+
+## Linting
+New test additions pass linting with 0 errors.
+
+## Files Modified
+- `src/gateway/net.test.ts` - Added 18 new tests for loopback binding verification
+
+## Security Implications
+This verification confirms that Gimli follows security-first principles:
+- **Default secure**: Out-of-the-box configuration binds only to loopback
+- **Explicit opt-in required**: Network exposure requires setting `bind="lan"`
+- **No silent fallbacks**: Failed bindings never silently fall back to 0.0.0.0
+- **Warning logged**: When `lan` mode is used, a security warning is logged
+

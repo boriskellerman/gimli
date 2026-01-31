@@ -67,6 +67,9 @@ apps/ios/*.mobileprovision
 .vscode/
 IDENTITY.md
 USER.md
+# But allow templates in docs
+!docs/reference/templates/IDENTITY.md
+!docs/reference/templates/USER.md
 .tgz
 
 # local tooling

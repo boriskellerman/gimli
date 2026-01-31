@@ -5,7 +5,11 @@ read_when:
   - You want the fastest path from install → onboarding → first message
 ---
 
-# Getting Started
+<p align="center">
+  <img src="/assets/gimi-logo.png" alt="Gimlé" width="180" />
+</p>
+
+# Welcome to Gimlé
 
 Goal: go from **zero** → **first working chat** (with sane defaults) as quickly as possible.
 
