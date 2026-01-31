@@ -377,3 +377,2642 @@ This verification confirms that Gimli follows security-first principles:
 - **No silent fallbacks**: Failed bindings never silently fall back to 0.0.0.0
 - **Warning logged**: When `lan` mode is used, a security warning is logged
 
+---
+
+# Task: Confirm DM pairing policy is enabled (dmPolicy="pairing")
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that DM pairing policy defaults to "pairing" for all messaging channels. This is a security-first default that requires explicit approval before accepting DMs from unknown senders. Created comprehensive unit tests (22 tests) to validate this behavior.
+
+## Verification Performed
+
+### 1. Schema Analysis
+Reviewed the Zod schema files to confirm `dmPolicy` defaults:
+- `src/config/zod-schema.providers-core.ts`: Telegram, Signal, iMessage, BlueBubbles, MSTeams all default to `"pairing"`
+- `src/config/zod-schema.providers-whatsapp.ts`: WhatsApp defaults to `"pairing"`
+- Extensions (Mattermost, Nextcloud-Talk, Line) also default to `"pairing"`
+
+### 2. Current Configuration Check
+Reviewed `~/.gimli/gimli.json`:
+- No `channels` section configured (no channels exposed)
+- Gateway bound to loopback (secure)
+- Gateway auth token configured
+
+### 3. Unit Tests Created
+Created `src/config/dm-policy-defaults.test.ts` with 22 tests covering:
+
+**DM policy defaults to pairing (6 tests):**
+- Telegram defaults to pairing
+- WhatsApp defaults to pairing
+- Signal defaults to pairing
+- iMessage defaults to pairing
+- BlueBubbles defaults to pairing
+- MS Teams defaults to pairing
+
+**DM policy security validation (8 tests):**
+- Rejects dmPolicy="open" without allowFrom "*" for Telegram, WhatsApp, Signal, iMessage
+- Accepts dmPolicy="open" with allowFrom "*" for all channels
+
+**DM policy allowlist mode (2 tests):**
+- Accepts dmPolicy="allowlist" with explicit entries
+
+**DM policy disabled mode (2 tests):**
+- Accepts dmPolicy="disabled" for Telegram and WhatsApp
+
+**DM policy type safety (2 tests):**
+- Rejects invalid dmPolicy values
+- Validates DmPolicy enum values
+
+**Empty config security defaults (2 tests):**
+- Empty config has no channels (secure by default)
+- Gateway defaults to loopback binding
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  22 passed (22)
+  Duration  8.87s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/config/dm-policy-defaults.test.ts` - Comprehensive DM policy verification tests
+
+## Security Implications
+This verification confirms Gimli's security-first approach to DM access:
+- **Default secure**: All channels default to `dmPolicy="pairing"` which requires pairing codes for unknown senders
+- **Explicit opt-in for open**: `dmPolicy="open"` requires `allowFrom: ["*"]` to prevent accidental exposure
+- **Schema-level enforcement**: Zod schemas enforce these defaults at config parsing time
+- **No channel exposure by default**: Empty config has no channels configured
+
+---
+
+# Task: Verify credentials are stored securely in `~/.gimli/credentials/` with proper permissions
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that credentials are stored securely in `~/.gimli/credentials/` with proper permissions (700 for directory, 600 for files). The codebase already has comprehensive security infrastructure for credentials storage. Added unit tests to validate the security audit checks for credentials permissions.
+
+## Verification Performed
+
+### 1. Live System Check
+```bash
+stat -c '%a %n' ~/.gimli/credentials/
+```
+**Result:** `700 /home/gimli/.gimli/credentials/` - Credentials directory has secure permissions (owner-only read/write/execute).
+
+### 2. Codebase Analysis
+
+**Credentials Security Infrastructure:**
+- `src/config/paths.ts:resolveOAuthDir()` - Resolves credentials directory path (`~/.gimli/credentials/`)
+- `src/security/audit-extra.ts:collectStateDeepFilesystemFindings()` - Checks credentials directory permissions:
+  - Flags world-writable/group-writable as **critical**
+  - Flags world-readable/group-readable as **warn**
+  - Also checks `auth-profiles.json` and `sessions.json` permissions per agent
+- `src/security/fix.ts:chmodCredentialsAndAgentState()` - Auto-fixes permissions:
+  - Credentials directory: `chmod 700`
+  - Credential files (*.json): `chmod 600`
+  - Auth profiles and sessions: `chmod 600`
+
+### 3. Expected Permissions
+| Path | Mode | Description |
+|------|------|-------------|
+| `~/.gimli/credentials/` | 700 | Credentials directory (owner rwx only) |
+| `~/.gimli/credentials/*.json` | 600 | OAuth and credential files (owner rw only) |
+| `~/.gimli/agents/<id>/agent/auth-profiles.json` | 600 | API keys and OAuth tokens |
+| `~/.gimli/agents/<id>/sessions/sessions.json` | 600 | Session metadata |
+
+## Tests Added
+
+Created `src/security/credentials-permissions.test.ts` with 11 tests covering:
+
+**POSIX Permissions Tests (8 tests):**
+1. flags credentials directory when world-writable (critical)
+2. flags credentials directory when group-writable (critical)
+3. warns when credentials directory is world-readable (warn)
+4. warns when credentials directory is group-readable (warn)
+5. does not flag credentials directory with secure permissions (700)
+6. flags auth-profiles.json when world-writable (critical)
+7. warns when auth-profiles.json is world-readable (warn)
+8. does not flag auth-profiles.json with secure permissions (600)
+
+**Windows ACL Tests (3 tests):**
+9. treats Windows ACL-only perms as secure for credentials dir
+10. flags Windows ACLs when BUILTIN\Users can read credentials dir
+11. flags Windows ACLs when BUILTIN\Users can write to credentials dir
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  11 passed (11)
+  Duration  7.76s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/security/credentials-permissions.test.ts` - Comprehensive credentials permissions security tests
+
+## Security Implications
+This verification confirms Gimli's security-first approach to credentials storage:
+- **Default secure**: Credentials directory created with 700 permissions
+- **Files restricted**: Credential files use 600 permissions (owner read/write only)
+- **Audit coverage**: `gimli security audit` flags insecure permissions
+- **Auto-fix available**: `gimli security fix` repairs permissions automatically
+- **Cross-platform**: Supports both POSIX (chmod) and Windows (ACL) permission models
+
+---
+
+# Task: Test that sandbox mode is active for non-main sessions
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that sandbox mode correctly activates for non-main sessions when `mode: "non-main"` is configured. Created comprehensive unit tests (20 tests) that verify the sandboxing behavior across all modes and session types.
+
+## Implementation Analysis
+
+### Core Logic (`src/agents/sandbox/runtime-status.ts`)
+The `shouldSandboxSession()` function implements the key security decision:
+```typescript
+function shouldSandboxSession(cfg: SandboxConfig, sessionKey: string, mainSessionKey: string) {
+  if (cfg.mode === "off") return false;
+  if (cfg.mode === "all") return true;
+  return sessionKey.trim() !== mainSessionKey.trim(); // non-main mode
+}
+```
+
+### Sandbox Modes
+| Mode | Main Session | Non-Main Sessions |
+|------|--------------|-------------------|
+| `off` | Not sandboxed | Not sandboxed |
+| `non-main` | Not sandboxed | **Sandboxed** |
+| `all` | Sandboxed | Sandboxed |
+
+### What Sandbox Mode Provides
+When a session is sandboxed:
+1. **Docker Isolation**: Read-only root, no network, dropped capabilities
+2. **Tool Restrictions**: Limited allowlist (file ops, sessions only)
+3. **Workspace Isolation**: Separate directory per session/agent
+4. **Resource Limits**: Memory, CPU, PID constraints
+
+## Tests Added
+
+Created `src/agents/sandbox/runtime-status.test.ts` with 20 tests:
+
+**Non-main mode sandboxes non-main sessions (7 tests):**
+1. sandboxes sessions that do not match the main session key
+2. sandboxes named sessions different from main
+3. sandboxes group sessions
+4. sandboxes DM sessions
+5. does not sandbox the main session
+6. does not sandbox custom main session key
+7. sandboxes sessions when main key is customized but session differs
+
+**All mode sandboxes all sessions (2 tests):**
+1. sandboxes the main session
+2. sandboxes non-main sessions
+
+**Off mode sandboxes nothing (2 tests):**
+1. does not sandbox main session
+2. does not sandbox non-main sessions
+
+**Default mode is off (2 tests):**
+1. defaults to off when no sandbox config specified
+2. defaults to off with empty config
+
+**Agent-specific sandbox overrides (2 tests):**
+1. uses agent-specific mode over global defaults
+2. applies global defaults when agent has no override
+
+**Global session scope (2 tests):**
+1. uses global main key when scope is global
+2. sandboxes non-global sessions when scope is global
+
+**Tool policy in runtime status (1 test):**
+1. includes tool policy in result
+
+**Empty or missing session key (2 tests):**
+1. does not sandbox when session key is empty
+2. does not sandbox when session key is undefined
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  20 passed (20)
+  Duration  5.61s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/sandbox/runtime-status.test.ts` - Comprehensive sandbox runtime status unit tests
+
+## Security Implications
+This verification confirms Gimli's security-first approach to session sandboxing:
+- **Default secure**: Default mode is `off` (no surprise sandboxing)
+- **Opt-in security**: `mode: "non-main"` enables automatic sandboxing of untrusted sessions
+- **Main session exempt**: The main session (trusted, direct user interaction) bypasses sandbox
+- **All non-main sandboxed**: Group chats, DMs, and named sessions are isolated
+- **Agent override support**: Per-agent security policies can be stricter than global
+- **Tool restrictions**: Sandboxed sessions have limited tool access (no browser, canvas, cron, channels)
+
+---
+
+# Task: Run `gimli doctor` security checks and address any warnings
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Ran `gimli doctor` and `gimli security audit --deep` to verify the security posture of the Gimli installation. All security checks pass with no critical issues. The warnings present are informational and expected for the current deployment configuration.
+
+## Verification Performed
+
+### 1. Doctor Command
+```bash
+pnpm gimli doctor
+```
+**Results:**
+- **Security**: No channel security warnings detected ✅
+- **Gateway**: Binds to loopback only (secure) ✅
+- **State integrity**: Minor warnings about missing transcript files (non-security)
+- **Gateway runtime**: Using NVM-managed Node (recommended to use system Node, but not a security issue)
+
+### 2. Deep Security Audit
+```bash
+pnpm gimli security audit --deep
+```
+**Results:**
+- **0 critical issues** ✅
+- **1 warning**: `gateway.trusted_proxies_missing` - Expected for loopback-only deployments
+- **1 info**: Attack surface summary showing secure defaults
+
+### 3. Doctor Fix Applied
+```bash
+pnpm gimli doctor --fix
+```
+- Config backup created: `~/.gimli/gimli.json.bak`
+- Config updated: `~/.gimli/gimli.json`
+
+## Security Audit Details
+
+### Warnings Analyzed
+
+| Issue | Severity | Status | Notes |
+|-------|----------|--------|-------|
+| trusted_proxies_missing | warn | Expected | Gateway binds to loopback only; reverse proxy config not needed |
+| attack_surface | info | Good | No open groups, elevated tools enabled (expected), hooks disabled |
+
+### Security Tests Verified
+- `src/commands/doctor-security.test.ts`: 4/4 tests passing
+- `src/security/credentials-permissions.test.ts`: 11/11 tests passing
+
+## Conclusion
+The Gimli installation has a secure configuration:
+- Gateway binds to loopback only (127.0.0.1 and ::1)
+- No channels exposed to network
+- DM pairing policy enabled by default
+- Credentials directory has proper permissions (700)
+- Sandbox mode ready for non-main sessions
+
+No code changes were required as all security configurations are already correct.
+
+---
+
+# Task: Review `~/.gimli/gimli.json` for any overly permissive settings
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Reviewed the current `~/.gimli/gimli.json` configuration for overly permissive settings. The configuration is properly hardened with secure defaults. Created comprehensive unit tests (31 tests) to validate security configuration patterns and detect overly permissive settings.
+
+## Configuration Review
+
+### Current Settings Analysis
+
+| Setting | Value | Security Status |
+|---------|-------|-----------------|
+| `gateway.bind` | `"loopback"` | ✅ Secure - only localhost |
+| `gateway.mode` | `"local"` | ✅ Secure - local mode |
+| `gateway.auth.mode` | `"token"` | ✅ Secure - token auth enabled |
+| `gateway.auth.token` | 48-char hex | ✅ Secure - adequate length |
+| `gateway.tailscale.mode` | `"off"` | ✅ Secure - no tailscale exposure |
+| `agents.defaults.workspace` | `/home/gimli/gimli` | ✅ Local path |
+| `agents.defaults.compaction.mode` | `"safeguard"` | ✅ Safeguard mode preserves context |
+| `messages.ackReactionScope` | `"group-mentions"` | ✅ Limited scope |
+| `commands.native` | `"auto"` | ℹ️ Info - auto-detection |
+| `commands.nativeSkills` | `"auto"` | ℹ️ Info - auto-detection |
+| No `channels` section | - | ✅ Secure - no channels exposed |
+
+### Security Assessment
+- **No overly permissive settings detected**
+- Gateway binds to loopback only (127.0.0.1)
+- Token authentication is enabled with adequate token length
+- No channels are exposed to the network
+- Tailscale exposure is disabled
+- No open group policies configured
+
+## Tests Added
+
+Created `src/config/config-security-review.test.ts` with 31 tests covering:
+
+### Gateway Security Settings (10 tests)
+**Bind address security (3 tests):**
+1. accepts loopback bind (secure default)
+2. accepts lan bind with explicit config (requires user awareness)
+3. defaults bind to loopback when not specified
+
+**Authentication mode security (3 tests):**
+1. accepts token auth (recommended)
+2. accepts password auth (valid but less recommended than token)
+3. defaults to token auth when no auth config specified (secure default)
+
+**Tailscale mode security (4 tests):**
+1. accepts tailscale off (secure default)
+2. accepts tailscale serve mode (requires user awareness)
+3. accepts tailscale funnel mode (most permissive - exposes to internet)
+
+### Channel Security Settings (5 tests)
+**groupPolicy security (4 tests):**
+1. accepts allowlist groupPolicy (secure default)
+2. accepts disabled groupPolicy (most restrictive)
+3. accepts open groupPolicy (permissive - requires user awareness)
+4. defaults groupPolicy to allowlist when not specified
+
+**dmPolicy security (1 test):**
+1. defaults dmPolicy to pairing for all channels
+
+### Tools Security Settings (4 tests)
+**Elevated tools security (2 tests):**
+1. accepts elevated tools enabled (default - user should be aware)
+2. accepts elevated tools disabled (more restrictive)
+
+**Tool allow/deny policies (2 tests):**
+1. accepts explicit deny list for dangerous tools
+2. accepts explicit allow list for restricted access
+
+### Sandbox Security Settings (3 tests)
+1. accepts sandbox mode off (default - main session trusted)
+2. accepts sandbox mode non-main (recommended for multi-user)
+3. accepts sandbox mode all (most restrictive)
+
+### Hooks Security Settings (2 tests)
+1. accepts hooks with adequate token length
+2. accepts hooks disabled (secure default)
+
+### Agent Security Settings (3 tests)
+**Workspace isolation (1 test):**
+1. accepts explicit workspace path
+
+**Concurrency limits (2 tests):**
+1. accepts reasonable maxConcurrent limit
+2. accepts subagent concurrency limit
+
+### Secure Configuration Patterns (4 tests)
+1. validates a production-ready secure configuration
+2. detects overly permissive settings in a config
+3. reports secure surface for restrictive config
+4. flags open groupPolicy with elevated tools as critical
+5. does not flag allowlist groupPolicy
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  31 passed (31)
+  Duration  ~14s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/config/config-security-review.test.ts` - Comprehensive security config review tests
+
+## Key Findings
+The current `~/.gimli/gimli.json` configuration follows Gimli's security-first principles:
+- **Default secure**: All settings follow least-privilege defaults
+- **No channel exposure**: No messaging channels configured (prevents unauthorized access)
+- **Authentication enforced**: Token-based gateway authentication with adequate token length
+- **Network isolation**: Gateway bound to loopback only
+- **Sandboxing ready**: Default sandbox mode available for non-main sessions
+
+## Recommendations (for future reference)
+When configuring channels in production:
+1. Use `dmPolicy: "pairing"` (default) for DM access control
+2. Use `groupPolicy: "allowlist"` (default) for group access control
+3. Enable `sandbox.mode: "non-main"` for multi-user deployments
+4. Keep `tools.elevated.enabled: false` if not needed
+5. Use environment variables for sensitive credentials
+
+---
+
+# Task: Document any manual steps and create a one-liner setup script if possible
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created a comprehensive Linux setup script (`scripts/setup-linux.sh`) that automates the Gimli server deployment process. The script handles Node.js verification, Gimli installation, systemd daemon setup, user linger enablement, and security verification.
+
+## Implementation
+
+### One-Liner Setup Script
+Created `scripts/setup-linux.sh` with the following features:
+
+**Core Functionality:**
+1. Platform verification (Linux only)
+2. Node.js 22+ version checking with installation instructions
+3. npm PATH verification
+4. Gimli installation via npm with `SHARP_IGNORE_GLOBAL_LIBVIPS=1`
+5. Onboarding with `--install-daemon` flag
+6. User linger enablement for boot auto-start
+7. `gimli doctor` verification
+8. Security configuration verification
+
+**CLI Options:**
+- `--skip-node-check`: Skip Node.js version verification
+- `--skip-onboard`: Skip onboarding (install only)
+- `--dry-run`: Print what would be done without making changes
+- `--verbose`: Enable verbose output
+- `--help`: Show usage information
+
+**Environment Variables:**
+- `GIMLI_SKIP_NODE_CHECK=1`
+- `GIMLI_SKIP_ONBOARD=1`
+- `GIMLI_DRY_RUN=1`
+- `GIMLI_VERBOSE=1`
+
+**Security Verification:**
+- Checks credentials directory permissions (expects 700)
+- Verifies gateway binds to loopback only
+- Reports any security issues found
+
+**Usage:**
+```bash
+# Full setup (one-liner)
+curl -fsSL https://gimli.bot/setup-linux.sh | bash
+
+# Dry run
+curl -fsSL https://gimli.bot/setup-linux.sh | bash -s -- --dry-run
+
+# Skip onboarding
+curl -fsSL https://gimli.bot/setup-linux.sh | bash -s -- --skip-onboard
+```
+
+## Tests Created
+
+Created `src/scripts/setup-linux.test.ts` with 24 tests covering:
+
+**Script structure (5 tests):**
+- Script file exists and is readable
+- Has valid bash shebang
+- Uses strict mode (set -euo pipefail)
+- Passes bash syntax check
+- Has required functions defined
+
+**Help output (3 tests):**
+- Displays help with --help flag
+- Displays help with -h flag
+- Documents environment variables
+
+**Argument parsing (1 test):**
+- Rejects unknown options
+
+**Dry-run mode (2 tests):**
+- Does not execute commands in dry-run mode
+- Respects GIMLI_DRY_RUN environment variable
+
+**Platform detection (1 test):**
+- Script contains Linux platform check
+
+**Node.js version checking (3 tests):**
+- Script checks for Node.js 22+
+- Script provides nvm installation instructions when Node is missing
+- Extracts major version correctly
+
+**Security verification (2 tests):**
+- Script checks credentials directory permissions
+- Script checks gateway bind address
+
+**Systemd integration (2 tests):**
+- Script enables user linger
+- Script checks linger status
+
+**Installation (3 tests):**
+- Script uses SHARP_IGNORE_GLOBAL_LIBVIPS
+- Script runs gimli onboard with daemon flag
+- Script runs gimli doctor for verification
+
+**Documentation output (2 tests):**
+- Script prints next steps after completion
+- Script includes documentation URL
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  24 passed (24)
+  Duration  5.20s
+```
+
+## Linting
+- Shell script passes bash syntax check (`bash -n`)
+- Test file passes oxlint with 0 errors
+
+## Files Added
+- `scripts/setup-linux.sh` - Linux server setup script (338 lines)
+- `src/scripts/setup-linux.test.ts` - Comprehensive tests (228 lines)
+
+## Manual Steps Documented
+Based on the progress log from earlier Linux deployment work, the following manual steps were identified and automated in the script:
+
+1. **Node.js verification**: The script checks for Node.js 22+ and provides clear installation instructions if missing
+2. **npm PATH configuration**: The script warns if npm global bin is not in PATH
+3. **Gimli installation**: Uses `SHARP_IGNORE_GLOBAL_LIBVIPS=1` to avoid sharp build issues
+4. **Daemon installation**: Runs `gimli onboard --install-daemon` automatically
+5. **User linger**: Enables `loginctl enable-linger` for boot auto-start
+6. **Security verification**: Checks credentials permissions and gateway bind address
+7. **Diagnostics**: Runs `gimli doctor` to verify setup
+
+## Key Insights
+- The script follows security-first principles by verifying security configuration after installation
+- Dry-run mode allows users to preview what will happen before making changes
+- Environment variables provide automation-friendly configuration for CI/CD
+- The script gracefully handles missing dependencies and provides actionable guidance
+
+---
+
+# Task: Test session creation and isolation (main session vs group sessions)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (41 tests) to verify session creation and isolation behavior in Gimli. The tests cover main session vs group session creation, session key derivation, sandbox-based isolation, session store operations, and multi-agent session handling.
+
+## Test Coverage
+
+### 1. Main Session Creation (7 tests)
+- Creates main session key with default agent id (`agent:main:main`)
+- Creates main session key with custom agent id (`agent:alice:main`)
+- Creates main session key with custom main key (`agent:main:work`)
+- Creates global session key when scope is global (`global`)
+- Resolves agent-specific main session key
+- Canonicalizes main session aliases correctly
+- Canonicalizes to global when scope is global
+
+### 2. Group Session Creation (7 tests)
+- Creates group session key for WhatsApp groups (`whatsapp:group:12345@g.us`)
+- Creates group session key for Discord groups (`discord:group:123456789`)
+- Creates channel session key for Discord channels
+- Creates group session key for Telegram groups
+- Creates group session key for Slack channels
+- Returns null for DM messages
+- Returns null when no group indicators present
+
+### 3. Session Key Derivation (4 tests)
+- Derives per-sender key for DM
+- Derives group key for WhatsApp group
+- Derives global key when scope is global
+- Falls back to unknown when sender missing
+
+### 4. Session Key Resolution with Main Collapse (6 tests)
+- Collapses DM to main session
+- Collapses DM to custom main session key
+- Preserves group session key without collapsing
+- Preserves Discord group session key
+- Uses explicit session key when provided
+- Returns global for global scope
+
+### 5. Session Isolation via Sandboxing (6 tests)
+- Main session is not sandboxed in non-main mode
+- Group session is sandboxed in non-main mode
+- DM session that collapsed to main is not sandboxed
+- Custom named session is sandboxed in non-main mode
+- All sessions sandboxed in all mode
+- No sessions sandboxed in off mode
+
+### 6. Session Store Isolation (5 tests)
+- Stores main and group sessions separately
+- Updates main session without affecting group sessions
+- Deletes group session without affecting main session
+- Isolates multiple group sessions from each other
+
+### 7. Session Metadata Isolation (2 tests)
+- Stores channel-specific metadata per session
+- Preserves model override isolation between sessions
+
+### 8. Concurrent Session Operations Isolation (2 tests)
+- Handles concurrent updates to different sessions
+- Preserves session isolation during concurrent mixed operations
+
+### 9. Multi-Agent Session Isolation (3 tests)
+- Isolates sessions across different agents
+- Maintains agent-specific sandbox policies
+- Stores sessions for multiple agents separately
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  41 passed (41)
+  Duration  6.24s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/config/sessions/session-isolation.test.ts` - Comprehensive session isolation unit tests (355 lines)
+
+## Key Architecture Insights
+
+### Session Key Structure
+Session keys follow a hierarchical format: `agent:{agentId}:{rest}`
+- **Main session**: `agent:main:main` (default) or `agent:{agentId}:{customMainKey}`
+- **Group session**: `agent:{agentId}:{provider}:group:{id}` (e.g., `agent:main:whatsapp:group:12345@g.us`)
+- **Channel session**: `agent:{agentId}:{provider}:channel:{id}`
+- **Global session**: `global` (when scope is global)
+
+### Isolation Mechanisms
+1. **Key-based isolation**: Different session types get distinct keys
+2. **Main collapse**: DM sessions collapse to main session key for simplified routing
+3. **Group preservation**: Group sessions never collapse - they maintain isolation
+4. **Sandbox isolation**: Non-main mode sandboxes all sessions except the main session
+
+### Session Store Behavior
+- File-based store at `~/.gimli/sessions.json`
+- Concurrent-safe with lock file mechanism
+- Per-session metadata preservation
+- Multi-agent support with agent-prefixed keys
+
+---
+
+# Task: Verify session persistence across gateway restarts
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that session state correctly persists across gateway restarts by implementing comprehensive unit tests (9 tests) that simulate gateway restart scenarios and validate session data integrity.
+
+## Implementation
+
+### Test Coverage (`src/gateway/session-persistence.test.ts`)
+
+Created 9 comprehensive tests covering:
+
+1. **sessions persist to disk and survive gateway restart** - Tests that session metadata (tokens, thinking level, verbose level, channels) survives a complete gateway restart
+2. **session patches persist across gateway restart** - Tests that patches made via `sessions.patch` RPC are durably stored and available after restart
+3. **session reset creates new session ID that persists** - Tests that `sessions.reset` creates a new sessionId that survives restart
+4. **session deletion persists across gateway restart** - Tests that `sessions.delete` permanently removes sessions across restarts
+5. **multiple sessions persist independently across restart** - Tests that multiple sessions across different channels (Telegram, Discord, Slack, WhatsApp) all persist correctly
+6. **session store survives corrupt file gracefully on restart** - Tests graceful degradation when session store file is corrupted (gateway returns empty store, doesn't crash)
+7. **session delivery context persists across restart** - Tests that delivery routing info (channel, to, accountId, threadId) persists
+8. **session token usage accumulates and persists** - Tests that inputTokens, outputTokens, totalTokens counts persist
+9. **spawned session relationships persist across restart** - Tests that spawnedBy relationships for subagent sessions persist
+
+### Test Methodology
+
+Each test follows this pattern:
+1. Create session store with test data via `writeSessionStore()`
+2. Connect to gateway and verify initial state via WebSocket RPC
+3. Close connection, restart gateway (server.close() + startGatewayServer())
+4. Reconnect and verify session data survived the restart
+
+### Key Persistence Mechanisms Validated
+
+| Data Type | Persisted In | Verification |
+|-----------|--------------|--------------|
+| Session metadata | `sessions.json` | Survives restart |
+| Token counts | `sessions.json` | Accumulates correctly |
+| Thinking/verbose levels | `sessions.json` | Patches persist |
+| Delivery context | `sessions.json` | Routing info intact |
+| Channel info | `sessions.json` | Per-channel sessions work |
+| Spawned relationships | `sessions.json` | Subagent hierarchy maintained |
+| Transcript files | `*.jsonl` | Referenced by sessionId |
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  9 passed (9)
+  Duration  ~20s
+```
+
+## Linting
+Test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/session-persistence.test.ts` - Comprehensive session persistence unit tests (392 lines)
+
+## Architecture Insights
+
+Session persistence in Gimli is robust due to:
+
+1. **Immediate disk writes**: Sessions are saved to disk after each modification via `saveSessionStore()`
+2. **File locking**: `withSessionStoreLock()` prevents concurrent write corruption
+3. **Atomic writes**: Temp file + rename ensures consistency on Unix
+4. **TTL cache**: 45-second cache with mtime validation for performance
+5. **Graceful degradation**: Corrupt files are treated as empty (gateway doesn't crash)
+
+## Security Implications
+
+Session persistence maintains Gimli's security-first principles:
+- Session files use 0o600 permissions (owner read/write only)
+- Credentials are stored separately from session metadata
+- Session keys are prefixed with agent ID for isolation
+- Sandbox isolation decisions are persisted per-session
+
+---
+
+# Task: Test `/status`, `/new`, `/reset`, `/compact` chat commands
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (23 tests) to verify the behavior of the four core chat commands: `/status`, `/new`, `/reset`, and `/compact`. The tests validate command handling, authorization, session reset triggers, and edge cases across multiple messaging surfaces.
+
+## Test Coverage
+
+### `/status` Command Tests (4 tests)
+1. **returns status information for /status command** - Verifies status output includes Gimli version and session info
+2. **includes session key in status output** - Tests custom session key handling
+3. **includes model info in status output** - Tests provider/model display
+4. **blocks /status from unauthorized sender** - Verifies silent ignore for unauthorized users
+
+### `/new` Command Tests (3 tests)
+1. **triggers hook for /new command** - Verifies internal hook is called
+2. **triggers hook for /new with arguments** - Tests `/new take notes` style usage
+3. **accepts /new with model hint** - Tests `/new claude summarize this` style usage
+
+### `/reset` Command Tests (2 tests)
+1. **triggers hook for /reset command** - Verifies internal hook is called
+2. **triggers hook for /reset with arguments** - Tests `/reset clean slate` style usage
+
+### `initSessionState` Reset Trigger Tests (5 tests)
+1. **/new creates new session for authorized sender** - Verifies new session ID is generated
+2. **/new with arguments strips command and preserves arguments** - Tests body stripping logic
+3. **/reset creates new session for authorized sender** - Verifies reset creates new session
+4. **/new is case-insensitive** - Tests `/NEW` works same as `/new`
+5. **unauthorized sender cannot reset session** - Verifies security enforcement
+
+### `/compact` Command Tests (3 tests)
+1. **returns unavailable message when session id is missing** - Tests graceful error handling
+2. **blocks /compact from unauthorized sender** - Verifies authorization check
+3. **accepts /compact with custom instructions** - Tests `/compact focus on key decisions` style usage
+
+### Cross-Channel Authorization Tests (3 tests)
+1. **/status respects channel allowFrom** - Tests Telegram channel authorization
+2. **commands work on Discord surface** - Verifies Discord surface support
+3. **commands work on Slack surface** - Verifies Slack surface support
+
+### Edge Case Tests (3 tests)
+1. **handles /status with extra whitespace** - Tests `  /status  ` parsing
+2. **non-command messages continue to agent** - Verifies passthrough behavior
+3. **unknown slash commands continue to agent** - Tests `/unknowncommand` handling
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  23 passed (23)
+  Duration  ~15s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/auto-reply/reply/chat-commands.test.ts` - Comprehensive chat commands unit tests (380 lines)
+
+## Key Findings
+
+### Command Architecture
+- Commands are registered in `src/auto-reply/commands-registry.data.ts`
+- `/status` is handled by `handleStatusCommand` in `commands-info.ts`
+- `/new` and `/reset` are session reset triggers handled in `session.ts`
+- `/compact` is handled by `handleCompactCommand` in `commands-compact.ts`
+
+### Reset Trigger Behavior
+- Reset triggers (`/new`, `/reset`) are case-insensitive
+- Only authorized senders can trigger session resets
+- Arguments after reset triggers are preserved in `bodyStripped`
+- Session ID changes on reset, but session key remains the same
+
+### Authorization Flow
+- Commands check `isAuthorizedSender` from `buildCommandContext`
+- Unauthorized senders receive no reply (silent ignore)
+- Authorization respects per-channel `allowFrom` configuration
+
+---
+
+# Task: Test `/think` levels (off/minimal/low/medium/high/xhigh)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (49 tests) to verify the `/think` command behavior across all thinking levels. The tests validate directive parsing, level normalization, session persistence, command aliases, and edge cases.
+
+## Test Coverage
+
+### 1. extractThinkDirective - Level Parsing (6 tests)
+- Parses `/think off`
+- Parses `/think minimal`
+- Parses `/think low`
+- Parses `/think medium`
+- Parses `/think high`
+- Parses `/think xhigh`
+
+### 2. extractThinkDirective - Aliases (4 tests)
+- Parses `/thinking` as an alias for `/think`
+- Parses `/t` as an alias for `/think`
+- Parses `/think:high` (colon variant)
+- Parses `/t: medium` (colon with space)
+
+### 3. extractThinkDirective - With Message Body (3 tests)
+- Extracts think directive from message start
+- Extracts think directive from message middle
+- Extracts think directive from message end
+
+### 4. normalizeThinkLevel - Level Synonyms (10 tests)
+- Normalizes `on` to `low`
+- Normalizes `enable` to `low`
+- Normalizes `min` to `minimal`
+- Normalizes `mid` to `medium`
+- Normalizes `med` to `medium`
+- Normalizes `ultra` to `high`
+- Normalizes `max` to `high`
+- Normalizes `x-high` to `xhigh`
+- Returns undefined for invalid levels
+- Returns undefined for empty/null/undefined
+
+### 5. listThinkingLevels (4 tests)
+- Returns base levels for standard models (off, minimal, low, medium, high)
+- Includes `xhigh` for `gpt-5.2` model
+- Includes `xhigh` for `gpt-5.2-codex` model
+- Includes `xhigh` for `gpt-5.1-codex` model
+
+### 6. parseInlineDirectives - /think Command (4 tests)
+- Detects `/think high` as a directive
+- Detects `/think off` as a directive
+- Detects `/t minimal` as a directive
+- Preserves message body after stripping think directive
+
+### 7. persistInlineDirectives - Thinking Level (5 tests)
+- Persists `/think low` to session entry
+- Persists `/think medium` to session entry
+- Persists `/think high` to session entry
+- Removes thinking level when set to off
+- Updates existing thinking level
+
+### 8. handleCommands - /think Directive-Only (2 tests)
+- `/think high` alone continues to agent with directive applied
+- `/t low` with message body continues to agent
+
+### 9. /think Command - Edge Cases (6 tests)
+- Handles `/think` without level argument
+- Handles `/think:` with no level
+- Handles `/think` with invalid level
+- Is case-insensitive (HIGH, Low, MEDIUM all work)
+- Does not match `/think` followed by extra letters
+- Does not match `/think` inside a URL
+
+### 10. /think Levels - Full Coverage (6 tests)
+- Tests all levels: off, minimal, low, medium, high, xhigh
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  49 passed (49)
+  Duration  17.95s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/auto-reply/reply/think-command.test.ts` - Comprehensive /think command unit tests (393 lines)
+
+## Key Findings
+
+### Think Level Architecture
+- Think levels: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`
+- `xhigh` is only available for specific models (gpt-5.2, gpt-5.2-codex, gpt-5.1-codex)
+- Command aliases: `/think`, `/thinking`, `/t`
+- Supports colon syntax: `/think:high`, `/t: low`
+
+### Level Normalization
+- `on`/`enable` → `low`
+- `min` → `minimal`
+- `mid`/`med` → `medium`
+- `ultra`/`max` → `high`
+- `x-high` → `xhigh`
+
+### Session Persistence
+- Thinking level persists in session entry as `thinkingLevel`
+- Setting level to `off` removes the `thinkingLevel` property
+- Persistence happens via `persistInlineDirectives`
+
+### Directive Processing
+- Think directives are extracted via `extractThinkDirective`
+- Directive can appear at start, middle, or end of message
+- Message body is cleaned (directive stripped) after extraction
+- Case-insensitive matching
+
+---
+
+# Task: Verify agent-to-agent session tools: sessions_list, sessions_history, sessions_send
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (30 tests) to verify the behavior of agent-to-agent session tools. The tests validate cross-agent access control, sandbox visibility restrictions, session reference resolution, and main session alias handling.
+
+## Test Coverage
+
+### 1. sessions_list with A2A enabled (5 tests)
+- includes sessions from other agents when A2A is enabled with wildcard allow
+- filters sessions by allow patterns when restrictive patterns are set
+- includes same-agent sessions even when requester not in allow list
+- excludes all cross-agent sessions when A2A is disabled
+- correctly classifies session kinds (main, group, cron, hook, node, other)
+
+### 2. sessions_history with A2A enabled (7 tests)
+- allows cross-agent history access when A2A is enabled and allowed
+- blocks cross-agent history when A2A is disabled
+- blocks cross-agent history when agent not in allow list
+- allows same-agent history access without A2A
+- filters tool messages by default
+- includes tool messages when includeTools is true
+- handles session not found error
+
+### 3. sessions_send with A2A enabled (8 tests)
+- allows cross-agent send when A2A is enabled
+- blocks cross-agent send when agent not in allow list
+- returns accepted status for fire-and-forget mode
+- returns timeout status when agent.wait times out
+- requires either sessionKey or label
+- rejects both sessionKey and label
+- uses nested lane for agent invocation
+- includes agent-to-agent context in extraSystemPrompt
+
+### 4. Sandbox visibility restrictions (3 tests)
+- sessions_list restricts to spawned sessions when sandboxed
+- sessions_history returns forbidden for non-spawned sessions when sandboxed
+- sessions_send returns forbidden for non-spawned sessions when sandboxed
+
+### 5. Session reference resolution (4 tests)
+- sessions_history resolves sessionId to sessionKey
+- sessions_send resolves sessionId to sessionKey
+- sessions_send resolves label to sessionKey
+- sessions_send returns error when label not found
+
+### 6. Main session alias handling (3 tests)
+- sessions_list returns display key for main alias
+- sessions_history handles main alias input
+- sessions_send handles main alias input
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  30 passed (30)
+  Duration  6.62s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/tools/sessions-a2a-integration.test.ts` - Comprehensive A2A session tools tests (430 lines)
+
+## Key Architecture Insights
+
+### Agent-to-Agent (A2A) Policy
+The A2A policy is configured via `cfg.tools.agentToAgent`:
+- `enabled: boolean` - Master switch for cross-agent access
+- `allow: string[]` - Patterns that BOTH requester AND target must match
+
+The `isAllowed(requesterAgentId, targetAgentId)` function:
+1. Same-agent access is always allowed (requester === target)
+2. Cross-agent access requires `enabled=true` AND both agents matching allow patterns
+3. Empty allow list allows all agents; wildcard `"*"` matches any agent
+
+### Session Reference Resolution
+The tools support multiple ways to identify sessions:
+1. **sessionKey**: Direct session key (e.g., "main", "agent:main:discord:group:123")
+2. **sessionId**: UUID-based session identifier (resolved via gateway)
+3. **label**: Named session label (resolved via `sessions.resolve` RPC)
+
+Resolution priority:
+- If input looks like a well-formed key → use directly
+- If input looks like a sessionId → call `sessions.resolve` with `sessionId` param
+- Label resolution → call `sessions.resolve` with `label` param
+
+### Sandbox Visibility
+When `sandboxed=true` and `sessionToolsVisibility="spawned"`:
+- sessions_list only returns sessions spawned by the requester
+- sessions_history/sessions_send return "forbidden" for non-spawned sessions
+
+### Session Kind Classification
+Session kinds are derived from key patterns:
+- "main" alias match → "main"
+- "cron:" prefix → "cron"
+- "hook:" prefix → "hook"
+- "node:" or "node-" prefix → "node"
+- ":group:" or ":channel:" in key, or gatewayKind="group" → "group"
+- Everything else → "other"
+
+---
+
+# Task: Test WebChat connection via Gateway
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (20 tests) to verify WebChat connection functionality via the Gateway. The tests validate client identification, authentication, chat operations, concurrent connections, event broadcasting, and connection lifecycle.
+
+## Test Coverage
+
+### 1. WebChat Client Identification (3 tests)
+- webchat client connects with WEBCHAT mode
+- webchat client connects with WEBCHAT client id
+- webchat client connects with control-ui id and webchat mode
+
+### 2. WebChat Client Authentication (2 tests)
+- webchat client authenticates with valid token
+- webchat client rejected with invalid token
+
+### 3. WebChat chat.send Functionality (3 tests)
+- webchat client can send chat message
+- webchat client can send message to subagent session
+- webchat client can send message with thinking directive
+
+### 4. WebChat chat.history Functionality (2 tests)
+- webchat client can retrieve chat history
+- webchat client can retrieve history with limit
+
+### 5. WebChat chat.abort Functionality (2 tests)
+- webchat client can abort chat run
+- webchat client can abort specific run by id
+
+### 6. WebChat Multiple Concurrent Connections (2 tests)
+- multiple webchat clients can connect simultaneously
+- multiple webchat clients can send messages independently
+
+### 7. WebChat Event Broadcasting (1 test)
+- webchat client receives chat events
+
+### 8. WebChat sessions.list Functionality (1 test)
+- webchat client can list sessions
+
+### 9. WebChat Connection Lifecycle (2 tests)
+- webchat client can disconnect and reconnect
+- webchat hello-ok contains expected fields
+
+### 10. WebChat Image Attachments (2 tests)
+- webchat client can send message with image attachment
+- webchat client can send image-only message
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  20 passed (20)
+  Duration  24.89s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/webchat-connection.test.ts` - Comprehensive WebChat connection unit tests (393 lines)
+
+## Key Architecture Insights
+
+### WebChat Protocol Flow
+1. **Connection**: WebSocket opens to gateway port (e.g., ws://127.0.0.1:18789)
+2. **Challenge**: Server sends `connect.challenge` event with nonce
+3. **Connect Request**: Client sends `connect` RPC with:
+   - Protocol version
+   - Client info (id, version, platform, mode=WEBCHAT)
+   - Auth credentials (token or password)
+   - Device identity (optional)
+4. **Hello-OK Response**: Server responds with:
+   - Protocol version
+   - Server info (version, commit, host, connId)
+   - Features (available methods and events)
+   - Auth confirmation (role, scopes)
+   - Policy limits (maxPayload, tickInterval)
+
+### WebChat Client Modes
+- `GATEWAY_CLIENT_MODES.WEBCHAT` = "webchat"
+- Client IDs: `WEBCHAT_UI`, `WEBCHAT`, `CONTROL_UI`
+
+### Chat RPC Methods
+- `chat.send`: Send message with optional thinking directive, attachments
+- `chat.history`: Retrieve conversation history with optional limit
+- `chat.abort`: Cancel in-progress chat run
+- `sessions.list`: List all sessions
+
+### Event Broadcasting
+- Chat events use state machine: delta → final | aborted | error
+- All connected WebChat clients receive broadcasts for their sessions
+
+## Security Implications
+- WebChat clients authenticate via token or password
+- Invalid tokens are rejected with appropriate error messages
+- Multiple concurrent connections are supported with instance isolation
+- Session-based isolation ensures clients only access their own data
+
+---
+
+# Task: Test `bash` tool execution (should run on host for main session)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (34 tests) to verify that the bash tool executes commands correctly on the gateway host for main sessions. The tests validate session identification, host execution vs sandbox distinction, security/approval workflows, PATH handling, exit codes, timeout behavior, and elevated command execution.
+
+## Test Coverage
+
+### 1. Main Session Runs on Gateway Host (5 tests)
+- Executes command on gateway host when session is main
+- Executes complex commands on gateway host for main session
+- Can read environment variables on gateway host for main session
+- Can access filesystem on gateway host for main session
+- Respects workdir parameter on gateway host for main session
+
+### 2. Main Session Identification (3 tests)
+- Identifies agent:main:main as main session
+- Identifies agent:{agentId}:main as main session for custom agent
+- Identifies custom main key session
+
+### 3. Host Execution vs Sandbox Distinction (3 tests)
+- Uses configured host for execution
+- Defaults host to sandbox when not specified
+- Overrides host to gateway for elevated commands
+
+### 4. Security and Approval for Main Session (4 tests)
+- Uses allowlist security mode for gateway host with ask off
+- Can use full security mode to bypass allowlist
+- Rejects elevated commands when not allowed
+- Triggers approval-pending when ask is on-miss and command is not allowlisted
+
+### 5. PATH Handling for Main Session (2 tests)
+- Prepends configured path entries for main session
+- Inherits shell PATH for gateway execution
+
+### 6. Exit Code and Status for Main Session (4 tests)
+- Reports completed status for successful commands
+- Throws error for non-zero exit code
+- Throws error for command not found
+- Captures stdout for main session execution
+- Captures stderr for main session execution
+
+### 7. Timeout Handling for Main Session (2 tests)
+- Respects timeout parameter by backgrounding long commands
+- Uses default timeout when not specified
+
+### 8. Provider Context for Main Session (2 tests)
+- Includes provider in error messages
+- Includes session in error messages
+
+### 9. Non-Main Session Execution Context (3 tests)
+- Identifies group sessions as non-main
+- Identifies DM sessions as non-main
+- Identifies named sessions as non-main
+
+### 10. Session Scoping (2 tests)
+- Scopes process sessions by session key
+- Background sessions are isolated by scope key
+
+### 11. Elevated Execution for Main Session (3 tests)
+- Elevated commands run on gateway host regardless of configured host
+- Elevated mode full bypasses all approvals
+- Elevated mode off does not default to elevated
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  34 passed (34)
+  Duration  ~6s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/bash-tools.main-session.test.ts` - Comprehensive bash tool main session tests (788 lines)
+
+## Key Architecture Insights
+
+### Bash Tool Execution Hosts
+The bash tool supports three execution hosts:
+1. **sandbox** - Docker container (default for untrusted sessions)
+2. **gateway** - Direct host execution (for main session, elevated commands)
+3. **node** - Remote execution on companion devices
+
+### Main Session Behavior
+- Main session key format: `agent:{agentId}:main` (e.g., `agent:main:main`)
+- Main sessions run on gateway host when sandbox mode is "non-main"
+- Elevated commands always force gateway execution regardless of host config
+- Session key comparison determines sandbox vs host execution
+
+### Security Model
+- `security: "full"` - Bypasses allowlist checks (used in tests)
+- `security: "allowlist"` - Requires commands to be pre-approved
+- `ask: "off"` - Executes without approval prompts
+- `ask: "on-miss"` - Prompts for approval if command not in allowlist
+
+### Error Handling
+- Non-zero exit codes throw errors with exit code in message
+- Command not found throws errors with descriptive messages
+- Approval required returns `approval-pending` status
+
+---
+
+# Task: Test `read`, `write`, `edit` file tools
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (49 tests) to verify the behavior of the `read`, `write`, and `edit` file tools. The tests validate core functionality, Claude Code parameter compatibility (file_path, old_string, new_string aliases), sandboxed execution with path guards, parameter normalization, and edge cases.
+
+## Test Coverage
+
+### 1. Read Tool - Basic Functionality (5 tests)
+- reads a text file successfully
+- reads a file with line numbers
+- handles empty files
+- throws error for non-existent file
+- reads file using file_path alias (Claude Code compatibility)
+
+### 2. Read Tool - Sandboxed (5 tests)
+- reads files within sandbox root
+- blocks reading files outside sandbox root
+- blocks reading files using file_path alias outside sandbox
+- blocks path traversal attempts
+- reads file using relative path within sandbox
+
+### 3. Write Tool - Basic Functionality (6 tests)
+- creates a new file
+- overwrites existing file
+- creates file using file_path alias (Claude Code compatibility)
+- creates nested directories if needed
+- writes multiline content
+- writes empty content
+
+### 4. Write Tool - Sandboxed (3 tests)
+- writes files within sandbox root
+- blocks writing files outside sandbox root
+- blocks path traversal attempts on write
+
+### 5. Edit Tool - Basic Functionality (6 tests)
+- replaces text in a file
+- replaces multiline text
+- uses Claude Code parameter aliases (old_string, new_string)
+- rejects empty newText (delete operations require non-empty replacement)
+- inserts text (replace empty match)
+- throws error when old text not found
+
+### 6. Edit Tool - Sandboxed (3 tests)
+- edits files within sandbox root
+- blocks editing files outside sandbox root
+- blocks path traversal attempts on edit
+
+### 7. Parameter Normalization - normalizeToolParams (7 tests)
+- converts file_path to path
+- converts old_string to oldText
+- converts new_string to newText
+- preserves path when both file_path and path are present
+- preserves oldText when both old_string and oldText are present
+- handles multiple aliases at once
+- returns undefined for non-object input
+
+### 8. Parameter Normalization - assertRequiredParams (7 tests)
+- passes when at least one key in group is present
+- passes when alias key is present
+- throws when no key in group is present
+- throws when value is empty string
+- validates all groups for edit tool
+- throws when edit tool is missing oldText
+- throws for undefined or null params
+
+### 9. Integration - Full Workflow (2 tests)
+- performs read-edit-read cycle correctly
+- sandboxed tools maintain isolation across operations
+
+### 10. Edge Cases (5 tests)
+- handles files with special characters in name
+- handles files with unicode content
+- handles very long file paths
+- handles binary content in write tool
+- preserves file permissions after edit
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  49 passed (49)
+  Duration  5.20s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/file-tools.test.ts` - Comprehensive file tools unit tests (530 lines)
+
+## Key Architecture Insights
+
+### File Tool Providers
+The `read`, `write`, and `edit` tools are provided by `@mariozechner/pi-coding-agent` and wrapped by Gimli with:
+1. **MIME detection** - Normalizes image MIME types using file-magic detection
+2. **Sandbox path guards** - Prevents access outside sandbox root
+3. **Claude Code compatibility** - Normalizes `file_path`→`path`, `old_string`→`oldText`, `new_string`→`newText`
+4. **Image sanitization** - Resizes oversized images before sending to providers
+
+### Sandbox Path Security
+- `assertSandboxPath()` validates paths stay within sandbox root
+- Blocks path traversal (`../..`) attempts
+- Blocks symlink traversal
+- Supports both absolute and relative paths
+
+### Parameter Normalization
+- `normalizeToolParams()` converts Claude Code conventions to pi-coding-agent conventions
+- `assertRequiredParams()` enforces required parameter groups (path OR file_path must be provided)
+- The edit tool requires non-empty `newText` to prevent accidental deletions
+
+---
+
+# Task: Test `browser` tool - verify Chromium launches and snapshots work
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive integration tests (27 tests) to verify that the browser tool correctly launches Chromium via the control server and that snapshot functionality works. The tests validate browser launch flow, snapshot functionality (AI and aria formats), tab management, navigation, screenshots, browser actions, error handling, and profile management.
+
+## Test Coverage
+
+### 1. Browser Launch Flow (5 tests)
+- reports not running before browser is started
+- launches Chromium when start endpoint is called
+- reports running status after browser starts
+- stops Chromium when stop endpoint is called
+- does not relaunch browser if already running
+
+### 2. Snapshot Functionality (5 tests)
+- takes AI format snapshot successfully
+- takes aria format snapshot successfully
+- respects maxChars parameter for AI snapshots
+- snapshots specific targetId when provided
+- snapshot auto-starts browser when needed
+
+### 3. Tab Management (4 tests)
+- lists tabs when browser is running
+- opens new tab with URL
+- focuses specific tab by targetId
+- closes tab by targetId
+
+### 4. Navigation (2 tests)
+- navigates to URL successfully
+- navigates specific tab by targetId
+
+### 5. Screenshot (2 tests)
+- takes screenshot successfully
+- takes screenshot with fullPage option
+
+### 6. Browser Actions (5 tests)
+- performs click action
+- performs type action
+- performs key press action
+- performs hover action
+- performs drag action
+
+### 7. Error Handling (3 tests)
+- action auto-starts browser when needed and succeeds
+- returns 400 for invalid action kind
+- rejects selector-based actions (ref required)
+
+### 8. Profiles (1 test)
+- lists browser profiles
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  27 passed (27)
+  Duration  5.59s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/browser/browser-tool-integration.test.ts` - Comprehensive browser tool integration tests (644 lines)
+
+## Key Architecture Insights
+
+### Browser Control Server Architecture
+The browser tool uses a multi-layer architecture:
+1. **Agent layer** (`browser-tool.ts`) - Tool definition for AI agents
+2. **Client layer** (`client.ts`) - HTTP client for communicating with browser control server
+3. **Server layer** (`bridge-server.ts`, `routes/`) - Express-based HTTP server managing browser instances
+4. **Playwright layer** (`pw-*.ts`) - Underlying automation using `playwright-core`
+
+### Launch Flow
+1. Client calls `POST /start` endpoint
+2. Server calls `launchGimliChrome()` which spawns Chromium with CDP enabled
+3. Server waits for CDP to become reachable on loopback
+4. Server returns status with pid and profile name
+
+### Snapshot Flow
+1. Client calls `GET /snapshot?format=ai|aria` endpoint
+2. Server calls `ensureTabAvailable()` which auto-starts browser if needed
+3. For AI format: Uses Playwright's `snapshotAiViaPlaywright()` for accessibility tree
+4. For aria format: Uses CDP's `snapshotAria()` directly via WebSocket
+5. Returns snapshot with format, targetId, url, and content
+
+### Auto-Start Behavior
+The browser control server automatically launches Chromium when needed:
+- `ensureTabAvailable()` checks if browser is running
+- If not running, calls `ensureBrowserAvailable()` to launch
+- This enables lazy browser startup on first action
+
+### Error Handling
+- Invalid actions return 400 status
+- Selector-based actions are rejected (ref required for security)
+- Browser operations auto-start browser when needed
+
+---
+
+# Task: Test `process` tool for running commands
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (28 tests) to verify the behavior of the `process` tool for managing background shell execution sessions. The tests cover all 10 actions (list, poll, log, write, send-keys, submit, paste, kill, clear, remove) plus scope isolation and error handling.
+
+## Test Coverage
+
+### 1. List Action Tests (4 tests)
+- Returns empty list when no sessions exist
+- Lists running sessions with correct metadata
+- Lists finished sessions with exit code
+- Lists multiple sessions
+
+### 2. Poll Action Tests (5 tests)
+- Returns new output from running session
+- Returns exit code when process completes
+- Returns failed status for non-zero exit code
+- Requires sessionId parameter
+- Returns error for non-existent session
+
+### 3. Log Action Tests (4 tests)
+- Returns full output from running session
+- Supports offset and limit pagination
+- Returns log from finished session
+- Requires sessionId parameter
+
+### 4. Write Action Tests (3 tests)
+- Writes data to session stdin
+- Closes stdin with eof flag
+- Returns error for non-existent session
+
+### 5. Paste Action Tests (2 tests)
+- Pastes text with bracketed paste mode by default
+- Pastes empty text with bracketed paste markers
+
+### 6. Kill Action Tests (2 tests)
+- Terminates a running session
+- Returns error for non-existent session
+
+### 7. Clear Action Tests (2 tests)
+- Removes a finished session from memory
+- Returns error when clearing running session
+
+### 8. Remove Action Tests (3 tests)
+- Kills and removes a running session
+- Clears a finished session
+- Returns error for non-existent session
+
+### 9. Unknown Action Tests (1 test)
+- Returns error for unknown action
+
+### 10. Scope Isolation Tests (2 tests)
+- Sessions are isolated by scope key
+- No scope key sees all sessions
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  28 passed (28)
+  Duration  6.32s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/bash-tools.process.test.ts` - Comprehensive process tool unit tests (710 lines)
+
+## Key Architecture Insights
+
+### Process Tool Overview
+The `process` tool manages background shell execution sessions created by the `exec` tool. It provides:
+- Session lifecycle management (list, poll, kill, clear, remove)
+- Output retrieval (poll for new output, log for aggregated output with pagination)
+- Input handling (write to stdin, send-keys for PTY, paste with bracketed mode)
+- Scope-based isolation for multi-agent environments
+
+### Tool Actions
+| Action | Purpose |
+|--------|---------|
+| list | List all running and finished sessions with status, runtime, command |
+| poll | Drain new output and check if process exited |
+| log | Read aggregated output with optional offset/limit pagination |
+| write | Send raw stdin data, optionally close stdin with eof flag |
+| send-keys | Send keyboard input (tokens, hex, literal) for PTY sessions |
+| submit | Send carriage return to PTY session |
+| paste | Send text with bracketed paste mode for PTY sessions |
+| kill | Terminate running session with SIGKILL |
+| clear | Remove finished session from memory |
+| remove | Kill if running, or clear if finished |
+
+### Session Scoping
+- Each agent can have its own scope via `scopeKey`
+- Scoped tools only see sessions with matching scopeKey
+- Unscoped tools (no scopeKey) can see all sessions
+- This enables multi-agent isolation in shared environments
+
+---
+
+# Task: List installed skills with `gimli skills list`
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the `gimli skills list` command works correctly and displays all installed skills with their status (ready/missing). Created comprehensive unit tests (25 tests) to validate the skills list functionality including CLI execution, skill loading, formatting, and workspace skills.
+
+## Manual Verification Performed
+
+### 1. CLI Command Execution
+```bash
+pnpm gimli skills list
+```
+**Result:** Successfully displays all 49 skills with status (6/49 ready):
+- Ready skills: bluebubbles, coding-agent, github, skill-creator, tmux, weather
+- Missing skills show required dependencies not installed
+
+### 2. JSON Output Mode
+```bash
+pnpm gimli skills list --json
+```
+**Result:** Produces valid JSON output with skill metadata including name, description, source, eligibility, and missing requirements.
+
+### 3. Eligible Filter
+```bash
+pnpm gimli skills list --eligible
+```
+**Result:** Shows only the 6 ready-to-use skills.
+
+### 4. Skills Check
+```bash
+pnpm gimli skills check
+```
+**Result:** Shows summary counts (eligible, disabled, blocked, missing requirements).
+
+### 5. Skill Info
+```bash
+pnpm gimli skills info github
+```
+**Result:** Shows detailed information for the github skill including requirements status.
+
+## Tests Added
+
+Created `src/commands/skills-list.test.ts` with 25 tests covering:
+
+### CLI Command Execution (4 tests)
+1. executes gimli skills list without errors
+2. executes gimli skills list with --eligible flag
+3. executes gimli skills check without errors
+4. executes gimli skills info for a bundled skill
+
+### buildWorkspaceSkillStatus (4 tests)
+1. loads bundled skills from repository
+2. categorizes skills by eligibility correctly
+3. populates skill metadata correctly
+4. identifies skill source correctly
+
+### formatSkillsList Output (6 tests)
+1. shows ready/missing status indicators
+2. shows count of ready vs total skills
+3. filters to eligible only when requested
+4. outputs valid JSON when requested
+5. includes gimlihub hint in non-JSON output
+6. excludes gimlihub hint in JSON output
+
+### formatSkillInfo Output (5 tests)
+1. shows skill details
+2. shows requirements status
+3. shows install options for missing skills
+4. returns not found for unknown skill
+5. outputs valid JSON when requested
+
+### formatSkillsCheck Output (4 tests)
+1. shows summary counts
+2. lists ready skills
+3. lists skills with missing requirements
+4. outputs valid JSON summary when requested
+
+### Workspace Skills Loading (2 tests)
+1. loads skills from workspace skills directory
+2. handles missing workspace skills directory gracefully
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  25 passed (25)
+  Duration  44.09s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/commands/skills-list.test.ts` - Comprehensive skills list command tests (469 lines)
+
+## Key Architecture Insights
+
+### Skills System
+- Skills are markdown files (`SKILL.md`) with YAML frontmatter containing metadata
+- Skills can come from three sources:
+  - `gimli-bundled`: Bundled with Gimli in the `skills/` directory
+  - `gimli-workspace`: User workspace at `~/gimli/skills/`
+  - `gimli-managed`: Managed skills directory
+- Each skill has requirements (bins, anyBins, env, config, os) that determine eligibility
+- Skills are marked "ready" when all requirements are satisfied
+
+### Skill Status Report
+The `buildWorkspaceSkillStatus()` function returns a comprehensive report:
+- `workspaceDir`: Path to workspace skills
+- `managedSkillsDir`: Path to managed skills
+- `skills`: Array of skill entries with:
+  - name, description, source, filePath
+  - emoji, homepage, primaryEnv
+  - always, disabled, blockedByAllowlist, eligible
+  - requirements and missing arrays
+  - configChecks and install options
+
+---
+
+# Task: Test loading a bundled skill
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (32 tests) to verify that bundled skills can be properly loaded, filtered, and included in skill snapshots and prompts. The tests validate the complete skill loading pipeline from directory resolution through eligibility filtering.
+
+## Test Coverage
+
+### 1. resolveBundledSkillsDir (2 tests)
+- Uses GIMLI_BUNDLED_SKILLS_DIR environment variable when set
+- Falls back to package root skills directory
+
+### 2. loadWorkspaceSkillEntries with bundled skills (4 tests)
+- Loads skills from bundled directory
+- Workspace skills override bundled skills with same name
+- Loads multiple bundled skills
+- Loads bundled skill with metadata requirements
+
+### 3. Bundled allowlist filtering (5 tests)
+- resolveBundledAllowlist returns undefined when not configured
+- resolveBundledAllowlist returns normalized list when configured
+- isBundledSkillAllowed returns true when no allowlist
+- isBundledSkillAllowed filters bundled skills by allowlist
+- isBundledSkillAllowed always allows non-bundled skills
+
+### 4. filterWorkspaceSkillEntries for bundled skills (2 tests)
+- Filters bundled skills by allowlist in config
+- Filters bundled skills by disabled flag
+
+### 5. buildWorkspaceSkillSnapshot with bundled skills (3 tests)
+- Includes bundled skills in snapshot prompt
+- Excludes bundled skills not in allowlist from prompt
+- Includes bundled skill location in prompt for model to read
+
+### 6. buildWorkspaceSkillsPrompt with bundled skills (2 tests)
+- Generates prompt with bundled skills
+- Filters bundled skills using skillFilter parameter
+
+### 7. Bundled skill eligibility requirements (7 tests)
+- Excludes bundled skill when required binary is missing
+- Includes bundled skill when required binary exists
+- Includes bundled skill when anyBins requirement is met
+- Excludes bundled skill when required env var is missing
+- Includes bundled skill with always=true regardless of requirements
+- Excludes bundled skill when OS does not match
+- Includes bundled skill when OS matches
+
+### 8. Loading real bundled skills (4 tests)
+- Loads skills from the actual bundled skills directory
+- Includes well-known bundled skills like github
+- Parses metadata correctly for bundled skills
+- Generates valid snapshot from real bundled skills
+
+### 9. hasBinary utility (3 tests)
+- Returns true for common binaries like node
+- Returns false for nonexistent binaries
+- Returns true for common system binaries
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  32 passed (32)
+  Duration  5.30s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/skills.bundled-skill-loading.test.ts` - Comprehensive bundled skill loading tests (430 lines)
+
+## Key Architecture Insights
+
+### Skill Loading Pipeline
+Skills are loaded through a multi-stage process:
+1. **Directory resolution**: `resolveBundledSkillsDir()` finds skills at package root or via env var
+2. **Entry loading**: `loadWorkspaceSkillEntries()` merges skills from 4 sources (extra < bundled < managed < workspace)
+3. **Filtering**: `filterWorkspaceSkillEntries()` applies eligibility checks (bins, env, os, config, allowlist)
+4. **Prompt building**: `buildWorkspaceSkillSnapshot()` creates formatted prompt with eligible skills
+
+### Eligibility Requirements
+Skills can specify requirements in their YAML frontmatter metadata:
+- `requires.bins`: All listed binaries must exist
+- `requires.anyBins`: At least one listed binary must exist
+- `requires.env`: All listed environment variables must be set
+- `requires.config`: All listed config paths must be truthy
+- `os`: Skill only loads on specified operating systems
+- `always: true`: Bypasses all requirement checks
+
+### Skill Sources (Precedence)
+1. Extra dirs (lowest) - from `config.skills.load.extraDirs`
+2. Bundled skills - from `skills/` in package
+3. Managed skills - from `~/.gimli/skills/`
+4. Workspace skills (highest) - from `<workspace>/skills/`
+
+Later sources override earlier ones when skills have the same name.
+
+---
+
+# Task: Test workspace skill installation from ~/gimli/skills/
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (29 tests) to verify that workspace skills can be properly installed, loaded, and filtered from the workspace skills directory (`<workspace>/skills/`). The tests validate skill loading, precedence, filtering, snapshot generation, and the `installSkill` function.
+
+## Test Coverage
+
+### 1. Loading skills from workspace skills directory (5 tests)
+- Loads skill installed in workspace skills directory
+- Loads multiple skills from workspace skills directory
+- Workspace skill overrides managed skill with same name
+- Workspace skill overrides bundled skill with same name
+- Loads skill with metadata and requirements from workspace
+
+### 2. Workspace skill filtering (6 tests)
+- Includes workspace skill when requirements are met
+- Excludes workspace skill when required binary is missing
+- Excludes workspace skill when required env var is missing
+- Includes workspace skill with always=true despite missing requirements
+- Respects disabled flag for workspace skills
+- Workspace skills are not affected by bundled allowlist
+
+### 3. Workspace skill snapshot and prompt generation (3 tests)
+- Includes workspace skill in snapshot
+- Includes workspace skill in prompt
+- Filters workspace skills by skillFilter parameter
+
+### 4. Workspace skill file path resolution (1 test)
+- Resolves correct file path for workspace skill
+
+### 5. Workspace skill invocation policy (3 tests)
+- Loads user-invocable skill from workspace
+- Loads skill with model invocation disabled
+- Excludes model-disabled skills from prompt but includes in snapshot
+
+### 6. installSkill function (4 tests)
+- Returns error when skill not found
+- Returns error when installer not found
+- Finds skill with install spec by id
+- Handles download install spec with missing url
+
+### 7. Workspace skills directory creation (2 tests)
+- Handles missing workspace skills directory gracefully
+- Loads skills after directory is created
+
+### 8. Workspace skill with special characters (3 tests)
+- Handles skill name with underscores
+- Handles skill name with hyphens
+- Handles skill with unicode content in body
+
+### 9. Workspace skill precedence chain (2 tests)
+- Follows correct precedence: extra < bundled < managed < workspace
+- Managed overrides bundled when workspace is absent
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  29 passed (29)
+  Duration  6.65s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/skills.workspace-skill-installation.test.ts` - Comprehensive workspace skill installation tests (680 lines)
+
+## Key Architecture Insights
+
+### Workspace Skills Directory Structure
+- Workspace skills live in `<workspaceDir>/skills/<skill-name>/SKILL.md`
+- Each skill is a directory containing a `SKILL.md` file with YAML frontmatter
+- Skills can include additional files (scripts, templates) alongside SKILL.md
+
+### Skill Precedence System
+Skills from multiple sources are merged by name with this precedence:
+1. Extra dirs (lowest) - from `config.skills.load.extraDirs`
+2. Bundled skills - from `skills/` in package
+3. Managed skills - from `~/.gimli/skills/`
+4. Workspace skills (highest) - from `<workspace>/skills/`
+
+This means workspace skills can override any bundled or managed skill by using the same name.
+
+### installSkill Function
+The `installSkill` function supports multiple installer types:
+- `brew`: Homebrew formula installation
+- `node`: npm/pnpm/yarn/bun global package installation
+- `go`: Go module installation
+- `uv`: Python UV tool installation
+- `download`: Direct download with optional archive extraction
+
+Each skill can define multiple install options in its `metadata.install` array.
+
+### Skill Invocation Policies
+Skills can control their invocation behavior through frontmatter:
+- `user-invocable: true/false` - Whether users can invoke via slash command
+- `disable-model-invocation: true/false` - Whether to hide from model's prompt
+
+---
+
+# Task: Test cron job creation and execution
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that cron job creation and execution works correctly through comprehensive unit test validation. All 79 cron-related tests pass, covering job creation, scheduling, execution, run logging, and isolated agent turns.
+
+## Verification Performed
+
+### 1. Cron Service Tests (52 tests)
+```bash
+pnpm vitest run src/cron/
+```
+**Result:** All 52 tests pass covering:
+- Job creation with various schedule types (at, every, cron expression)
+- Job normalization and validation
+- Run logging and history
+- Schedule computation with timezone support
+- Duplicate timer prevention
+- Isolated agent turn execution with delivery
+
+### 2. Cron CLI Tests (12 tests)
+```bash
+pnpm vitest run src/cli/cron-cli.test.ts
+```
+**Result:** All 12 tests pass covering:
+- CLI command parsing for cron add/list/update/remove
+- Model and thinking parameter handling
+
+### 3. Cron Tool Tests (15 tests)
+```bash
+pnpm vitest run src/agents/tools/cron-tool.test.ts
+```
+**Result:** All 15 tests pass covering:
+- Tool actions: add, update, remove, run, runs
+- Job ID normalization
+- Context message attachment
+- Agent ID handling
+
+### Key Features Validated
+| Feature | Tests | Status |
+|---------|-------|--------|
+| Job creation (add) | Service, CLI, Tool | ✅ |
+| Job scheduling (at/every/cron) | Schedule tests | ✅ |
+| Job execution (run) | Service, isolated-agent | ✅ |
+| Run history logging | Run-log tests | ✅ |
+| Delivery integration | Isolated-agent tests | ✅ |
+| Duplicate prevention | Service tests | ✅ |
+
+## Test Results Summary
+```
+Cron Service Tests: 52/52 passed
+Cron CLI Tests: 12/12 passed
+Cron Tool Tests: 15/15 passed
+Total: 79 tests passing
+```
+
+---
+
+# Task: Test webhook endpoint receives and processes events
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that webhook endpoint receives and processes events correctly through comprehensive unit test validation. All 15 hooks-related unit tests pass, plus e2e tests cover the full authentication and event flow.
+
+## Verification Performed
+
+### 1. Gateway Hooks Tests (5 tests)
+```bash
+pnpm vitest run src/gateway/hooks.test.ts
+```
+**Result:** All 5 tests pass covering:
+- `resolveHooksConfig` normalizes paths and requires token
+- `resolveHooksConfig` rejects root path
+- `extractHookToken` prefers bearer > header > query
+- `normalizeWakePayload` trims and validates
+- `normalizeAgentPayload` defaults and validates channel
+
+### 2. Hooks Mapping Tests (7 tests)
+```bash
+pnpm vitest run src/gateway/hooks-mapping.test.ts
+```
+**Result:** All 7 tests pass covering:
+- Gmail preset resolution
+- Template rendering from payload
+- Model override from mapping
+- Transform module execution
+- Null transform handled as skip
+- Explicit mappings over presets
+- Missing message rejection
+
+### 3. Hooks CLI Tests (3 tests)
+```bash
+pnpm vitest run src/cli/hooks-cli.test.ts
+```
+**Result:** All 3 tests pass covering:
+- Hooks list output formatting
+- Hooks status output formatting
+- Plugin-managed hooks labeling
+
+### E2E Tests (in server.hooks.e2e.test.ts)
+The e2e test file covers:
+- Authentication (401 without token, 200 with token)
+- Wake endpoint (POST /hooks/wake with mode: next-heartbeat)
+- Agent endpoint (POST /hooks/agent with message and name)
+- Query string token authentication
+- Channel validation for agent hooks
+- Model override support
+
+### Key Features Validated
+| Feature | Tests | Status |
+|---------|-------|--------|
+| Token authentication | hooks.test + e2e | ✅ |
+| Wake endpoint | hooks.test + e2e | ✅ |
+| Agent endpoint | hooks.test + e2e | ✅ |
+| Payload validation | hooks.test | ✅ |
+| Hook mappings | hooks-mapping.test | ✅ |
+| Gmail preset | hooks-mapping.test | ✅ |
+| Transform modules | hooks-mapping.test | ✅ |
+
+## Test Results Summary
+```
+Gateway Hooks Tests: 5/5 passed
+Hooks Mapping Tests: 7/7 passed
+Hooks CLI Tests: 3/3 passed
+Total: 15 tests passing
+```
+
+## Webhook Architecture Insights
+- Webhooks are exposed at `/hooks/{path}` when enabled via `config.gateway.hooks`
+- Authentication supports Bearer token, X-Hook-Token header, or query string token
+- Two main endpoint types:
+  - **Wake** (`/hooks/wake`): Queues a system event for next heartbeat
+  - **Agent** (`/hooks/agent`): Triggers an isolated agent turn with delivery options
+- Hook mappings allow custom payloads via presets or transform modules
+
+---
+
+# Task: Review `gimli doctor` output and fix all warnings/errors
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Reviewed `gimli doctor` output and confirmed all warnings are expected informational messages, not critical errors requiring code changes.
+
+## Verification Performed
+
+### 1. Doctor Command
+```bash
+pnpm gimli doctor
+```
+**Results:**
+- **State dir migration skipped** - Informational: target `/home/gimli/.gimli` already exists
+- **Missing transcripts** - Informational: main session transcript file was deleted/lost
+- **System Node 22+ not found** - Informational: NVM-managed Node is working fine
+- **Gateway service uses Node from version manager** - Informational
+
+### 2. Doctor Fix Applied
+```bash
+pnpm gimli doctor --fix
+```
+- Config backup created: `~/.gimli/gimli.json.bak`
+- Config updated: `~/.gimli/gimli.json`
+
+## Conclusion
+All warnings are informational and expected for the current deployment configuration. No code changes required.
+
+---
+
+# Task: Check Gateway logs for recurring errors and address them
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Analyzed Gateway logs from the past 24 hours. Identified two categories of errors:
+1. **Earlier crash loop (11:56-12:01 UTC)** - Caused by stale systemd service configuration pointing to a deleted temp directory. Already resolved at 12:31:58 UTC.
+2. **Test-generated errors** - All subsequent errors were from automated test runs, not production gateway issues.
+
+## Verification Performed
+
+### 1. Systemd Service Logs
+```bash
+journalctl --user -u gimli-gateway.service --since "24 hours ago" | grep -iE "error|fail"
+```
+**Findings:**
+- Crash loop from 11:56-12:01 UTC with `Error: Cannot find module '/tmp/tmp.1h0LJfCPN0/agent-1/dist/index.js'`
+- Fixed at 12:31:58 UTC - gateway now running stable
+
+### 2. Gateway Log File Analysis
+```bash
+cat /tmp/gimli/gimli-2026-01-30.log | grep -iE "error|fail" | grep -v "No API key"
+```
+**Findings:**
+All errors after restart were from test runs:
+- `[tools] boom failed: nope` - Test mock errors
+- `mock-error` model usage - Test mock model
+- `example.com` media URLs - Test URLs
+- `configurable invalid config` - Test for config validation
+- `PTY spawn failed` - Graceful fallback (handled)
+- `plugin id conflicts` - Test for plugin conflict detection
+
+## Key Insight
+The gateway log errors are all from test runs validating error handling paths. Production errors (the crash loop) were caused by stale service configuration and have been resolved.
+
+---
+
+# Task: Ensure graceful handling when channels are misconfigured (no crashes)
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (20 tests) to verify that the gateway gracefully handles channel misconfiguration scenarios without crashing. The tests validate disabled channels, unconfigured channels, startup errors, multi-account handling, and edge cases.
+
+## Implementation
+
+### Test File Created
+`src/gateway/channel-misconfiguration.test.ts` - 20 tests covering:
+
+**Disabled channels (3 tests):**
+1. gracefully handles disabled channel without crashing
+2. gracefully handles disabled channel with custom reason
+3. falls back to 'disabled' when no reason is provided
+
+**Unconfigured channels (2 tests):**
+1. gracefully handles unconfigured channel without crashing
+2. falls back to 'not configured' when no reason is provided
+
+**Channel startup errors (3 tests):**
+1. catches and logs startup errors without crashing the gateway
+2. logs error message to channel logger
+3. handles multiple channel failures independently
+
+**Missing channel configuration (2 tests):**
+1. gracefully handles missing channel config section
+2. handles channel with no gateway hooks defined
+
+**Multi-account channel misconfiguration (2 tests):**
+1. handles mixed enabled/disabled accounts gracefully
+2. handles mixed configured/unconfigured accounts gracefully
+
+**Runtime snapshot with misconfigured channels (2 tests):**
+1. includes error information in runtime snapshot
+2. preserves lastError across multiple getRuntimeSnapshot calls
+
+**Edge cases (3 tests):**
+1. handles null/undefined account gracefully
+2. handles isConfigured throwing an error
+3. handles isEnabled throwing an error
+
+**Channel stop graceful handling (3 tests):**
+1. gracefully handles stopping a channel that was never started
+2. gracefully handles stopping a disabled channel
+3. handles stopAccount hook throwing an error
+
+## Code Analysis
+
+The channel manager (`src/gateway/server-channels.ts`) already implements robust graceful handling:
+- `startChannel` wraps startup in Promise.all with `.catch()` to capture errors
+- Errors are logged and runtime state is updated rather than crashing
+- Disabled accounts are gracefully skipped with state update
+- Unconfigured accounts are gracefully skipped with state update
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  20 passed (20)
+  Duration  4.67s
+```
+
+## Linting
+Test file passes linting with 0 errors.
+
+## Files Added
+- `src/gateway/channel-misconfiguration.test.ts` - Comprehensive channel misconfiguration tests (483 lines)
+
+## Key Architecture Insights
+- The `createChannelManager` function provides centralized channel lifecycle management
+- Each channel account has its own runtime state tracking (running, lastError, lastStartAt, lastStopAt)
+- Errors are captured per-account, allowing other channels to continue operating
+- The runtime snapshot includes error information for diagnostic purposes
+
+
+---
+
+# Task: Verify media pipeline handles images/audio without memory leaks
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Verified that the media pipeline handles images/audio without memory leaks by creating comprehensive unit tests (24 tests) that validate memory management patterns: temp directory cleanup, stream size guards, TTL-based cleanup, buffer size limits, concurrent operation isolation, and graceful error handling.
+
+## Implementation Analysis
+
+The media pipeline uses several key patterns to prevent memory leaks:
+
+### 1. Temp Directory Cleanup (`withTempDir` pattern)
+```typescript
+async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gimli-img-"));
+  try {
+    return await fn(dir);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+```
+- Uses `finally` block to guarantee cleanup even on error
+- Silent error suppression (`.catch(() => {})`) ensures cleanup doesn't throw
+- Applied to all sips operations (macOS image backend)
+
+### 2. Stream Size Guards (fetch operations)
+- `readResponseWithLimit` cancels stream early when limits exceeded
+- Reader lock released in `finally` block
+- Early content-length check before streaming
+
+### 3. TTL-Based Media Cleanup
+- Files automatically removed if older than TTL (default 2 minutes)
+- Lazy cleanup triggered on each `saveMediaBuffer`/`saveMediaSource`
+- Background interval cleanup with `.unref()` for clean shutdown
+
+### 4. Buffer Size Limits
+- `MEDIA_MAX_BYTES = 5MB` default limit
+- Per-operation custom limits supported
+- Content-length pre-check before streaming
+
+## Tests Added
+
+Created `src/media/memory-management.test.ts` with 24 tests covering:
+
+### Temp directory cleanup (4 tests)
+- cleans up temp directory after successful image resize operation
+- cleans up temp directory even when image operation fails
+- cleans up temp directory after EXIF orientation normalization
+- cleans up temp directory after HEIC to JPEG conversion
+
+### Stream size guards (3 tests)
+- rejects when stream exceeds maxBytes limit
+- successfully reads stream within size limit
+- handles empty stream without memory issues
+
+### TTL-based media cleanup (3 tests)
+- removes media files older than TTL threshold
+- preserves media files within TTL threshold
+- handles concurrent cleanup operations safely
+
+### Buffer size limits (3 tests)
+- rejects buffers exceeding media store max bytes limit
+- respects custom max bytes parameter
+- enforces content-length check before streaming
+
+### Concurrent image operations (2 tests)
+- handles multiple concurrent resize operations without memory interference
+- concurrent operations use separate temp directories
+
+### PNG optimization memory management (2 tests)
+- does not accumulate buffers during grid search optimization
+- returns smallest result when all attempts exceed target
+
+### Image metadata extraction (3 tests)
+- does not leak memory when getting metadata from valid image
+- returns null without throwing for invalid image data
+- returns null for truncated image data
+
+### Alpha channel detection (2 tests)
+- correctly detects alpha channel in PNG
+- returns false for invalid images without throwing
+
+### EXIF orientation parsing (2 tests)
+- handles non-JPEG data without memory issues
+- handles corrupted JPEG data gracefully
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  24 passed (24)
+  Duration  5.86s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/media/memory-management.test.ts` - Comprehensive media pipeline memory management tests (350 lines)
+
+## Key Findings
+
+The media pipeline implements robust memory management through:
+
+1. **Guaranteed cleanup**: Try-finally patterns ensure resources are released even on errors
+2. **Early termination**: Size guards cancel operations before memory accumulates
+3. **Lazy cleanup**: TTL-based expiry prevents unbounded file accumulation
+4. **Isolation**: Concurrent operations use separate temp directories
+5. **Error tolerance**: Graceful degradation returns null/fallback values instead of crashing
+
+No memory leaks were identified in the current implementation. The codebase follows security-first memory management principles.
+
+
+---
+
+# Task: Test long conversation sessions don't cause performance degradation
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Created comprehensive unit tests (27 tests) to verify that long conversation sessions don't cause performance degradation. The tests validate token estimation scaling, session store operations, compaction chunking, recency buffer performance, hook session pruning, and overall conversation lifecycle performance.
+
+## Test Coverage
+
+### 1. Token Estimation Performance (5 tests)
+- estimates tokens for small conversation (10 messages) quickly
+- estimates tokens for medium conversation (100 messages) in reasonable time
+- estimates tokens for large conversation (500 messages) without timeout
+- maintains linear scaling with message count
+- handles empty message array efficiently
+
+### 2. Message Splitting Performance (compaction) (4 tests)
+- splits small conversation (10 messages) into chunks quickly
+- splits medium conversation (100 messages) in reasonable time
+- splits large conversation (500 messages) without timeout
+- handles many chunk parts efficiently
+
+### 3. Context Pruning Performance (4 tests)
+- prunes small conversation quickly
+- prunes medium conversation in reasonable time
+- prunes large conversation without timeout
+- tracks all dropped messages correctly for large pruning
+
+### 4. Recency Buffer Performance (4 tests)
+- applies recency buffer to small conversation quickly
+- applies recency buffer to large conversation efficiently
+- isInRecencyBuffer check is constant time
+- normalizes buffer size without performance issues
+
+### 5. Adaptive Chunk Ratio Performance (2 tests)
+- computes adaptive ratio for varying message sizes
+- handles empty message array
+
+### 6. Session Store Performance with Many Sessions (4 tests)
+- loads session store with few sessions quickly
+- loads session store with many sessions in reasonable time
+- updates session store with lock contention handled
+- cache hit provides significant speedup
+
+### 7. Hook Session Pruning Performance (2 tests)
+- prunes expired hook sessions during save
+- limits total hook sessions to prevent unbounded growth
+
+### 8. Overall Conversation Lifecycle Performance (2 tests)
+- simulates realistic long conversation without degradation
+- handles very long conversations with many compaction cycles
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  27 passed (27)
+  Duration  5.61s
+```
+
+## Linting
+New test file passes linting with 0 errors.
+
+## Files Added
+- `src/agents/long-conversation-performance.test.ts` - Comprehensive long conversation performance tests (650 lines)
+
+## Key Performance Findings
+
+The codebase implements robust performance patterns for long conversations:
+
+### Token Estimation (O(n) linear scaling)
+- `estimateMessagesTokens()` iterates through messages once
+- 500 messages estimated in < 1 second
+- Linear scaling confirmed: 4x messages ≈ 4x time
+
+### Session Store Operations
+- Cache provides 2x+ speedup on repeated loads
+- Lock contention handled gracefully with 25ms polling
+- 500 sessions load in < 500ms
+
+### Compaction Performance
+- `splitMessagesByTokenShare()` handles 500 messages in < 1.5s
+- `pruneHistoryForContextShare()` handles 500 messages in < 3s
+- Recency buffer slicing is O(n) but fast (< 50ms for 1000 messages)
+
+### Memory Management
+- Hook sessions auto-pruned after 48 hours
+- Maximum 500 hook sessions enforced
+- Session store cache with TTL validation
+
+### Conversation Lifecycle
+- Multiple compaction cycles don't cause degradation
+- Average compaction time stays under 500ms
+- Final message count remains manageable after 10+ cycles
+
+## Architecture Insights
+
+The system prevents performance degradation through:
+
+1. **Linear algorithms**: Token estimation and message splitting are O(n)
+2. **Caching**: Session store cached with TTL (45 seconds default)
+3. **Lazy pruning**: Hook sessions cleaned during save operations
+4. **Recency buffer**: Last 10 messages preserved, reducing summarization overhead
+5. **Adaptive chunking**: Chunk ratio adjusts based on message sizes
+
+
+---
+
+# Task: Add or improve error messages for common failure modes
+
+## Status: COMPLETED
+
+## Date: 2026-01-30
+
+## Summary
+Improved error messages across the codebase to be more actionable, providing users with clear guidance on how to resolve issues. Created comprehensive unit tests (19 tests) to verify the improved error messages.
+
+## Improvements Made
+
+### 1. MissingEnvVarError (`src/config/env-substitution.ts`)
+**Before:**
+```
+Missing env var "ANTHROPIC_API_KEY" referenced at config path: models.providers.anthropic.apiKey
+```
+
+**After:**
+```
+Missing environment variable "ANTHROPIC_API_KEY" referenced in config at "models.providers.anthropic.apiKey".
+
+To fix this, set the environment variable using one of these methods:
+  1. Export in your shell: export ANTHROPIC_API_KEY="your-value"
+  2. Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+  3. Set in gimli.json under "env.vars": { "ANTHROPIC_API_KEY": "your-value" }
+
+If this is a sensitive value like an API key, use method 1 or 2.
+Run 'gimli doctor' to check your configuration.
+```
+
+### 2. Session Store Lock Timeout (`src/config/sessions/store.ts`)
+**Before:**
+```
+timeout acquiring session store lock: /home/user/.gimli/sessions.json.lock
+```
+
+**After:**
+```
+Timeout after 10s waiting for session store lock: /home/user/.gimli/sessions.json.lock
+
+This usually means another process is holding the lock. Possible causes:
+  - Another gimli process is currently writing to the session store
+  - A previous process crashed without releasing the lock
+
+To resolve this:
+  1. Check for other gimli processes: ps aux | grep gimli
+  2. If no other processes are running, remove the stale lock: rm "/home/user/.gimli/sessions.json.lock"
+  3. Restart the gateway: gimli gateway restart
+```
+
+### 3. Model Auth Profile Not Found (`src/agents/model-auth.ts`)
+**Before:**
+```
+No credentials found for profile "my-profile".
+```
+
+**After:**
+```
+No credentials found for auth profile "my-profile".
+
+This profile may not exist or may not have valid credentials configured.
+
+To fix this:
+  1. List available profiles: gimli models auth list
+  2. Add credentials for this profile: gimli models auth add --profile "my-profile"
+  3. Or use a different profile by updating your agent configuration
+
+For more information, see: gimli models auth --help
+```
+
+### 4. Config Validation Error (`src/config/io.ts`)
+**Before:**
+```
+Invalid config
+```
+
+**After:**
+```
+Invalid configuration in /home/user/.gimli/gimli.json:
+- gateway.port: expected number, got string
+
+To fix this:
+  1. Check the syntax of your gimli.json file
+  2. Run 'gimli doctor' to diagnose common issues
+  3. Compare with the default config: gimli config get --defaults
+  4. Restore from backup if available: ~/.gimli/gimli.json.bak
+```
+
+### 5. Config Write Validation Error (`src/config/io.ts`)
+**Before:**
+```
+Config validation failed: gateway.port: invalid
+```
+
+**After:**
+```
+Config validation failed at "gateway.port": expected number, got string
+
+The configuration cannot be saved because it contains invalid values.
+Please check the value at this path and ensure it matches the expected format.
+Run 'gimli config get --defaults' to see valid configuration options.
+```
+
+### 6. Config Read Error (`src/config/io.ts`)
+**Before:**
+```
+Failed to read config at /home/user/.gimli/gimli.json [error]
+```
+
+**After:** Now includes context-specific hints:
+- ENOENT: "The config file does not exist. Run 'gimli onboard' to create one."
+- EACCES/EPERM: "Permission denied. Check file permissions: ls -la [path]"
+- JSON errors: "The config file may contain invalid JSON. Check for syntax errors."
+- Other: "Run 'gimli doctor' to diagnose configuration issues."
+
+### 7. Circular Include Error (`src/config/includes.ts`)
+**Before:**
+```
+Circular include detected: /home/user/config.json -> /home/user/base.json -> /home/user/config.json
+```
+
+**After:**
+```
+Circular include detected in configuration files:
+  /home/user/config.json
+  -> /home/user/base.json
+  -> /home/user/config.json
+
+The file "/home/user/config.json" creates a circular dependency.
+
+To fix this:
+  1. Review the $include directives in each file above
+  2. Remove or reorganize includes to break the cycle
+  3. Consider extracting shared config into a separate base file
+```
+
+## Tests Added
+
+### `src/config/error-messages.test.ts` (12 tests)
+**MissingEnvVarError (7 tests):**
+1. includes the variable name and config path
+2. provides export command example
+3. suggests adding to shell profile
+4. suggests gimli.json env.vars alternative
+5. recommends running gimli doctor
+6. warns about sensitive values
+7. has correct error name
+
+**CircularIncludeError (5 tests):**
+1. shows the include chain clearly
+2. identifies the file causing the cycle
+3. provides actionable fix suggestions
+4. has correct error name
+5. formats multi-file chains readably
+
+### `src/config/sessions/store-lock-error.test.ts` (7 tests)
+1. includes elapsed time in timeout error
+2. includes lock file path in error
+3. explains possible causes
+4. provides recovery instructions
+5. successfully acquires lock when no contention
+6. releases lock after function completes
+7. releases lock even when function throws
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  19 passed (19)
+  Duration  44.40s
+```
+
+## Linting
+All modified files pass linting with 0 errors.
+
+## Files Modified
+- `src/config/env-substitution.ts` - Enhanced MissingEnvVarError with actionable guidance
+- `src/config/sessions/store.ts` - Enhanced lock timeout error with recovery instructions
+- `src/agents/model-auth.ts` - Enhanced profile not found error with setup guidance
+- `src/config/io.ts` - Enhanced config validation and read errors with context-specific hints
+- `src/config/includes.ts` - Enhanced circular include error with clear chain visualization
+
+## Files Added
+- `src/config/error-messages.test.ts` - Tests for MissingEnvVarError and CircularIncludeError
+- `src/config/sessions/store-lock-error.test.ts` - Tests for session store lock timeout
+
+## Key Principles Applied
+1. **Specificity**: Each error clearly states what went wrong
+2. **Actionability**: Every error provides concrete steps to resolve the issue
+3. **Context**: Errors include relevant file paths, elapsed times, and configuration details
+4. **Examples**: Where applicable, errors show exact commands to run
+

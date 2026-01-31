@@ -145,7 +145,20 @@ export async function resolveApiKeyForProvider(params: {
       agentDir: params.agentDir,
     });
     if (!resolved) {
-      throw new Error(`No credentials found for profile "${profileId}".`);
+      throw new Error(
+        [
+          `No credentials found for auth profile "${profileId}".`,
+          "",
+          "This profile may not exist or may not have valid credentials configured.",
+          "",
+          "To fix this:",
+          `  1. List available profiles: gimli models auth list`,
+          `  2. Add credentials for this profile: gimli models auth add --profile "${profileId}"`,
+          `  3. Or use a different profile by updating your agent configuration`,
+          "",
+          "For more information, see: gimli models auth --help",
+        ].join("\n"),
+      );
     }
     const mode = store.profiles[profileId]?.type;
     return {

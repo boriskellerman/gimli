@@ -358,7 +358,21 @@ async function withSessionStoreLock<T>(
 
       const now = Date.now();
       if (now - startedAt > timeoutMs) {
-        throw new Error(`timeout acquiring session store lock: ${lockPath}`);
+        const elapsedSec = Math.round((now - startedAt) / 1000);
+        throw new Error(
+          [
+            `Timeout after ${elapsedSec}s waiting for session store lock: ${lockPath}`,
+            "",
+            "This usually means another process is holding the lock. Possible causes:",
+            "  - Another gimli process is currently writing to the session store",
+            "  - A previous process crashed without releasing the lock",
+            "",
+            "To resolve this:",
+            `  1. Check for other gimli processes: ps aux | grep gimli`,
+            `  2. If no other processes are running, remove the stale lock: rm "${lockPath}"`,
+            "  3. Restart the gateway: gimli gateway restart",
+          ].join("\n"),
+        );
       }
 
       // Best-effort stale lock eviction (e.g. crashed process).

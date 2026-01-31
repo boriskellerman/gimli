@@ -44,7 +44,20 @@ export class ConfigIncludeError extends Error {
 
 export class CircularIncludeError extends ConfigIncludeError {
   constructor(public readonly chain: string[]) {
-    super(`Circular include detected: ${chain.join(" -> ")}`, chain[chain.length - 1]);
+    const chainStr = chain.join("\n  -> ");
+    const lastFile = chain[chain.length - 1];
+    const message = [
+      "Circular include detected in configuration files:",
+      `  ${chainStr}`,
+      "",
+      `The file "${lastFile}" creates a circular dependency.`,
+      "",
+      "To fix this:",
+      "  1. Review the $include directives in each file above",
+      "  2. Remove or reorganize includes to break the cycle",
+      "  3. Consider extracting shared config into a separate base file",
+    ].join("\n");
+    super(message, lastFile);
     this.name = "CircularIncludeError";
   }
 }
