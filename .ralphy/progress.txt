@@ -3223,3 +3223,270 @@ Designed comprehensive reminder priority system with three priority levels (urge
 - Implement delivery logic using these types and helpers
 - Integrate with memory injection hook for relevance-adjusted ranking
 - Add escalation logic for urgent reminders
+
+---
+
+# Task: Design feedback loop for reminder effectiveness
+
+## Status: COMPLETED
+
+## Date: 2026-01-31
+
+## Summary
+Designed and implemented a comprehensive feedback loop system for tracking and analyzing reminder effectiveness. The system captures user reactions to reminders, calculates effectiveness metrics, detects trends, and generates adjustment suggestions.
+
+## Implementation
+
+### 1. Core Types (`src/reminders/feedback-types.ts`)
+
+**Feedback Event Types:**
+- `ReminderReaction`: completed, dismissed, snoozed, ignored, acted
+- `FeedbackSource`: explicit, inferred, timeout
+- `ReminderFeedbackEvent`: Individual feedback event with full context
+
+**Metrics Types:**
+- `ReminderEffectivenessMetrics`: Per-reminder aggregated metrics including:
+  - Total showings and reaction counts
+  - Completion rate and dismissal rate
+  - Average reaction time and context relevance score
+  - Overall effectiveness score (0-1)
+  - Trend direction (improving, declining, stable)
+
+- `SystemEffectivenessMetrics`: Agent-wide metrics with:
+  - Breakdown by priority (urgent, normal, low)
+  - Breakdown by trigger type (scheduled, recurring, context)
+  - Top and bottom performers
+
+**Adjustment Suggestions:**
+- `ReminderAdjustmentSuggestion`: Data-driven recommendations including:
+  - reduce_frequency (high dismissal rate)
+  - increase_frequency (high completion rate)
+  - change_priority (ineffective with declining trend)
+  - change_timing (consistent snooze patterns)
+  - archive (consistently ignored)
+  - refine_context (low context relevance)
+
+**Configuration:**
+- `FeedbackSystemConfig`: Configurable thresholds and behavior
+  - Reaction window (5 minutes default)
+  - Minimum showings for metrics (3)
+  - Metrics window days (14)
+  - Effectiveness thresholds (0.2 ineffective, 0.7 effective)
+  - Auto-apply adjustments (disabled by default, requires 0.8 confidence)
+
+### 2. Algorithm Implementation
+
+**Effectiveness Score Calculation:**
+Weighted algorithm combining:
+- Completion rate (60% weight)
+- Low dismissal rate (25% weight, inverted)
+- Quick reaction time (15% weight, sigmoid-like decay)
+
+Score formula accounts for null reaction time and clamps between 0-1.
+
+**Trend Detection:**
+Simple linear regression on recent scores (window of 5 by default):
+- Slope > 0.02 → improving
+- Slope < -0.02 → declining
+- Otherwise → stable
+
+**Adjustment Suggestions:**
+Rule-based system that generates suggestions when:
+- Dismissal rate > 60%: suggest reduce_frequency or archive
+- Effectiveness < 0.2 with declining trend: suggest change_priority
+- Completion rate > 80%: suggest increase_frequency
+- Context relevance < 0.3: suggest refine_context
+
+### 3. Database Schema (`src/reminders/feedback-schema.ts`)
+
+**Tables Created:**
+
+**reminder_feedback** - Individual feedback events:
+- id, reminder_id, agent_id, session_key
+- shown_at, reaction, source, recorded_at
+- reaction_time_ms, context_relevance_score
+- trigger_message, user_response
+
+**reminder_effectiveness** - Cached aggregated metrics:
+- reminder_id (primary key)
+- Reaction counts (completed, dismissed, snoozed, ignored, acted)
+- Rates (completion_rate, dismissal_rate)
+- Averages (avg_reaction_time_ms, avg_context_relevance)
+- Computed fields (effectiveness_score, trend, recent_scores)
+
+**Indices:**
+- idx_feedback_reminder, idx_feedback_agent
+- idx_feedback_shown, idx_feedback_reaction
+- idx_feedback_agent_time (composite for time-windowed queries)
+
+### 4. Database Operations
+
+**Core Functions:**
+- `insertFeedbackEvent()`: Record a new feedback event
+- `getFeedbackForReminder()`: Get feedback history for a reminder
+- `getFeedbackForAgent()`: Get feedback for an agent (with time window)
+- `upsertEffectivenessMetrics()`: Update cached metrics (uses ON CONFLICT)
+- `getEffectivenessMetrics()`: Retrieve cached metrics
+- `getPerformanceRanking()`: Get top/bottom performers (excludes < 3 showings)
+- `getAgentFeedbackStats()`: Aggregate stats for an agent
+- `cleanupOldFeedback()`: Remove feedback older than retention period (90 days)
+
+## Test Coverage
+
+### feedback-types.test.ts (28 tests)
+1. **calculateEffectivenessScore** (7 tests)
+   - High score for high completion/low dismissal
+   - Low score for low completion/high dismissal
+   - Completion rate weighted highest
+   - Quick reaction time bonus
+   - Null reaction time handling
+   - Score clamping 0-1
+   - Dismissal rate penalty
+
+2. **calculateTrend** (6 tests)
+   - Stable for insufficient data
+   - Improving trend detection
+   - Declining trend detection
+   - Stable for flat data
+   - Window size respecting
+   - Noisy data handling
+
+3. **generateAdjustmentSuggestions** (8 tests)
+   - Empty for insufficient data
+   - Archive suggestion
+   - Reduce frequency suggestion
+   - Change priority suggestion
+   - Increase frequency suggestion
+   - Refine context suggestion
+   - Supporting metrics inclusion
+   - Custom threshold config
+
+4. **rowToFeedbackEvent** (2 tests)
+   - Full conversion
+   - Null field handling
+
+5. **feedbackEventToRow** (3 tests)
+   - Full conversion
+   - Undefined to null
+   - Round-trip correctness
+
+6. **defaultFeedbackConfig** (2 tests)
+   - Sensible defaults
+   - Threshold ordering
+
+### feedback-schema.test.ts (31 tests)
+1. **ensureFeedbackSchema** (4 tests)
+   - Creates reminder_feedback table
+   - Creates reminder_effectiveness table
+   - Creates required indices
+   - Idempotent
+
+2. **hasFeedbackSchema** (2 tests)
+   - Returns true when exists
+   - Returns false when dropped
+
+3. **dropFeedbackSchema** (1 test)
+   - Removes both tables
+
+4. **insertFeedbackEvent** (2 tests)
+   - Inserts complete event
+   - Inserts with null optionals
+
+5. **getFeedbackForReminder** (4 tests)
+   - Returns all feedback
+   - Orders by shown_at DESC
+   - Respects limit
+   - Returns empty for unknown
+
+6. **getFeedbackForAgent** (3 tests)
+   - Filters by agent
+   - Filters by time window
+   - Includes within window
+
+7. **upsertEffectivenessMetrics** (3 tests)
+   - Inserts new metrics
+   - Updates on conflict
+   - Stores recent scores as JSON
+
+8. **getPerformanceRanking** (3 tests)
+   - Top performers sorted
+   - Bottom performers sorted
+   - Excludes low showings
+
+9. **getAgentFeedbackStats** (6 tests)
+   - Total showings
+   - Unique reminders
+   - Reaction counts
+   - Completion rate
+   - Dismissal rate
+   - Time window respect
+   - Zeros for no feedback
+
+10. **cleanupOldFeedback** (2 tests)
+    - Removes old feedback
+    - Returns 0 when nothing to clean
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  59 passed (59)
+  Duration  4.20s
+```
+
+## Linting
+All 4 new files pass linting with 0 errors.
+
+## Files Added
+- `src/reminders/feedback-types.ts` - Core types and algorithms (283 lines)
+- `src/reminders/feedback-schema.ts` - Database schema and operations (296 lines)
+- `src/reminders/feedback-types.test.ts` - Type and algorithm tests (219 lines)
+- `src/reminders/feedback-schema.test.ts` - Schema and database tests (337 lines)
+
+## Architecture Insights
+
+### Integration with Existing Systems
+The feedback loop is designed to integrate with Gimli's existing architecture:
+
+1. **Hook System**: Uses `agent:turn:complete` hook pattern (like learning-capture-hook.ts) to:
+   - Detect when reminders are shown
+   - Capture user reactions from subsequent messages
+   - Record feedback events
+
+2. **Memory System**: Links to memory chunks via `chunk_id` for:
+   - Context-based reminder relevance scoring
+   - Semantic search integration
+
+3. **Learning System**: Follows the same patterns:
+   - Extract → Deduplicate → Store
+   - Async hooks that don't block agent responses
+   - Configurable enablement
+
+### Feedback Collection Flow
+```
+Reminder Shown → Agent Turn → turn:complete Hook
+                                    ↓
+                        Track Reminder Context
+                                    ↓
+                        Observe User's Next Message
+                                    ↓
+                        Classify Reaction (explicit/inferred/timeout)
+                                    ↓
+                        Record Feedback Event
+                                    ↓
+                        Recalculate Effectiveness Metrics
+                                    ↓
+                        Generate Adjustment Suggestions
+```
+
+### Security Considerations
+- Feedback data stored locally (no external telemetry)
+- Session-scoped feedback (agent isolation)
+- Automatic cleanup after retention period (90 days)
+- No sensitive content in trigger_message/user_response (just patterns)
+
+## Next Steps (for future implementation phases)
+1. Implement `feedback-capture-hook.ts` to listen to `agent:turn:complete`
+2. Add `/remind feedback` command to view effectiveness metrics
+3. Connect to learning system for recommendation improvements
+4. Add scheduler for periodic metrics recalculation
+5. Implement auto-apply for high-confidence adjustments
