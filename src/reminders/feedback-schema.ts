@@ -494,5 +494,5 @@ export function cleanupOldFeedback(db: DatabaseSync, retentionDays: number = 90)
   `)
     .run(cutoffMs);
 
-  return result.changes;
+  return Number(result.changes);
 }
