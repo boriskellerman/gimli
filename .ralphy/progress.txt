@@ -3016,3 +3016,168 @@ All modified files pass linting with 0 errors.
 3. **Context**: Errors include relevant file paths, elapsed times, and configuration details
 4. **Examples**: Where applicable, errors show exact commands to run
 
+
+---
+
+# Task: Design how reminders integrate with existing memory architecture
+
+## Status: COMPLETED
+
+## Date: 2026-01-31
+
+## Summary
+Designed the integration between Gimli's reminder/anticipation system and the existing memory architecture. Created comprehensive design documentation, type definitions, SQLite schema, and 46 unit tests to validate the design.
+
+## Design Overview
+
+### Core Architecture Decisions
+
+1. **SQLite Storage**: Reminders are stored in the same SQLite database as the memory system, using a new `reminders` table that links to memory chunks for semantic search.
+
+2. **Memory Integration**: Each reminder creates a corresponding memory chunk, enabling semantic discovery via the existing hybrid search (vector + BM25).
+
+3. **Cron Integration**: Scheduled and recurring reminders use the existing cron service for time-based triggers.
+
+4. **Hook-Based Injection**: Reminders are injected at `agent:turn:start` events alongside existing memory injection.
+
+### Reminder Types
+
+1. **Scheduled**: One-time reminders at a specific datetime
+2. **Recurring**: Repeating reminders using cron expressions
+3. **Context**: Triggered when semantically relevant context appears in conversation
+
+### Priority Levels
+
+- **Urgent**: High priority, bypasses quiet hours
+- **Normal**: Standard priority
+- **Low**: Background reminders, can be batched
+
+### Key Design Features
+
+- Agent isolation (reminders scoped to agentId)
+- Quiet hours support with exempt overrides for urgent reminders
+- Snooze functionality with snooze_until timestamps
+- Status tracking (pending, triggered, completed, dismissed, snoozed)
+- Link to memory chunks for semantic retrieval
+
+## Files Created
+
+### Design Documentation
+- `docs/design/reminder-memory-integration.md` - Comprehensive design document with architecture, data flow diagrams, and implementation plan
+
+### Source Files
+- `src/reminders/types.ts` - Type definitions including Reminder, ReminderTrigger, ReminderRow, and utility functions
+- `src/reminders/schema.ts` - SQLite schema with constraints and indices
+- `src/reminders/index.ts` - Public exports
+
+### Test Files
+- `src/reminders/types.test.ts` - 29 tests for type conversion and utility functions
+- `src/reminders/schema.test.ts` - 17 tests for schema creation and stats functions
+
+## Test Coverage
+
+### types.test.ts (29 tests)
+**rowToReminder (5 tests):**
+- Converts scheduled reminder row to Reminder object
+- Converts recurring reminder row to Reminder object
+- Converts context reminder row to Reminder object
+- Handles snoozed reminder with snooze_until set
+- Handles urgent reminder with quiet_hours_exempt
+
+**reminderToRow (4 tests):**
+- Converts scheduled Reminder to database row
+- Converts recurring Reminder to database row
+- Converts context Reminder to database row
+- Handles completed reminder with timestamps
+
+**isReminderDue (7 tests):**
+- Returns true for scheduled reminder past due date
+- Returns false for scheduled reminder before due date
+- Returns false for non-pending reminder
+- Returns false for snoozed reminder before snooze time
+- Returns true for snoozed reminder after snooze time
+- Returns false for recurring reminders (handled by cron)
+- Returns false for context reminders (not time-based)
+
+**isQuietHours (6 tests):**
+- Returns false when quiet hours not configured
+- Returns true during quiet hours (same day)
+- Returns false outside quiet hours (same day)
+- Returns true during overnight quiet hours (after start)
+- Returns true during overnight quiet hours (before end)
+- Returns false outside overnight quiet hours
+
+**formatReminderForContext (3 tests):**
+- Formats urgent scheduled reminder
+- Formats normal recurring reminder
+- Formats low priority context reminder
+
+**formatRemindersForInjection (3 tests):**
+- Returns empty string for empty array
+- Formats single reminder with header
+- Formats multiple reminders
+
+**defaultReminderInjectionConfig (1 test):**
+- Has expected default values
+
+### schema.test.ts (17 tests)
+**ensureReminderSchema (9 tests):**
+- Creates reminders table with required columns
+- Creates indices for common queries
+- Is idempotent (can be called multiple times)
+- Enforces trigger_type constraint
+- Enforces status constraint
+- Enforces priority constraint
+- Defaults status to pending
+- Defaults priority to normal
+- Defaults quiet_hours_exempt to 0
+
+**dropReminderSchema (2 tests):**
+- Drops the reminders table
+- Is safe to call when table does not exist
+
+**hasReminderSchema (2 tests):**
+- Returns false when table does not exist
+- Returns true when table exists
+
+**getReminderStats (4 tests):**
+- Returns zero counts for empty table
+- Counts reminders by status
+- Filters by agent_id
+- Handles all status types
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  46 passed (46)
+  Duration  5.57s
+```
+
+## Linting
+All reminder files pass linting with 0 errors.
+
+## Key Architecture Insights
+
+### Data Flow
+1. **Reminder Creation**: User creates reminder → parsed and stored in reminders table → memory chunk created for semantic search → cron job scheduled if time-based
+2. **Reminder Delivery**: Cron timer fires → direct injection, OR user turn starts → query due reminders + semantic search → inject relevant reminders
+
+### Integration Points
+- `src/memory/manager.ts` - Memory chunk creation for semantic search
+- `src/hooks/memory-injection-hook.ts` - Turn-start injection point
+- `src/gateway/server-cron.ts` - Scheduled trigger via cron service
+
+### Security Considerations
+- Agent isolation via agent_id scoping
+- Input validation on all reminder content
+- Rate limiting (configurable max per agent)
+- Quiet hours respect (except urgent reminders)
+- Memory system permissions inherited
+
+## Next Implementation Steps
+1. `src/reminders/store.ts` - CRUD operations
+2. `src/reminders/memory-bridge.ts` - Memory chunk integration
+3. `src/reminders/cron-bridge.ts` - Cron scheduling
+4. `src/reminders/proactive.ts` - Proactive queries
+5. `src/hooks/reminder-injection-hook.ts` - Turn injection
+
