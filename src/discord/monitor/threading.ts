@@ -29,7 +29,17 @@ type DiscordThreadParentInfo = {
   type?: ChannelType;
 };
 
-const DISCORD_THREAD_STARTER_CACHE = new Map<string, DiscordThreadStarter>();
+// Cache entry with timestamp for TTL-based eviction
+type DiscordThreadStarterCacheEntry = {
+  value: DiscordThreadStarter;
+  updatedAt: number;
+};
+
+// Cache configuration: 5 minute TTL (thread starters rarely change), max 500 entries
+const DISCORD_THREAD_STARTER_CACHE_TTL_MS = 5 * 60 * 1000;
+const DISCORD_THREAD_STARTER_CACHE_MAX = 500;
+
+const DISCORD_THREAD_STARTER_CACHE = new Map<string, DiscordThreadStarterCacheEntry>();
 
 export function __resetDiscordThreadStarterCacheForTest() {
   DISCORD_THREAD_STARTER_CACHE.clear();
@@ -124,8 +134,11 @@ export async function resolveDiscordThreadStarter(params: {
   resolveTimestampMs: (value?: string | null) => number | undefined;
 }): Promise<DiscordThreadStarter | null> {
   const cacheKey = params.channel.id;
-  const cached = DISCORD_THREAD_STARTER_CACHE.get(cacheKey);
-  if (cached) return cached;
+  const now = Date.now();
+  const cached = getCachedThreadStarter(cacheKey, now);
+  if (cached) {
+    return cached;
+  }
   try {
     const parentType = params.parentType;
     const isForumParent =
@@ -162,7 +175,7 @@ export async function resolveDiscordThreadStarter(params: {
       author,
       timestamp: timestamp ?? undefined,
     };
-    DISCORD_THREAD_STARTER_CACHE.set(cacheKey, payload);
+    setCachedThreadStarter(cacheKey, payload, Date.now());
     return payload;
   } catch {
     return null;
