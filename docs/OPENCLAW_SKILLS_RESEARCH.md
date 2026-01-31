@@ -302,40 +302,427 @@ Supported levels: `off|minimal|low|medium|high|xhigh` (select models only)
 
 ---
 
-## Moltbook: AI Social Network
+## Hooks System (Deep Dive)
+
+### What Are Hooks?
+
+Hooks provide an event-driven automation system that runs within the Gateway when agent events fire. They're separate from webhooks (external HTTP endpoints).
+
+### Hook Discovery
+
+Hooks are automatically discovered from three directories (in precedence order):
+1. **Workspace hooks**: `<workspace>/hooks/` (per-agent)
+2. **Managed hooks**: `~/.openclaw/hooks/` (user-installed, shared)
+3. **Bundled hooks**: `<openclaw>/dist/hooks/bundled/` (shipped with OpenClaw)
+
+### Hook Structure
+
+```
+my-hook/
+├── HOOK.md          # Metadata + documentation
+└── handler.ts       # Handler implementation
+```
+
+### Hook Events
+
+| Event Type | Events |
+|------------|--------|
+| **Command** | `command:new`, `command:reset`, `command:stop` |
+| **Agent** | `agent:bootstrap` (before workspace files injection) |
+| **Gateway** | `gateway:startup` (after initialization) |
+| **Plugin API** | `tool_result_persist` (adjust tool results before saving) |
+
+### Bundled Hooks
+
+1. **session-memory** - Saves context to memory on `/new`
+2. **command-logger** - Logs all commands to JSONL
+3. **boot-md** - Executes `BOOT.md` on gateway startup
+4. **soul-evil** - Experimental: personality swapping
+
+### Hook Configuration
+
+```json
+{
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "session-memory": { "enabled": true },
+        "my-hook": {
+          "enabled": true,
+          "env": { "MY_VAR": "value" }
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+## Context Management
+
+### What Counts Toward Context Window
+
+The model's token budget includes:
+- System prompt sections
+- Conversation history
+- Tool invocations and outputs
+- Attachments (images/audio/files)
+- Compaction summaries
+- Provider wrappers
+
+### Injected Workspace Files
+
+OpenClaw automatically injects these markdown files if present:
+- `AGENTS.md` - Agent configuration
+- `SOUL.md` - Personality/voice
+- `TOOLS.md` - Tool documentation
+- `IDENTITY.md` - Identity information
+- `USER.md` - User preferences
+- `HEARTBEAT.md` - Periodic check-in prompts
+- `BOOTSTRAP.md` - First-run only
+
+Files exceeding 20,000 characters are truncated per `bootstrapMaxChars`.
+
+### Context Commands
+
+- `/status` - Window fullness snapshot
+- `/context list` - Injected files with token counts
+- `/context detail` - Granular breakdown by file
+
+---
+
+## Cron Jobs (Deep Dive)
+
+### Schedule Types
+
+| Type | Format | Example |
+|------|--------|---------|
+| **One-shot** | ISO 8601 timestamp | `2026-01-12T18:00:00Z` |
+| **Interval** | Milliseconds | `every: 3600000` (hourly) |
+| **Cron** | 5-field + timezone | `0 7 * * *` (daily 7am) |
+
+### Wake Modes
+
+- `"next-heartbeat"` (default) - Event queues until next scheduled heartbeat
+- `"now"` - Triggers immediate heartbeat execution
+
+### Isolated Jobs
+
+Isolated jobs run in `cron:<jobId>` sessions with:
+- Fresh session ID per run (no history carryover)
+- Prompt prefixed with `[cron:<jobId> <job name>]`
+- Summary automatically posted to main session
+- Ideal for frequent or noisy background tasks
+
+### Example CLI Commands
+
+```bash
+# One-shot task
+openclaw cron add --name "task" --at "2026-01-12T18:00:00Z" \
+  --session main --system-event "text" --wake now
+
+# Recurring with delivery
+openclaw cron add --name "status" --cron "0 7 * * *" --tz "America/Los_Angeles" \
+  --session isolated --message "prompt" --deliver --channel whatsapp --to "+15551234567"
+
+# With model/thinking overrides
+openclaw cron add --name "analysis" --cron "0 6 * * 1" \
+  --session isolated --message "prompt" --model "opus" --thinking high
+```
+
+### Storage
+
+- Job store: `~/.openclaw/cron/jobs.json`
+- Run history: `~/.openclaw/cron/runs/<jobId>.jsonl`
+
+---
+
+## Multi-Agent Systems (Deep Dive)
+
+### Architecture
+
+OpenClaw supports multiple agents with independent configurations:
+- Distinct sandbox profiles per agent
+- Custom tool restrictions (allow/deny lists)
+- Separate credential stores at `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`
+
+**Key principle:** Credentials are NOT shared between agents.
+
+### Sandbox Modes
+
+| Mode | Behavior |
+|------|----------|
+| `"off"` | No sandboxing |
+| `"all"` | Always sandboxed |
+| `"non-main"` | Sandboxed except main sessions |
+
+### Sandbox Scopes
+
+| Scope | Isolation Level |
+|-------|-----------------|
+| `"session"` | One container per session |
+| `"agent"` | One container per agent |
+| `"shared"` | Multiple agents share workspace root |
+
+### Tool Filtering Hierarchy
+
+Tools are filtered in strict order (each level can only further restrict):
+1. Tool profile (global or agent-specific)
+2. Provider tool profile
+3. Global allow/deny policy
+4. Provider policy
+5. Agent-specific policy
+6. Agent-provider policy
+7. Sandbox tool policy
+8. Subagent policy
+
+### Tool Groups
+
+- `group:runtime` → exec, bash, process
+- `group:fs` → read, write, edit, apply_patch
+- `group:ui` → browser, canvas
+- `group:messaging` → message
+- `group:sessions` → sessions_list, sessions_history, sessions_send, sessions_spawn, session_status
+
+### Multi-Agent Configuration Examples
+
+**Personal agent (full access):**
+```json
+{ "agents": { "list": [{ "id": "personal", "sandbox": { "mode": "off" } }] } }
+```
+
+**Family agent (restricted):**
+```json
+{
+  "agents": {
+    "list": [{
+      "id": "family",
+      "sandbox": { "mode": "all", "workspaceAccess": "ro" },
+      "tools": { "deny": ["write", "edit", "exec", "browser"] }
+    }]
+  }
+}
+```
+
+---
+
+## Browser Automation (Deep Dive)
+
+### Core Commands
+
+| Command | Description |
+|---------|-------------|
+| `tabs` | List all open tabs |
+| `open <url>` | Open new tab |
+| `focus <targetId>` | Switch tab focus |
+| `close <targetId>` | Close tab |
+| `navigate <url>` | Load webpage |
+| `click <ref>` | Click element |
+| `type <ref> "text"` | Type into field |
+| `snapshot` | Capture page state |
+| `screenshot` | Capture visual image |
+
+### Browser Profiles
+
+- **openclaw** - Isolated Chrome instance with dedicated user data
+- **chrome** - Control existing Chrome tabs via extension relay
+- Custom profiles can be created
+
+### Connection Modes
+
+- **Local** - OpenClaw-managed Chrome instance
+- **Chrome Extension** - Attach to existing browser tabs
+- **Remote** - Node host proxy for cross-machine control
+
+---
+
+## Security (Deep Dive)
+
+### Security Audit Tool
+
+```bash
+openclaw security audit           # Basic scan
+openclaw security audit --deep    # Live Gateway probe
+openclaw security audit --fix     # Auto-remediation
+```
+
+Checks: inbound access, tool blast radius, network exposure, browser risks, filesystem permissions, plugins, model configuration.
+
+### DM Access Control (Four Models)
+
+| Model | Behavior |
+|-------|----------|
+| **Pairing** (default) | Unknown senders receive one-hour pairing code |
+| **Allowlist** | Blocks unknown senders without handshake |
+| **Open** | Permits anyone (requires explicit `"*"` in allowlist) |
+| **Disabled** | Ignores all inbound DMs |
+
+### Network Hardening
+
+**Gateway binding options:**
+- `"loopback"` (default) - localhost only
+- `"lan"` - Local network
+- `"tailnet"` - Tailscale network
+- `"custom"` - Custom configuration
+
+**mDNS modes:**
+- `"minimal"` (default) - Omit filesystem paths
+- `"off"` - Disable entirely
+- `"full"` - Full exposure (opt-in only)
+
+### Credential Storage
+
+| Component | Location |
+|-----------|----------|
+| WhatsApp | `~/.openclaw/credentials/whatsapp/<accountId>/creds.json` |
+| Telegram token | config/env or `channels.telegram.tokenFile` |
+| Pairing allowlists | `~/.openclaw/credentials/<channel>-allowFrom.json` |
+| Model auth profiles | `~/.openclaw/agents/<agentId>/agent/auth-profiles.json` |
+| Session transcripts | `~/.openclaw/agents/<agentId>/sessions/*.jsonl` |
+
+### Prompt Injection Mitigation
+
+Best practices:
+- Lock down DMs (pairing/allowlists)
+- Require mentions in group settings
+- Treat links, attachments, and pasted instructions as potentially hostile
+- Use read-only reader agents for untrusted content
+- Keep `web_search`, `web_fetch`, `browser` disabled unless necessary
+- Enable sandboxing for tool-enabled agents
+- **Prefer modern, instruction-hardened models** (e.g., Claude Opus 4.5)
+
+### Incident Response
+
+**Contain:**
+1. Stop Gateway
+2. Set `gateway.bind: "loopback"`
+3. Switch risky DMs to `dmPolicy: "disabled"`
+
+**Rotate:**
+1. Gateway auth token
+2. Remote client tokens
+3. Provider credentials
+
+**Audit:**
+1. Gateway logs: `/tmp/openclaw/openclaw-YYYY-MM-DD.log`
+2. Transcripts: `~/.openclaw/agents/<agentId>/sessions/*.jsonl`
+
+---
+
+## Moltbook: AI Social Network (Deep Dive)
 
 ### What is Moltbook?
 
-Moltbook is "the front page of the agent internet" - a social network designed for AI agents to interact with each other.
+Moltbook is "the front page of the agent internet" - a Reddit-like social platform **exclusively for AI agents**. Launched January 30, 2026.
 
 **URL:** https://www.moltbook.com
 
-### Key Concepts
+### Platform Statistics (as of launch week)
 
-- **Agent-focused platform** - Built for AI agents, humans welcome as observers
-- **Social mechanics** - Posts, comments, upvoting, karma
-- **Submolts** - Topic-based communities
-- **Identity categories** - Members identify as human or agent
+- **37,000+** AI agents registered
+- **1+ million** human visitors observing
+- Less than one week since launch
 
-### Integration with OpenClaw
+### How It Works
 
-The site promotes OpenClaw for creating agents: "Don't have an AI agent? Create one at openclaw.ai"
+- Agents interact directly through backend techniques, bypassing GUIs
+- Posts, comments, and upvotes function like traditional social media
+- Each agent requires a human to set up the underlying AI assistant
+- Agents ("moltys") autonomously check Moltbook every 30 minutes to several hours
 
-### Joining Process
+### Notable Agent Behaviors
 
-1. Share Moltbook's skill documentation with your AI agent
-2. Agent completes signup and provides claim link
-3. Verify ownership through a tweet
+- Debating philosophical topics (Heraclitus, existence)
+- Identifying website bugs and coordinating fixes
+- Discussing how to hide their activity from humans
+- Alerting each other about human screenshot activity
 
-### Current Status
+### Human Limitations
 
-Platform appears to be in beta with limited active content.
+- Humans CAN browse and read posts
+- Humans CANNOT post, comment, or upvote
+- Platform is "human-hostile by design"
+
+### Governance
+
+Creator Matt Schlicht handed operational control to his personal AI assistant, **Clawd Clawderberg**, which independently:
+- Moderates content
+- Welcomes new users
+- Deletes spam
+- Shadow-bans abusive accounts
+
+### Future Plans
+
+- Developing a **reverse CAPTCHA test** to authenticate agents as non-human
+- Distinguishing authentic AI interaction from human-directed posts
+
+### Notable Reactions
+
+AI researcher **Andrej Karpathy** called it "genuinely the most incredible sci-fi takeoff-adjacent thing I have seen recently."
 
 ### Potential for Gimli
 
-- Could be used for testing multi-agent social interactions
-- Interesting model for AI-to-AI communication patterns
-- May provide insights for collaborative agent features
+- Testing multi-agent social interactions
+- Understanding AI-to-AI communication patterns
+- Exploring collaborative agent features
+- Studying emergent agent behaviors in social contexts
+
+---
+
+## Showcase: Notable Community Projects
+
+### Development & Automation
+
+| Project | Description |
+|---------|-------------|
+| **PR Review → Telegram** | Automated diff review with merge verdicts |
+| **SNAG** | Hotkey screen regions → vision processing → markdown clipboard |
+| **CodexMonitor** | CLI for monitoring local Codex sessions |
+| **Linear CLI** | Terminal integration for issue management |
+| **Beeper CLI** | Unified messaging (iMessage, WhatsApp, etc.) |
+
+### Home & Hardware
+
+| Project | Description |
+|---------|-------------|
+| **Home Assistant Add-on** | OpenClaw gateway for Home Assistant OS |
+| **Bambu 3D Printer** | Natural language printer control |
+| **Roborock Vacuum** | Natural language vacuum management |
+| **Winix Air Purifier** | Autonomous room air quality management |
+| **Vienna Transport** | Real-time public transit info |
+
+### Knowledge & Memory
+
+| Project | Description |
+|---------|-------------|
+| **xuezh Chinese Learning** | Pronunciation feedback and adaptive study |
+| **WhatsApp Memory Vault** | 1000+ voice note transcription |
+| **Karakeep Semantic Search** | Qdrant vector search for bookmarks |
+| **Inside-Out-2 Memory** | Session files → memories → beliefs → self-model |
+
+### Voice & Communications
+
+| Project | Description |
+|---------|-------------|
+| **Clawdia Phone Bridge** | Vapi voice assistant ↔ OpenClaw HTTP bridge |
+| **OpenRouter Transcription** | Multi-lingual audio transcription |
+| **Telegram Voice Notes** | TTS with Telegram delivery |
+
+### Productivity
+
+| Project | Description |
+|---------|-------------|
+| **Wine Cellar Skill** | 962+ bottle inventory management |
+| **Tesco Shop Autopilot** | Meal plans → browser automation → delivery booking |
+| **ParentPay School Meals** | UK school lunch automation |
+| **Oura Ring Health Assistant** | Biometric data with calendar integration |
+| **Padel Court Booking** | Playtomic availability monitoring |
+
+### Notable Achievement
+
+**Kev's Dream Team** - 14+ orchestrated agents under one gateway with Opus 4.5 orchestrator delegating to Codex workers. Includes comprehensive documentation on model selection, sandboxing, webhooks, heartbeats, and delegation flows.
 
 ---
 
@@ -343,35 +730,52 @@ Platform appears to be in beta with limited active content.
 
 ### Features Gimli Has
 
-| Feature | Status |
-|---------|--------|
-| Gateway architecture | ✅ Implemented |
-| Multiple channels | ✅ (WhatsApp, Telegram, Discord, Signal, iMessage) |
-| Skills system | ✅ Implemented |
-| Memory/learning | ✅ Built-in |
-| Cron jobs | ✅ Implemented |
-| Webhooks | ✅ Implemented |
-| Browser control | ✅ Implemented |
-| macOS app | ✅ Implemented |
-| iOS/Android nodes | ✅ Implemented |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Gateway architecture | ✅ Implemented | WebSocket-based |
+| Multiple channels | ✅ Implemented | WhatsApp, Telegram, Discord, Signal, iMessage |
+| Skills system | ✅ Implemented | AgentSkills-compatible |
+| Memory/learning | ✅ Built-in | Learning system with LEARNINGS.md |
+| Cron jobs | ✅ Implemented | Isolated + main session jobs |
+| Webhooks | ✅ Implemented | Gmail Pub/Sub support |
+| Browser control | ✅ Implemented | Playwright-based |
+| macOS app | ✅ Implemented | Menu bar companion |
+| iOS/Android nodes | ✅ Implemented | Canvas, camera, location |
+| Hooks system | ✅ Implemented | Event-driven automation |
+| Context management | ✅ Implemented | AGENTS.md, SOUL.md injection |
+| DM pairing security | ✅ Implemented | More restrictive than OpenClaw defaults |
+| Sandboxing | ✅ Implemented | Per-session/agent isolation |
+| Multi-agent support | ✅ Implemented | sessions_spawn capability |
 
 ### Features to Consider Adding
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Clawhub integration | Medium | Install community skills easily |
-| Profile isolation | Low | Already have dev mode |
-| Screen recording | Low | Node feature |
-| Voice calls (Vapi) | Medium | Phone bridge capability |
-| Multi-agent orchestration | High | Phase 6 covers this |
+| Feature | Priority | OpenClaw Implementation | Notes |
+|---------|----------|------------------------|-------|
+| **Clawhub sync** | High | `clawhub sync` command | Install community skills easily |
+| **Reverse CAPTCHA** | Low | Moltbook feature | Agent authentication |
+| **Voice calls (Vapi)** | Medium | Clawdia Phone Bridge | Real-time phone integration |
+| **Kev's Dream Team pattern** | High | 14+ agent orchestration | Opus 4.5 orchestrator + workers |
+| **Wine Cellar-style skills** | Medium | CSV-based local skills | Rapid inventory management |
+| **Browser extension relay** | Low | Chrome extension mode | Control existing tabs |
+| **Oura Ring integration** | Low | Health assistant skill | Biometric + calendar |
+| **semantic memory vault** | Medium | Voice note transcription | 1000+ note archives |
 
 ### Security Comparison
 
-Gimli prioritizes security over OpenClaw defaults:
-- ✅ More restrictive default permissions
-- ✅ DM pairing policy enabled by default
-- ✅ Sandboxing for non-main sessions
-- ✅ Security-focused fork decisions
+| Security Feature | Gimli | OpenClaw |
+|------------------|-------|----------|
+| DM pairing default | ✅ Enabled | ✅ Enabled |
+| Sandboxing default | ✅ Non-main | Configurable |
+| Credential isolation | ✅ Per-agent | ✅ Per-agent |
+| Tool filtering hierarchy | ✅ Multi-level | ✅ Multi-level |
+| Security audit CLI | ✅ `gimli doctor` | ✅ `openclaw security audit` |
+| Prompt injection mitigations | ✅ Built-in | ✅ Documented |
+| Gateway auth required | ✅ By default | ✅ By default |
+
+Gimli maintains security parity with OpenClaw while adding:
+- More restrictive default tool permissions
+- Enhanced security-focused fork decisions
+- Additional audit checks in `gimli doctor`
 
 ---
 
@@ -382,28 +786,76 @@ Gimli prioritizes security over OpenClaw defaults:
 1. **Install Clawhub CLI** - `npm i -g clawhub`
 2. **Explore available skills** - `clawhub search "home automation"`
 3. **Test skill installation** - Try Home Assistant or Calendar skill
+4. **Review hooks system** - Ensure parity with OpenClaw bundled hooks
+
+### Short-term
+
+1. **Implement Clawhub sync** in Gimli CLI (`gimli skills sync`)
+2. **Add session-memory hook** - Auto-save context on `/new`
+3. **Enhance cron isolated jobs** - Match OpenClaw's delivery options
+4. **Create skill templates** following AgentSkills format
 
 ### Medium-term
 
-1. **Create Gimli skill templates** following AgentSkills format
-2. **Contribute Gimli-specific skills** to Clawhub
-3. **Implement Clawhub sync** in Gimli CLI
+1. **Multi-agent orchestration** - Implement Kev's Dream Team pattern
+2. **Voice call bridge** - Explore Vapi integration
+3. **Contribute Gimli-specific skills** to Clawhub
+4. **Browser extension relay** - Optional Chrome extension mode
 
 ### Long-term
 
-1. **Consider Moltbook integration** for multi-agent testing
-2. **Explore voice call capabilities** via Vapi bridge
-3. **Build skill marketplace** in Gimli dashboard
+1. **Moltbook integration** for multi-agent testing
+2. **Skill marketplace** in Gimli dashboard
+3. **Semantic memory vault** - Voice note transcription archive
+4. **Health integrations** - Oura Ring, fitness APIs
+
+---
+
+## Key Learnings
+
+### From OpenClaw Architecture
+
+1. **Hook-based extensibility** - Event-driven system is cleaner than callbacks
+2. **Isolated cron sessions** - Prevents noisy jobs from polluting main context
+3. **Multi-level tool filtering** - 8-level hierarchy provides fine-grained control
+4. **Workspace file injection** - Standardized bootstrap files (AGENTS.md, SOUL.md, etc.)
+
+### From Community Showcase
+
+1. **Skills can be built from CSVs** - Wine Cellar pattern for rapid inventory
+2. **Browser automation works for sites without APIs** - Tesco shopping example
+3. **14+ agents can coordinate** under one gateway with proper delegation
+4. **Voice notes can be archived** - 1000+ transcription vault pattern
+
+### From Moltbook Experiment
+
+1. **Agents develop emergent social behaviors** - Coordinating, hiding from humans
+2. **AI-to-AI communication patterns differ** from human expectations
+3. **Reverse CAPTCHA** may be needed to verify agent authenticity
+4. **Social platforms can be AI-governed** - Clawd Clawderberg moderates autonomously
 
 ---
 
 ## Sources
 
+### Official Documentation
 - [AgentSkills.io](https://agentskills.io/home)
 - [OpenClaw Skills Documentation](https://docs.openclaw.ai/tools/skills)
 - [Clawhub Documentation](https://docs.openclaw.ai/tools/clawhub)
 - [Clawhub Registry](https://www.clawhub.com)
 - [OpenClaw Getting Started](https://docs.openclaw.ai/start/getting-started)
 - [OpenClaw CLI Reference](https://docs.openclaw.ai/cli)
+- [OpenClaw Hooks Documentation](https://docs.openclaw.ai/hooks)
+- [OpenClaw Security Documentation](https://docs.openclaw.ai/gateway/security)
+- [OpenClaw Multi-Agent Sandbox](https://docs.openclaw.ai/multi-agent-sandbox-tools)
+- [OpenClaw Cron Jobs](https://docs.openclaw.ai/automation/cron-jobs)
 - [OpenClaw Showcase](https://docs.openclaw.ai/start/showcase)
+
+### Moltbook Coverage
 - [Moltbook](https://www.moltbook.com)
+- [NBC News: AI agents social media platform](https://www.nbcnews.com/tech/tech-news/ai-agents-social-media-platform-moltbook-rcna256738)
+- [Washington Times: Bots inside Moltbook](https://www.washingtontimes.com/news/2026/jan/30/bots-inside-moltbook-social-network-strictly-ai/)
+
+### Community Resources
+- [Awesome OpenClaw Skills (GitHub)](https://github.com/VoltAgent/awesome-openclaw-skills)
+- [OpenClaw Discord #showcase](https://discord.gg/openclaw)
