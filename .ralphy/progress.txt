@@ -3181,3 +3181,45 @@ All reminder files pass linting with 0 errors.
 4. `src/reminders/proactive.ts` - Proactive queries
 5. `src/hooks/reminder-injection-hook.ts` - Turn injection
 
+
+---
+
+## Phase 5: Reminder Priority System Design
+**Date**: 2026-01-31
+**Task**: Design reminder priority system (urgent vs gentle nudge vs background)
+
+### Summary
+Designed comprehensive reminder priority system with three priority levels (urgent, normal, low) that determine delivery behavior, quiet hours handling, snooze constraints, and memory relevance ranking.
+
+### Files Created/Modified
+- `docs/design/reminder-priority-system.md` - Complete design document (450 lines)
+- `src/reminders/types.ts` - Added priority config types and helper functions
+- `src/reminders/types.test.ts` - Added 30+ tests for priority system
+
+### Key Design Decisions
+
+#### Priority Levels
+| Priority | Quiet Hours | Batching | Snooze Range | Relevance |
+|----------|------------|----------|--------------|-----------|
+| Urgent | Bypasses | Never | 5-60 min | 1.5x boost |
+| Normal | Respects | Up to 3 | 15 min - 24h | 1.0x |
+| Low | Respects | Aggressive | 1h - 7 days | 0.7x factor |
+
+#### Helper Functions Implemented
+- `isReminderEligible(reminder, now)` - Checks if pending or snoozed past due
+- `shouldBypassQuietHours(reminder, config)` - Priority/exempt status check
+- `sortRemindersByPriority(reminders)` - Sorts urgent > normal > low
+- `selectRemindersForInjection(reminders, config, now, priorityConfig)` - Main selection algorithm
+- `getSnoozeConstraints(priority, config)` - Returns min/max snooze for priority
+- `clampSnoozeDuration(minutes, priority, config)` - Clamps to constraints
+- `getRelevanceAdjustment(priority, config)` - Returns boost/factor for search
+- `shouldAutoRepeat(reminder, config)` - Checks if urgent should auto-repeat
+
+### Tests
+- 63 tests total in `types.test.ts`, all passing
+- Coverage includes all priority levels, edge cases, and helper functions
+
+### Next Steps
+- Implement delivery logic using these types and helpers
+- Integrate with memory injection hook for relevance-adjusted ranking
+- Add escalation logic for urgent reminders

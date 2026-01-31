@@ -7,13 +7,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clampSnoozeDuration,
+  defaultPriorityConfig,
   defaultReminderInjectionConfig,
   formatReminderForContext,
   formatRemindersForInjection,
+  getRelevanceAdjustment,
+  getSnoozeConstraints,
   isQuietHours,
   isReminderDue,
+  isReminderEligible,
   reminderToRow,
   rowToReminder,
+  selectRemindersForInjection,
+  shouldAutoRepeat,
+  shouldBypassQuietHours,
+  sortRemindersByPriority,
   type ProactiveReminderResult,
   type Reminder,
   type ReminderInjectionConfig,
@@ -579,5 +588,573 @@ describe("defaultReminderInjectionConfig", () => {
     expect(defaultReminderInjectionConfig.minContextScore).toBe(0.4);
     expect(defaultReminderInjectionConfig.quietHoursStart).toBeUndefined();
     expect(defaultReminderInjectionConfig.quietHoursEnd).toBeUndefined();
+  });
+});
+
+// ============================================================================
+// Priority System Tests
+// ============================================================================
+
+describe("defaultPriorityConfig", () => {
+  it("has expected urgent priority defaults", () => {
+    expect(defaultPriorityConfig.urgent.bypassQuietHours).toBe(true);
+    expect(defaultPriorityConfig.urgent.repeatOnDismissMinutes).toBe(5);
+    expect(defaultPriorityConfig.urgent.minSnoozeMinutes).toBe(5);
+    expect(defaultPriorityConfig.urgent.maxSnoozeMinutes).toBe(60);
+    expect(defaultPriorityConfig.urgent.escalateToAllChannels).toBe(true);
+    expect(defaultPriorityConfig.urgent.relevanceBoost).toBe(1.5);
+  });
+
+  it("has expected normal priority defaults", () => {
+    expect(defaultPriorityConfig.normal.maxBatchSize).toBe(3);
+    expect(defaultPriorityConfig.normal.minSnoozeMinutes).toBe(15);
+    expect(defaultPriorityConfig.normal.maxSnoozeMinutes).toBe(24 * 60);
+  });
+
+  it("has expected low priority defaults", () => {
+    expect(defaultPriorityConfig.low.coalesceByContext).toBe(true);
+    expect(defaultPriorityConfig.low.digestTime).toBeNull();
+    expect(defaultPriorityConfig.low.minSnoozeMinutes).toBe(60);
+    expect(defaultPriorityConfig.low.maxSnoozeMinutes).toBe(7 * 24 * 60);
+    expect(defaultPriorityConfig.low.relevanceFactor).toBe(0.7);
+  });
+});
+
+describe("isReminderEligible", () => {
+  it("returns true for pending reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Test",
+      trigger: { type: "scheduled", datetime: new Date("2026-02-15T10:00:00.000Z") },
+      status: "pending",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    expect(isReminderEligible(reminder)).toBe(true);
+  });
+
+  it("returns false for completed reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Test",
+      trigger: { type: "scheduled", datetime: new Date("2026-02-15T10:00:00.000Z") },
+      status: "completed",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    expect(isReminderEligible(reminder)).toBe(false);
+  });
+
+  it("returns false for dismissed reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Test",
+      trigger: { type: "scheduled", datetime: new Date("2026-02-15T10:00:00.000Z") },
+      status: "dismissed",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    expect(isReminderEligible(reminder)).toBe(false);
+  });
+
+  it("returns true for snoozed reminder when snooze time has passed", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Test",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+      status: "snoozed",
+      priority: "normal",
+      createdAt: new Date(),
+      snoozeUntil: new Date("2026-01-15T10:00:00.000Z"),
+      quietHoursExempt: false,
+    };
+
+    const now = new Date("2026-01-16T10:00:00.000Z");
+    expect(isReminderEligible(reminder, now)).toBe(true);
+  });
+
+  it("returns false for snoozed reminder when snooze time has not passed", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Test",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+      status: "snoozed",
+      priority: "normal",
+      createdAt: new Date(),
+      snoozeUntil: new Date("2026-01-15T10:00:00.000Z"),
+      quietHoursExempt: false,
+    };
+
+    const now = new Date("2026-01-14T10:00:00.000Z");
+    expect(isReminderEligible(reminder, now)).toBe(false);
+  });
+});
+
+describe("shouldBypassQuietHours", () => {
+  it("returns true for urgent reminder with default config", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Urgent",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "urgent",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    expect(shouldBypassQuietHours(reminder)).toBe(true);
+  });
+
+  it("returns false for normal reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Normal",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    expect(shouldBypassQuietHours(reminder)).toBe(false);
+  });
+
+  it("returns false for low priority reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Low",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "low",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    expect(shouldBypassQuietHours(reminder)).toBe(false);
+  });
+
+  it("returns true for any priority when quietHoursExempt is true", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Exempt",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "low",
+      createdAt: new Date(),
+      quietHoursExempt: true,
+    };
+
+    expect(shouldBypassQuietHours(reminder)).toBe(true);
+  });
+});
+
+describe("sortRemindersByPriority", () => {
+  it("sorts urgent before normal before low", () => {
+    const low: Reminder = {
+      id: "rem-low",
+      agentId: "main",
+      title: "Low",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+      status: "pending",
+      priority: "low",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const normal: Reminder = {
+      id: "rem-normal",
+      agentId: "main",
+      title: "Normal",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+      status: "pending",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const urgent: Reminder = {
+      id: "rem-urgent",
+      agentId: "main",
+      title: "Urgent",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+      status: "pending",
+      priority: "urgent",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const sorted = sortRemindersByPriority([low, normal, urgent]);
+
+    expect(sorted[0].priority).toBe("urgent");
+    expect(sorted[1].priority).toBe("normal");
+    expect(sorted[2].priority).toBe("low");
+  });
+
+  it("sorts by due time within same priority", () => {
+    const early: Reminder = {
+      id: "rem-early",
+      agentId: "main",
+      title: "Early",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T08:00:00.000Z") },
+      status: "pending",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const late: Reminder = {
+      id: "rem-late",
+      agentId: "main",
+      title: "Late",
+      trigger: { type: "scheduled", datetime: new Date("2026-01-01T12:00:00.000Z") },
+      status: "pending",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const sorted = sortRemindersByPriority([late, early]);
+
+    expect(sorted[0].id).toBe("rem-early");
+    expect(sorted[1].id).toBe("rem-late");
+  });
+
+  it("does not mutate original array", () => {
+    const reminders: Reminder[] = [
+      {
+        id: "rem-1",
+        agentId: "main",
+        title: "First",
+        trigger: { type: "scheduled", datetime: new Date() },
+        status: "pending",
+        priority: "low",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+    ];
+
+    const sorted = sortRemindersByPriority(reminders);
+
+    expect(sorted).not.toBe(reminders);
+  });
+});
+
+describe("selectRemindersForInjection", () => {
+  const baseConfig: ReminderInjectionConfig = {
+    enabled: true,
+    maxReminders: 2,
+    includeContextual: true,
+    minContextScore: 0.4,
+  };
+
+  it("includes all urgent reminders regardless of limit", () => {
+    const reminders: Reminder[] = [
+      {
+        id: "rem-urgent-1",
+        agentId: "main",
+        title: "Urgent 1",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "urgent",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+      {
+        id: "rem-urgent-2",
+        agentId: "main",
+        title: "Urgent 2",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "urgent",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+      {
+        id: "rem-urgent-3",
+        agentId: "main",
+        title: "Urgent 3",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "urgent",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+    ];
+
+    const selected = selectRemindersForInjection(reminders, baseConfig);
+
+    // All 3 urgent reminders included despite maxReminders = 2
+    expect(selected).toHaveLength(3);
+    expect(selected.every((r) => r.priority === "urgent")).toBe(true);
+  });
+
+  it("limits normal and low reminders to maxReminders", () => {
+    const reminders: Reminder[] = [
+      {
+        id: "rem-normal-1",
+        agentId: "main",
+        title: "Normal 1",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "normal",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+      {
+        id: "rem-normal-2",
+        agentId: "main",
+        title: "Normal 2",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "normal",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+      {
+        id: "rem-low-1",
+        agentId: "main",
+        title: "Low 1",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "low",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+    ];
+
+    const selected = selectRemindersForInjection(reminders, baseConfig);
+
+    // Only 2 reminders (maxReminders limit)
+    expect(selected).toHaveLength(2);
+    // Normal reminders prioritized over low
+    expect(selected.every((r) => r.priority === "normal")).toBe(true);
+  });
+
+  it("filters out completed reminders", () => {
+    const reminders: Reminder[] = [
+      {
+        id: "rem-pending",
+        agentId: "main",
+        title: "Pending",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "normal",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+      {
+        id: "rem-completed",
+        agentId: "main",
+        title: "Completed",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "completed",
+        priority: "normal",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+    ];
+
+    const selected = selectRemindersForInjection(reminders, baseConfig);
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0].id).toBe("rem-pending");
+  });
+
+  it("only includes urgent during quiet hours", () => {
+    const quietConfig: ReminderInjectionConfig = {
+      ...baseConfig,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "07:00",
+    };
+
+    const reminders: Reminder[] = [
+      {
+        id: "rem-urgent",
+        agentId: "main",
+        title: "Urgent",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "urgent",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+      {
+        id: "rem-normal",
+        agentId: "main",
+        title: "Normal",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "normal",
+        createdAt: new Date(),
+        quietHoursExempt: false,
+      },
+    ];
+
+    // 11:00 PM is during quiet hours
+    const now = new Date("2026-01-15T23:00:00.000Z");
+    const selected = selectRemindersForInjection(reminders, quietConfig, now);
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0].priority).toBe("urgent");
+  });
+
+  it("includes quietHoursExempt reminders during quiet hours", () => {
+    const quietConfig: ReminderInjectionConfig = {
+      ...baseConfig,
+      quietHoursStart: "22:00",
+      quietHoursEnd: "07:00",
+    };
+
+    const reminders: Reminder[] = [
+      {
+        id: "rem-exempt",
+        agentId: "main",
+        title: "Exempt",
+        trigger: { type: "scheduled", datetime: new Date("2026-01-01T10:00:00.000Z") },
+        status: "pending",
+        priority: "low",
+        createdAt: new Date(),
+        quietHoursExempt: true,
+      },
+    ];
+
+    // 11:00 PM is during quiet hours
+    const now = new Date("2026-01-15T23:00:00.000Z");
+    const selected = selectRemindersForInjection(reminders, quietConfig, now);
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0].quietHoursExempt).toBe(true);
+  });
+});
+
+describe("getSnoozeConstraints", () => {
+  it("returns urgent snooze constraints", () => {
+    const constraints = getSnoozeConstraints("urgent");
+
+    expect(constraints.minMinutes).toBe(5);
+    expect(constraints.maxMinutes).toBe(60);
+  });
+
+  it("returns normal snooze constraints", () => {
+    const constraints = getSnoozeConstraints("normal");
+
+    expect(constraints.minMinutes).toBe(15);
+    expect(constraints.maxMinutes).toBe(24 * 60);
+  });
+
+  it("returns low snooze constraints", () => {
+    const constraints = getSnoozeConstraints("low");
+
+    expect(constraints.minMinutes).toBe(60);
+    expect(constraints.maxMinutes).toBe(7 * 24 * 60);
+  });
+});
+
+describe("clampSnoozeDuration", () => {
+  it("clamps below minimum for urgent", () => {
+    expect(clampSnoozeDuration(2, "urgent")).toBe(5);
+  });
+
+  it("clamps above maximum for urgent", () => {
+    expect(clampSnoozeDuration(120, "urgent")).toBe(60);
+  });
+
+  it("returns value within range unchanged", () => {
+    expect(clampSnoozeDuration(30, "urgent")).toBe(30);
+  });
+
+  it("respects normal priority constraints", () => {
+    expect(clampSnoozeDuration(5, "normal")).toBe(15);
+    expect(clampSnoozeDuration(30 * 24 * 60, "normal")).toBe(24 * 60);
+  });
+
+  it("respects low priority constraints", () => {
+    expect(clampSnoozeDuration(30, "low")).toBe(60);
+    expect(clampSnoozeDuration(10 * 24 * 60, "low")).toBe(7 * 24 * 60);
+  });
+});
+
+describe("getRelevanceAdjustment", () => {
+  it("returns boost for urgent", () => {
+    expect(getRelevanceAdjustment("urgent")).toBe(1.5);
+  });
+
+  it("returns 1.0 for normal", () => {
+    expect(getRelevanceAdjustment("normal")).toBe(1.0);
+  });
+
+  it("returns reduced factor for low", () => {
+    expect(getRelevanceAdjustment("low")).toBe(0.7);
+  });
+});
+
+describe("shouldAutoRepeat", () => {
+  it("returns true with interval for urgent reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Urgent",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "urgent",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const result = shouldAutoRepeat(reminder);
+
+    expect(result.shouldRepeat).toBe(true);
+    expect(result.intervalMinutes).toBe(5);
+  });
+
+  it("returns false for normal reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Normal",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "normal",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const result = shouldAutoRepeat(reminder);
+
+    expect(result.shouldRepeat).toBe(false);
+    expect(result.intervalMinutes).toBeNull();
+  });
+
+  it("returns false for low priority reminder", () => {
+    const reminder: Reminder = {
+      id: "rem-001",
+      agentId: "main",
+      title: "Low",
+      trigger: { type: "scheduled", datetime: new Date() },
+      status: "pending",
+      priority: "low",
+      createdAt: new Date(),
+      quietHoursExempt: false,
+    };
+
+    const result = shouldAutoRepeat(reminder);
+
+    expect(result.shouldRepeat).toBe(false);
+    expect(result.intervalMinutes).toBeNull();
   });
 });
