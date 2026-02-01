@@ -3016,3 +3016,670 @@ All modified files pass linting with 0 errors.
 3. **Context**: Errors include relevant file paths, elapsed times, and configuration details
 4. **Examples**: Where applicable, errors show exact commands to run
 
+
+---
+
+# Task: Design how reminders integrate with existing memory architecture
+
+## Status: COMPLETED
+
+## Date: 2026-01-31
+
+## Summary
+Designed the integration between Gimli's reminder/anticipation system and the existing memory architecture. Created comprehensive design documentation, type definitions, SQLite schema, and 46 unit tests to validate the design.
+
+## Design Overview
+
+### Core Architecture Decisions
+
+1. **SQLite Storage**: Reminders are stored in the same SQLite database as the memory system, using a new `reminders` table that links to memory chunks for semantic search.
+
+2. **Memory Integration**: Each reminder creates a corresponding memory chunk, enabling semantic discovery via the existing hybrid search (vector + BM25).
+
+3. **Cron Integration**: Scheduled and recurring reminders use the existing cron service for time-based triggers.
+
+4. **Hook-Based Injection**: Reminders are injected at `agent:turn:start` events alongside existing memory injection.
+
+### Reminder Types
+
+1. **Scheduled**: One-time reminders at a specific datetime
+2. **Recurring**: Repeating reminders using cron expressions
+3. **Context**: Triggered when semantically relevant context appears in conversation
+
+### Priority Levels
+
+- **Urgent**: High priority, bypasses quiet hours
+- **Normal**: Standard priority
+- **Low**: Background reminders, can be batched
+
+### Key Design Features
+
+- Agent isolation (reminders scoped to agentId)
+- Quiet hours support with exempt overrides for urgent reminders
+- Snooze functionality with snooze_until timestamps
+- Status tracking (pending, triggered, completed, dismissed, snoozed)
+- Link to memory chunks for semantic retrieval
+
+## Files Created
+
+### Design Documentation
+- `docs/design/reminder-memory-integration.md` - Comprehensive design document with architecture, data flow diagrams, and implementation plan
+
+### Source Files
+- `src/reminders/types.ts` - Type definitions including Reminder, ReminderTrigger, ReminderRow, and utility functions
+- `src/reminders/schema.ts` - SQLite schema with constraints and indices
+- `src/reminders/index.ts` - Public exports
+
+### Test Files
+- `src/reminders/types.test.ts` - 29 tests for type conversion and utility functions
+- `src/reminders/schema.test.ts` - 17 tests for schema creation and stats functions
+
+## Test Coverage
+
+### types.test.ts (29 tests)
+**rowToReminder (5 tests):**
+- Converts scheduled reminder row to Reminder object
+- Converts recurring reminder row to Reminder object
+- Converts context reminder row to Reminder object
+- Handles snoozed reminder with snooze_until set
+- Handles urgent reminder with quiet_hours_exempt
+
+**reminderToRow (4 tests):**
+- Converts scheduled Reminder to database row
+- Converts recurring Reminder to database row
+- Converts context Reminder to database row
+- Handles completed reminder with timestamps
+
+**isReminderDue (7 tests):**
+- Returns true for scheduled reminder past due date
+- Returns false for scheduled reminder before due date
+- Returns false for non-pending reminder
+- Returns false for snoozed reminder before snooze time
+- Returns true for snoozed reminder after snooze time
+- Returns false for recurring reminders (handled by cron)
+- Returns false for context reminders (not time-based)
+
+**isQuietHours (6 tests):**
+- Returns false when quiet hours not configured
+- Returns true during quiet hours (same day)
+- Returns false outside quiet hours (same day)
+- Returns true during overnight quiet hours (after start)
+- Returns true during overnight quiet hours (before end)
+- Returns false outside overnight quiet hours
+
+**formatReminderForContext (3 tests):**
+- Formats urgent scheduled reminder
+- Formats normal recurring reminder
+- Formats low priority context reminder
+
+**formatRemindersForInjection (3 tests):**
+- Returns empty string for empty array
+- Formats single reminder with header
+- Formats multiple reminders
+
+**defaultReminderInjectionConfig (1 test):**
+- Has expected default values
+
+### schema.test.ts (17 tests)
+**ensureReminderSchema (9 tests):**
+- Creates reminders table with required columns
+- Creates indices for common queries
+- Is idempotent (can be called multiple times)
+- Enforces trigger_type constraint
+- Enforces status constraint
+- Enforces priority constraint
+- Defaults status to pending
+- Defaults priority to normal
+- Defaults quiet_hours_exempt to 0
+
+**dropReminderSchema (2 tests):**
+- Drops the reminders table
+- Is safe to call when table does not exist
+
+**hasReminderSchema (2 tests):**
+- Returns false when table does not exist
+- Returns true when table exists
+
+**getReminderStats (4 tests):**
+- Returns zero counts for empty table
+- Counts reminders by status
+- Filters by agent_id
+- Handles all status types
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  46 passed (46)
+  Duration  5.57s
+```
+
+## Linting
+All reminder files pass linting with 0 errors.
+
+## Key Architecture Insights
+
+### Data Flow
+1. **Reminder Creation**: User creates reminder → parsed and stored in reminders table → memory chunk created for semantic search → cron job scheduled if time-based
+2. **Reminder Delivery**: Cron timer fires → direct injection, OR user turn starts → query due reminders + semantic search → inject relevant reminders
+
+### Integration Points
+- `src/memory/manager.ts` - Memory chunk creation for semantic search
+- `src/hooks/memory-injection-hook.ts` - Turn-start injection point
+- `src/gateway/server-cron.ts` - Scheduled trigger via cron service
+
+### Security Considerations
+- Agent isolation via agent_id scoping
+- Input validation on all reminder content
+- Rate limiting (configurable max per agent)
+- Quiet hours respect (except urgent reminders)
+- Memory system permissions inherited
+
+## Next Implementation Steps
+1. `src/reminders/store.ts` - CRUD operations
+2. `src/reminders/memory-bridge.ts` - Memory chunk integration
+3. `src/reminders/cron-bridge.ts` - Cron scheduling
+4. `src/reminders/proactive.ts` - Proactive queries
+5. `src/hooks/reminder-injection-hook.ts` - Turn injection
+
+
+---
+
+## Phase 5: Reminder Priority System Design
+**Date**: 2026-01-31
+**Task**: Design reminder priority system (urgent vs gentle nudge vs background)
+
+### Summary
+Designed comprehensive reminder priority system with three priority levels (urgent, normal, low) that determine delivery behavior, quiet hours handling, snooze constraints, and memory relevance ranking.
+
+### Files Created/Modified
+- `docs/design/reminder-priority-system.md` - Complete design document (450 lines)
+- `src/reminders/types.ts` - Added priority config types and helper functions
+- `src/reminders/types.test.ts` - Added 30+ tests for priority system
+
+### Key Design Decisions
+
+#### Priority Levels
+| Priority | Quiet Hours | Batching | Snooze Range | Relevance |
+|----------|------------|----------|--------------|-----------|
+| Urgent | Bypasses | Never | 5-60 min | 1.5x boost |
+| Normal | Respects | Up to 3 | 15 min - 24h | 1.0x |
+| Low | Respects | Aggressive | 1h - 7 days | 0.7x factor |
+
+#### Helper Functions Implemented
+- `isReminderEligible(reminder, now)` - Checks if pending or snoozed past due
+- `shouldBypassQuietHours(reminder, config)` - Priority/exempt status check
+- `sortRemindersByPriority(reminders)` - Sorts urgent > normal > low
+- `selectRemindersForInjection(reminders, config, now, priorityConfig)` - Main selection algorithm
+- `getSnoozeConstraints(priority, config)` - Returns min/max snooze for priority
+- `clampSnoozeDuration(minutes, priority, config)` - Clamps to constraints
+- `getRelevanceAdjustment(priority, config)` - Returns boost/factor for search
+- `shouldAutoRepeat(reminder, config)` - Checks if urgent should auto-repeat
+
+### Tests
+- 63 tests total in `types.test.ts`, all passing
+- Coverage includes all priority levels, edge cases, and helper functions
+
+### Next Steps
+- Implement delivery logic using these types and helpers
+- Integrate with memory injection hook for relevance-adjusted ranking
+- Add escalation logic for urgent reminders
+
+---
+
+# Task: Design feedback loop for reminder effectiveness
+
+## Status: COMPLETED
+
+## Date: 2026-01-31
+
+## Summary
+Designed and implemented a comprehensive feedback loop system for tracking and analyzing reminder effectiveness. The system captures user reactions to reminders, calculates effectiveness metrics, detects trends, and generates adjustment suggestions.
+
+## Implementation
+
+### 1. Core Types (`src/reminders/feedback-types.ts`)
+
+**Feedback Event Types:**
+- `ReminderReaction`: completed, dismissed, snoozed, ignored, acted
+- `FeedbackSource`: explicit, inferred, timeout
+- `ReminderFeedbackEvent`: Individual feedback event with full context
+
+**Metrics Types:**
+- `ReminderEffectivenessMetrics`: Per-reminder aggregated metrics including:
+  - Total showings and reaction counts
+  - Completion rate and dismissal rate
+  - Average reaction time and context relevance score
+  - Overall effectiveness score (0-1)
+  - Trend direction (improving, declining, stable)
+
+- `SystemEffectivenessMetrics`: Agent-wide metrics with:
+  - Breakdown by priority (urgent, normal, low)
+  - Breakdown by trigger type (scheduled, recurring, context)
+  - Top and bottom performers
+
+**Adjustment Suggestions:**
+- `ReminderAdjustmentSuggestion`: Data-driven recommendations including:
+  - reduce_frequency (high dismissal rate)
+  - increase_frequency (high completion rate)
+  - change_priority (ineffective with declining trend)
+  - change_timing (consistent snooze patterns)
+  - archive (consistently ignored)
+  - refine_context (low context relevance)
+
+**Configuration:**
+- `FeedbackSystemConfig`: Configurable thresholds and behavior
+  - Reaction window (5 minutes default)
+  - Minimum showings for metrics (3)
+  - Metrics window days (14)
+  - Effectiveness thresholds (0.2 ineffective, 0.7 effective)
+  - Auto-apply adjustments (disabled by default, requires 0.8 confidence)
+
+### 2. Algorithm Implementation
+
+**Effectiveness Score Calculation:**
+Weighted algorithm combining:
+- Completion rate (60% weight)
+- Low dismissal rate (25% weight, inverted)
+- Quick reaction time (15% weight, sigmoid-like decay)
+
+Score formula accounts for null reaction time and clamps between 0-1.
+
+**Trend Detection:**
+Simple linear regression on recent scores (window of 5 by default):
+- Slope > 0.02 → improving
+- Slope < -0.02 → declining
+- Otherwise → stable
+
+**Adjustment Suggestions:**
+Rule-based system that generates suggestions when:
+- Dismissal rate > 60%: suggest reduce_frequency or archive
+- Effectiveness < 0.2 with declining trend: suggest change_priority
+- Completion rate > 80%: suggest increase_frequency
+- Context relevance < 0.3: suggest refine_context
+
+### 3. Database Schema (`src/reminders/feedback-schema.ts`)
+
+**Tables Created:**
+
+**reminder_feedback** - Individual feedback events:
+- id, reminder_id, agent_id, session_key
+- shown_at, reaction, source, recorded_at
+- reaction_time_ms, context_relevance_score
+- trigger_message, user_response
+
+**reminder_effectiveness** - Cached aggregated metrics:
+- reminder_id (primary key)
+- Reaction counts (completed, dismissed, snoozed, ignored, acted)
+- Rates (completion_rate, dismissal_rate)
+- Averages (avg_reaction_time_ms, avg_context_relevance)
+- Computed fields (effectiveness_score, trend, recent_scores)
+
+**Indices:**
+- idx_feedback_reminder, idx_feedback_agent
+- idx_feedback_shown, idx_feedback_reaction
+- idx_feedback_agent_time (composite for time-windowed queries)
+
+### 4. Database Operations
+
+**Core Functions:**
+- `insertFeedbackEvent()`: Record a new feedback event
+- `getFeedbackForReminder()`: Get feedback history for a reminder
+- `getFeedbackForAgent()`: Get feedback for an agent (with time window)
+- `upsertEffectivenessMetrics()`: Update cached metrics (uses ON CONFLICT)
+- `getEffectivenessMetrics()`: Retrieve cached metrics
+- `getPerformanceRanking()`: Get top/bottom performers (excludes < 3 showings)
+- `getAgentFeedbackStats()`: Aggregate stats for an agent
+- `cleanupOldFeedback()`: Remove feedback older than retention period (90 days)
+
+## Test Coverage
+
+### feedback-types.test.ts (28 tests)
+1. **calculateEffectivenessScore** (7 tests)
+   - High score for high completion/low dismissal
+   - Low score for low completion/high dismissal
+   - Completion rate weighted highest
+   - Quick reaction time bonus
+   - Null reaction time handling
+   - Score clamping 0-1
+   - Dismissal rate penalty
+
+2. **calculateTrend** (6 tests)
+   - Stable for insufficient data
+   - Improving trend detection
+   - Declining trend detection
+   - Stable for flat data
+   - Window size respecting
+   - Noisy data handling
+
+3. **generateAdjustmentSuggestions** (8 tests)
+   - Empty for insufficient data
+   - Archive suggestion
+   - Reduce frequency suggestion
+   - Change priority suggestion
+   - Increase frequency suggestion
+   - Refine context suggestion
+   - Supporting metrics inclusion
+   - Custom threshold config
+
+4. **rowToFeedbackEvent** (2 tests)
+   - Full conversion
+   - Null field handling
+
+5. **feedbackEventToRow** (3 tests)
+   - Full conversion
+   - Undefined to null
+   - Round-trip correctness
+
+6. **defaultFeedbackConfig** (2 tests)
+   - Sensible defaults
+   - Threshold ordering
+
+### feedback-schema.test.ts (31 tests)
+1. **ensureFeedbackSchema** (4 tests)
+   - Creates reminder_feedback table
+   - Creates reminder_effectiveness table
+   - Creates required indices
+   - Idempotent
+
+2. **hasFeedbackSchema** (2 tests)
+   - Returns true when exists
+   - Returns false when dropped
+
+3. **dropFeedbackSchema** (1 test)
+   - Removes both tables
+
+4. **insertFeedbackEvent** (2 tests)
+   - Inserts complete event
+   - Inserts with null optionals
+
+5. **getFeedbackForReminder** (4 tests)
+   - Returns all feedback
+   - Orders by shown_at DESC
+   - Respects limit
+   - Returns empty for unknown
+
+6. **getFeedbackForAgent** (3 tests)
+   - Filters by agent
+   - Filters by time window
+   - Includes within window
+
+7. **upsertEffectivenessMetrics** (3 tests)
+   - Inserts new metrics
+   - Updates on conflict
+   - Stores recent scores as JSON
+
+8. **getPerformanceRanking** (3 tests)
+   - Top performers sorted
+   - Bottom performers sorted
+   - Excludes low showings
+
+9. **getAgentFeedbackStats** (6 tests)
+   - Total showings
+   - Unique reminders
+   - Reaction counts
+   - Completion rate
+   - Dismissal rate
+   - Time window respect
+   - Zeros for no feedback
+
+10. **cleanupOldFeedback** (2 tests)
+    - Removes old feedback
+    - Returns 0 when nothing to clean
+
+## Test Results
+```
+Test Files  2 passed (2)
+     Tests  59 passed (59)
+  Duration  4.20s
+```
+
+## Linting
+All 4 new files pass linting with 0 errors.
+
+## Files Added
+- `src/reminders/feedback-types.ts` - Core types and algorithms (283 lines)
+- `src/reminders/feedback-schema.ts` - Database schema and operations (296 lines)
+- `src/reminders/feedback-types.test.ts` - Type and algorithm tests (219 lines)
+- `src/reminders/feedback-schema.test.ts` - Schema and database tests (337 lines)
+
+## Architecture Insights
+
+### Integration with Existing Systems
+The feedback loop is designed to integrate with Gimli's existing architecture:
+
+1. **Hook System**: Uses `agent:turn:complete` hook pattern (like learning-capture-hook.ts) to:
+   - Detect when reminders are shown
+   - Capture user reactions from subsequent messages
+   - Record feedback events
+
+2. **Memory System**: Links to memory chunks via `chunk_id` for:
+   - Context-based reminder relevance scoring
+   - Semantic search integration
+
+3. **Learning System**: Follows the same patterns:
+   - Extract → Deduplicate → Store
+   - Async hooks that don't block agent responses
+   - Configurable enablement
+
+### Feedback Collection Flow
+```
+Reminder Shown → Agent Turn → turn:complete Hook
+                                    ↓
+                        Track Reminder Context
+                                    ↓
+                        Observe User's Next Message
+                                    ↓
+                        Classify Reaction (explicit/inferred/timeout)
+                                    ↓
+                        Record Feedback Event
+                                    ↓
+                        Recalculate Effectiveness Metrics
+                                    ↓
+                        Generate Adjustment Suggestions
+```
+
+### Security Considerations
+- Feedback data stored locally (no external telemetry)
+- Session-scoped feedback (agent isolation)
+- Automatic cleanup after retention period (90 days)
+- No sensitive content in trigger_message/user_response (just patterns)
+
+## Next Steps (for future implementation phases)
+1. Implement `feedback-capture-hook.ts` to listen to `agent:turn:complete`
+2. Add `/remind feedback` command to view effectiveness metrics
+3. Connect to learning system for recommendation improvements
+4. Add scheduler for periodic metrics recalculation
+5. Implement auto-apply for high-confidence adjustments
+
+---
+
+# Task: Define pattern types to track (time-based, event-based, context-based)
+
+## Status: COMPLETED
+
+## Date: 2026-01-31
+
+## Summary
+Defined the three pattern types for Gimli's anticipation system, with comprehensive type definitions, matching logic, and utility functions. Created design documentation and 41 unit tests.
+
+## Pattern Types Implemented
+
+### 1. Time-Based Patterns
+Triggered by temporal conditions:
+- **TimeOfDayTrigger**: e.g., "at 9:00 AM"
+- **DayOfWeekTrigger**: e.g., "Monday mornings"
+- **IntervalTrigger**: e.g., "every 2 hours"
+
+### 2. Event-Based Patterns
+Triggered by specific events:
+- **ToolCallTrigger**: After running a tool (git commit, test run)
+- **ErrorTrigger**: After errors occur
+- **CommandTrigger**: After /commands
+- **SessionEventTrigger**: Session start/end/reset
+- **UserMentionTrigger**: Keywords in user messages
+
+### 3. Context-Based Patterns
+Triggered by semantic context:
+- Keyword matching
+- Optional semantic similarity scoring
+- Related memory chunk linking
+
+## Key Features
+
+### Confidence Calculation
+- Based on observation count (asymptotic to 0.7)
+- Recency decay (halves every 14 days)
+- Consistency scoring
+- Formula: `0.5 * countFactor + 0.3 * consistency + 0.2 * recency`
+
+### Pattern Lifecycle
+1. Observation → 2. Detection → 3. Recording → 4. Activation → 5. Reminder Linking → 6. Decay
+
+### Matching Functions
+- `doesTimePatternMatch()` - Time pattern matching with tolerance
+- `doesEventTriggerMatch()` - Event pattern matching with regex support
+- `doesContextPatternMatch()` - Keyword + semantic matching
+
+## Files Created
+
+### Design Documentation
+- `docs/design/pattern-types.md` - Comprehensive design document
+
+### Source Files
+- `src/patterns/types.ts` - Type definitions and utility functions (~450 lines)
+- `src/patterns/index.ts` - Public exports
+
+### Test Files
+- `src/patterns/types.test.ts` - 41 unit tests
+
+## Test Coverage (41 tests)
+
+**Configuration** (1 test)
+- Default config values
+
+**Confidence Calculation** (5 tests)
+- Low confidence for few observations
+- Higher confidence for more observations
+- Recency decay
+- Consistency impact
+- Range clamping
+
+**Pattern Activation** (4 tests)
+- Meets thresholds
+- Below confidence threshold
+- Below observation threshold
+- Custom config
+
+**Pattern Archival** (3 tests)
+- Recent patterns not archived
+- Old patterns archived
+- Custom archive days
+
+**Time Pattern Matching** (7 tests)
+- Time-of-day within tolerance
+- Time-of-day outside tolerance
+- Days of week constraint
+- Day-of-week matching
+- Day-of-week with time
+- Interval elapsed
+- Interval never triggered
+
+**Event Trigger Matching** (10 tests)
+- Tool call name matching
+- Tool call result patterns
+- Error type matching
+- Error message patterns
+- Command matching
+- Session event matching
+- User mention keywords
+- Case insensitivity
+
+**Context Pattern Matching** (3 tests)
+- Keyword matching
+- Semantic score matching
+- Fallback to keywords
+
+**Formatting** (8 tests)
+- Day of week names
+- Time-of-day formatting
+- Day-of-week formatting
+- Interval formatting
+- Pattern descriptions
+
+## Test Results
+```
+Test Files  1 passed (1)
+     Tests  41 passed (41)
+  Duration  3.61s
+```
+
+## Linting
+All pattern files pass linting with 0 errors.
+
+## Phase 5 Design Status
+
+All four design tasks are now COMPLETE:
+1. [x] Design how reminders integrate with existing memory architecture
+2. [x] Design reminder priority system (urgent vs gentle nudge vs background)
+3. [x] Design feedback loop for reminder effectiveness
+4. [x] Define pattern types to track (time-based, event-based, context-based)
+
+Ready to proceed to Implementation phase.
+
+
+---
+
+# Phase 5 Implementation: Create Anticipate Skill
+
+**Task**: Create new skill: `~/gimli/skills/anticipate/SKILL.md`
+**Completed**: 2026-01-31
+
+## Skill File Created
+
+Created `skills/anticipate/SKILL.md` with comprehensive documentation:
+
+### Frontmatter
+```yaml
+name: anticipate
+description: Proactive reminders and pattern-based anticipation...
+metadata: {"gimli":{"emoji":"🔮"}}
+```
+
+### Content Sections
+- **Creating Reminders** - Natural language and `/remind` command examples
+- **Reminder Types** - Scheduled, Recurring (cron), Context-triggered
+- **Priority Levels** - Urgent (bypass quiet hours), Normal, Low
+- **Quiet Hours** - Configuration for non-disturbance periods
+- **Pattern Detection** - Time-based, Event-based, Context-based
+- **Managing Reminders** - List, complete, dismiss, snooze commands
+- **Integration with Memory** - Semantic search discovery
+
+## Skill Verification
+```
+$ pnpm gimli skills info anticipate
+🔮 anticipate ✓ Ready
+
+Proactive reminders and pattern-based anticipation. Create reminders, 
+detect activity patterns, and get context-aware suggestions.
+```
+
+## Bug Fix Applied
+Fixed TypeScript error in `src/reminders/feedback-schema.ts:497`:
+- Issue: `Type 'number | bigint' is not assignable to type 'number'`
+- Fix: Wrapped `result.changes` with `Number()`
+
+## Test Results
+Pattern module tests: 41/41 passing
+Skill loads correctly via `gimli skills info`
+
+## Phase 5 Implementation Status
+
+First implementation task complete:
+- [x] Create new skill: `~/gimli/skills/anticipate/SKILL.md`
+- [ ] Hook into existing memory system to track activity patterns
+- [ ] Build pattern detection for recurring tasks
+- [ ] Implement reminder queue that respects user's current context
+- [ ] Add natural language reminder creation
+- [ ] Integrate with cron system for scheduled reminders
+- [ ] Add `/remind` chat command for manual reminder management
+- [ ] Connect to existing learning system for effectiveness tracking
