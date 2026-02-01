@@ -10,3 +10,6 @@ export * from "./schema.js";
 export * from "./cron-integration.js";
 export * from "./parser.js";
 export * from "./queue.js";
+export * from "./feedback-types.js";
+export * from "./feedback-schema.js";
+export * from "./learning-integration.js";
