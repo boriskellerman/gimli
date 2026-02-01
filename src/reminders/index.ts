@@ -7,6 +7,7 @@
 
 export * from "./types.js";
 export * from "./schema.js";
+export * from "./store.js";
 export * from "./cron-integration.js";
 export * from "./parser.js";
 export * from "./queue.js";
