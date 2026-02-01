@@ -7,4 +7,5 @@
  */
 
 export * from "./detector.js";
+export * from "./tracker.js";
 export * from "./types.js";
