@@ -173,25 +173,13 @@ export interface DiffInput {
 // Security-related patterns in code
 const SECURITY_CODE_PATTERNS = [
   // Authentication/Authorization
-  {
-    pattern: /(?:auth|login|logout|session|token|jwt|oauth|saml)/i,
-    type: "authentication" as const,
-  },
-  {
-    pattern: /(?:permission|rbac|acl|role|privilege|access.?control)/i,
-    type: "authorization" as const,
-  },
+  { pattern: /(?:auth|login|logout|session|token|jwt|oauth|saml)/i, type: "authentication" as const },
+  { pattern: /(?:permission|rbac|acl|role|privilege|access.?control)/i, type: "authorization" as const },
   // Encryption/Crypto
-  {
-    pattern: /(?:encrypt|decrypt|hash|bcrypt|argon|scrypt|pbkdf|cipher)/i,
-    type: "encryption" as const,
-  },
+  { pattern: /(?:encrypt|decrypt|hash|bcrypt|argon|scrypt|pbkdf|cipher)/i, type: "encryption" as const },
   { pattern: /(?:crypto|hmac|signature|sign|verify)/i, type: "encryption" as const },
   // Input validation
-  {
-    pattern: /(?:sanitize|escape|validate|xss|injection|sqli)/i,
-    type: "input-validation" as const,
-  },
+  { pattern: /(?:sanitize|escape|validate|xss|injection|sqli)/i, type: "input-validation" as const },
   { pattern: /(?:csp|cors|csrf|nonce|origin)/i, type: "input-validation" as const },
   // Secrets
   { pattern: /(?:secret|password|credential|api.?key|private.?key)/i, type: "secrets" as const },
@@ -201,27 +189,11 @@ const SECURITY_CODE_PATTERNS = [
 // Security-related patterns in commit messages
 const SECURITY_MESSAGE_PATTERNS = [
   { pattern: /\bsecurity\b/i, type: "vulnerability-fix" as const, severity: "high" as const },
-  {
-    pattern: /\bvulnerability\b/i,
-    type: "vulnerability-fix" as const,
-    severity: "critical" as const,
-  },
-  {
-    pattern: /\bcve-\d{4}-\d+/i,
-    type: "vulnerability-fix" as const,
-    severity: "critical" as const,
-  },
-  {
-    pattern: /\bfix(?:es)?\s+(?:xss|injection|csrf)/i,
-    type: "vulnerability-fix" as const,
-    severity: "high" as const,
-  },
+  { pattern: /\bvulnerability\b/i, type: "vulnerability-fix" as const, severity: "critical" as const },
+  { pattern: /\bcve-\d{4}-\d+/i, type: "vulnerability-fix" as const, severity: "critical" as const },
+  { pattern: /\bfix(?:es)?\s+(?:xss|injection|csrf)/i, type: "vulnerability-fix" as const, severity: "high" as const },
   { pattern: /\bdependabot\b/i, type: "dependency-security" as const, severity: "medium" as const },
-  {
-    pattern: /\bsecurity\s+update/i,
-    type: "dependency-security" as const,
-    severity: "high" as const,
-  },
+  { pattern: /\bsecurity\s+update/i, type: "dependency-security" as const, severity: "high" as const },
 ];
 
 // Breaking change patterns in code
@@ -237,11 +209,7 @@ const BREAKING_CODE_PATTERNS = [
 // Breaking change patterns in commit messages
 const BREAKING_MESSAGE_PATTERNS = [
   { pattern: /\bBREAKING\s*(?:CHANGE)?:?/i, type: "behavior-change" as const },
-  {
-    pattern:
-      /\b(?:removes?|deprecates?)\s+(?:deprecated\s+)?(?:support|api|function|method|endpoint)/i,
-    type: "api-removal" as const,
-  },
+  { pattern: /\b(?:removes?|deprecates?)\s+(?:deprecated\s+)?(?:support|api|function|method|endpoint)/i, type: "api-removal" as const },
   { pattern: /\brename[sd]?\s+(?:api|function|method|class)/i, type: "api-signature" as const },
   { pattern: /\bmigration\s+(?:is\s+)?required/i, type: "config-change" as const },
   { pattern: /\brequires?\s+(?:a\s+)?migration/i, type: "config-change" as const },
@@ -252,16 +220,10 @@ const BREAKING_MESSAGE_PATTERNS = [
 const CATEGORY_MESSAGE_PATTERNS: Array<{ pattern: RegExp; category: ChangeCategory }> = [
   // Feature (including feat!: for breaking features)
   { pattern: /^feat(?:\(.+\))?!?:/i, category: "feature" },
-  {
-    pattern: /\b(?:add|implement|introduce|new)\s+(?:feature|support|functionality)/i,
-    category: "feature",
-  },
+  { pattern: /\b(?:add|implement|introduce|new)\s+(?:feature|support|functionality)/i, category: "feature" },
   // Bugfix
   { pattern: /^fix(?:\(.+\))?:/i, category: "bugfix" },
-  {
-    pattern: /\b(?:fix|fixes|fixed|resolve|resolves|resolved|close|closes|closed)\s+#?\d+/i,
-    category: "bugfix",
-  },
+  { pattern: /\b(?:fix|fixes|fixed|resolve|resolves|resolved|close|closes|closed)\s+#?\d+/i, category: "bugfix" },
   { pattern: /\b(?:bugfix|hotfix|patch)\b/i, category: "bugfix" },
   // Refactor
   { pattern: /^refactor(?:\(.+\))?:/i, category: "refactor" },
@@ -277,16 +239,10 @@ const CATEGORY_MESSAGE_PATTERNS: Array<{ pattern: RegExp; category: ChangeCatego
   { pattern: /\b(?:chore|maintenance|housekeeping)\b/i, category: "chore" },
   // Performance
   { pattern: /^perf(?:\(.+\))?:/i, category: "performance" },
-  {
-    pattern: /\b(?:performance|perf|optimize|optimization|speed|faster)\b/i,
-    category: "performance",
-  },
+  { pattern: /\b(?:performance|perf|optimize|optimization|speed|faster)\b/i, category: "performance" },
   // Dependency
   { pattern: /^(?:deps|build)(?:\(.+\))?:/i, category: "dependency" },
-  {
-    pattern: /\b(?:upgrade|update|bump)\s+(?:dependencies?|deps?|packages?|version)/i,
-    category: "dependency",
-  },
+  { pattern: /\b(?:upgrade|update|bump)\s+(?:dependencies?|deps?|packages?|version)/i, category: "dependency" },
 ];
 
 // File path patterns for category hints
