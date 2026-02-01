@@ -221,105 +221,39 @@
 
 ---
 
-## Phase 9: Agent Skills Exploration
-
-> **Goal**: Understand how to extend agent capabilities through skills system.
-
-- [ ] Research AgentSkills.io platform and skill architecture - https://agentskills.io/home
-- [ ] Study OpenClaw skills documentation - https://docs.openclaw.ai/tools/skills
-- [ ] Document skill creation patterns and best practices
-- [ ] Identify high-value skills that could benefit Gimli
-- [ ] Create recommendations for custom skill development
-
----
-
-## Phase 10: Clawhub Registry Exploration
-
-> **Goal**: Explore the GitHub-like agent skill registry for OpenClaw ecosystem.
-
-- [ ] Research Clawhub platform - https://www.clawhub.com
-- [ ] Study Clawhub documentation - https://docs.openclaw.ai/tools/clawhub
-- [ ] Catalog all available skills and their capabilities
-- [ ] Identify skills that could be leveraged for Gimli
-- [ ] Document skill installation and management patterns
-- [ ] Evaluate skill quality and maintenance status
-
----
-
-## Phase 11: Deep OpenClaw & Moltbook Exploration
-
-> **Goal**: Comprehensive understanding of OpenClaw/Moltbot/Clawdbot features and the AI Social Network.
-
-### OpenClaw Documentation Deep Dive
-- [ ] Thoroughly explore https://docs.openclaw.ai
-- [ ] Document all features not yet implemented in Gimli
-- [ ] Identify security-relevant configurations
-- [ ] Map OpenClaw capabilities to Gimli roadmap
-
-### Moltbook AI Social Network
-- [ ] Research Moltbook platform - https://www.moltbook.com
-- [ ] Understand AI social network concepts
-- [ ] Document integration opportunities
-- [ ] Evaluate privacy/security implications
-
-### Capability Gap Analysis
-- [ ] Create comparison matrix: OpenClaw vs Gimli features
-- [ ] Prioritize missing capabilities for implementation
-- [ ] Document architectural differences
-
----
-
-## Phase 12: Experimental Features
-
-- [ ] Brainstorm 5 novel features that could help Mike's CTO/infrastructure workflow
-- [ ] Evaluate feasibility and pick top 2 to prototype
-- [ ] Prototype #1: [TBD based on brainstorm]
-- [ ] Prototype #2: [TBD based on brainstorm]
-- [ ] Test prototypes and gather feedback
-- [ ] Document learnings and next steps
-
-### Brainstorm Ideas (Ralphy to expand):
-- Infrastructure monitoring integration (alert summaries, incident context)
-- Meeting prep assistant (pull relevant docs before scheduled meetings)
-- Documentation drift detector (code changed but docs didn't)
-- Decision journal (capture and recall past decisions with context)
-- Context switcher (save/restore working context when switching projects)
-
----
-
-## Phase 10: TAC Orchestrator Agent with ADWs
+## Phase 9: TAC Orchestrator Agent with ADWs
 
 > **Goal**: Build a self-operating system based on Tactical Agentic Coding (TAC) principles that runs Gimli itself, continuously improves the codebase, and fixes bugs automatically. This is the path to the "codebase singularity" - where agents run the codebase better than humans can.
 >
 > **Repo**: `~/github/orchestrator-agent-with-adws`
 > **Reference**: TAC lesson transcripts in that folder
 
-### Phase 10.1: Foundation - Study TAC Principles
+### Phase 9.1: Foundation - Study TAC Principles [COMPLETE]
 
-- [ ] Read all 14 TAC lesson transcripts thoroughly
-- [ ] Document the "12 Leverage Points of Agentic Coding"
-- [ ] Understand the Core Four: Context, Model, Prompt, Tools
-- [ ] Document the TAC progression: Base → Better → More → Custom → Orchestrator
-- [ ] Understand the three agentic layer classes and their grades
-- [ ] Create `~/github/orchestrator-agent-with-adws/docs/TAC_PRINCIPLES.md`
+- [x] Read all 14 TAC lesson transcripts thoroughly
+- [x] Document the "12 Leverage Points of Agentic Coding"
+- [x] Understand the Core Four: Context, Model, Prompt, Tools
+- [x] Document the TAC progression: Base → Better → More → Custom → Orchestrator
+- [x] Understand the three agentic layer classes and their grades
+- [x] Create `~/github/orchestrator-agent-with-adws/docs/TAC_PRINCIPLES.md`
 
-### Phase 10.2: Class 1 Agentic Layer (Grades 1-7)
+### Phase 9.2: Class 1 Agentic Layer (Grades 1-7)
 
 > Build the foundational agentic layer around Gimli
 
-#### Grade 1: Prime Prompts & Memory
-- [ ] Create `.claude/` directory structure in Gimli
-- [ ] Write `CLAUDE.md` memory file with Gimli-specific context
-- [ ] Create prime commands for common operations
-- [ ] Document codebase architecture for agent consumption
+#### Grade 1: Prime Prompts & Memory [COMPLETE]
+- [x] Create `.claude/` directory structure in Gimli
+- [x] Write `CLAUDE.md` memory file with Gimli-specific context
+- [x] Create prime commands for common operations
+- [x] Document codebase architecture for agent consumption
 
-#### Grade 2: Sub-Agents
-- [ ] Identify parallelizable tasks in Gimli
-- [ ] Create sub-agent prompts for: frontend, backend, gateway, channels
-- [ ] Test sub-agent delegation patterns
+#### Grade 2: Sub-Agents [COMPLETE]
+- [x] Identify parallelizable tasks in Gimli
+- [x] Create sub-agent prompts for: frontend, backend, gateway, channels
+- [x] Test sub-agent delegation patterns
 
-#### Grade 3: Custom Tools
-- [ ] Build skills for Gimli-specific operations (channel testing, gateway health, etc.)
+#### Grade 3: Custom Tools [COMPLETE]
+- [x] Build skills for Gimli-specific operations (channel testing, gateway health, etc.)
 - [ ] Create MCP server connections if beneficial
 - [ ] Write prime commands with tool access (database, config, logs)
 
@@ -347,7 +281,7 @@
 - [ ] Implement self-improve prompts to keep expertise synced with code
 - [ ] Store expertise in YAML files that agents maintain automatically
 
-### Phase 10.3: Class 2 Agentic Layer (Out-of-Loop)
+### Phase 9.3: Class 2 Agentic Layer (Out-of-Loop)
 
 > Build the PETER framework: Prompt → Environment → Trigger → Execute → Result
 
@@ -363,7 +297,7 @@
 - [ ] Create ADW triggers from GitHub issues/PRs
 - [ ] Store ADW results in structured format
 
-### Phase 10.4: Class 3 Agentic Layer (Orchestrator)
+### Phase 9.4: Class 3 Agentic Layer (Orchestrator)
 
 > Build the O-Agent - One Agent to Rule Them All
 
@@ -384,7 +318,7 @@
 - [ ] Build parallel execution with git worktrees
 - [ ] Create orchestrator developer workflows (ODWs)
 
-### Phase 10.5: Self-Improvement Loop
+### Phase 9.5: Self-Improvement Loop
 
 > The system that improves itself
 
@@ -396,7 +330,7 @@
 - [ ] Update Agent Experts when codebase changes
 - [ ] Track improvement metrics over time
 
-### Phase 10.6: Integration with Gimli's Existing Systems
+### Phase 9.6: Integration with Gimli's Existing Systems
 
 - [ ] Connect to Gimli's existing memory system
 - [ ] Connect to Gimli's existing learning system  
@@ -404,7 +338,7 @@
 - [ ] Use Gimli's sessions for multi-agent coordination
 - [ ] Leverage Gimli's Kanban integration (from Phase 6)
 
-### Phase 10.7: Observability & Control
+### Phase 9.7: Observability & Control
 
 - [ ] Build dashboard for orchestrator status
 - [ ] Real-time agent activity monitoring
