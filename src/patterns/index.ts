@@ -6,4 +6,5 @@
  * about user behavior that can trigger proactive assistance.
  */
 
+export * from "./detector.js";
 export * from "./types.js";
