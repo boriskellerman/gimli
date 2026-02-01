@@ -227,6 +227,14 @@ const entries: SubCliEntry[] = [
       mod.registerUpdateCli(program);
     },
   },
+  {
+    name: "upstream",
+    description: "OpenClaw upstream sync",
+    register: async (program) => {
+      const mod = await import("../upstream-cli.js");
+      mod.registerUpstreamCli(program);
+    },
+  },
 ];
 
 function removeCommand(program: Command, command: Command) {

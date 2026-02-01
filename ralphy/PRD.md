@@ -190,34 +190,34 @@
 - [x] Create cron job that checks OpenClaw repo for new commits (daily or weekly)
 - [x] Build changelog parser to extract meaningful feature descriptions
 - [x] Implement diff analyzer to categorize changes (feature, bugfix, security, breaking)
-- [ ] Create notification system when significant changes detected
-- [ ] Store sync history in `~/gimli/upstream-sync/`
+- [x] Create notification system when significant changes detected
+- [x] Store sync history in `~/.gimli/upstream/`
 
 ### Evaluation Pipeline
-- [ ] Design evaluation criteria (security impact, usefulness, complexity, conflicts)
-- [ ] Build automated security scanner for incoming changes
-- [ ] Create compatibility checker against Gimli's modifications
-- [ ] Implement risk scoring for each potential merge
-- [ ] Generate human-readable summary of proposed changes
+- [x] Design evaluation criteria (security impact, usefulness, complexity, conflicts)
+- [x] Build automated security scanner for incoming changes (diff-analyzer detects security signals)
+- [x] Create compatibility checker against Gimli's modifications (risk assessment checks sensitive paths)
+- [x] Implement risk scoring for each potential merge (calculateRiskAssessment)
+- [x] Generate human-readable summary of proposed changes
 
 ### Integration Workflow
-- [ ] Create staging branch for testing upstream changes
-- [ ] Build automated test runner for merged changes
-- [ ] Implement rollback mechanism if integration breaks something
-- [ ] Add `/upstream` commands: `check`, `preview`, `apply`, `history`
-- [ ] Create merge conflict resolver that preserves Gimli security defaults
+- [x] Create staging branch for testing upstream changes (createStagingBranch in integration.ts)
+- [x] Build automated test runner for merged changes (runTests, testStagedChanges in integration.ts)
+- [x] Implement rollback mechanism if integration breaks something (rollback in integration.ts)
+- [x] Add `/upstream` commands: `check`, `preview`, `apply`, `history` (upstream-cli.ts)
+- [x] Create merge conflict resolver that preserves Gimli security defaults (resolveSecurityConflicts, shouldPreserveGimliVersion in integration.ts)
 
 ### Security Safeguards (Autonomous - No Human Prompts)
-- [ ] Log (don't block) changes that touch security-critical paths for post-run review
-- [ ] Flag any changes to: auth, permissions, sandboxing, credential handling in audit log
-- [ ] Auto-apply all changes; generate risk reports for human review AFTER completion
-- [ ] Maintain allowlist of safe-to-auto-merge file patterns
-- [ ] Log all upstream integrations for audit trail
+- [x] Log (don't block) changes that touch security-critical paths for post-run review
+- [x] Flag any changes to: auth, permissions, sandboxing, credential handling in audit log
+- [x] Auto-apply all changes; generate risk reports for human review AFTER completion (isAutoApplyable, generateRiskReport in integration.ts)
+- [x] Maintain allowlist of safe-to-auto-merge file patterns (AllowlistConfig, defaultAllowlistConfig in integration.ts)
+- [x] Log all upstream integrations for audit trail (sync-history)
 
 ### Reporting
-- [ ] Weekly summary of OpenClaw activity
-- [ ] Highlight features that might benefit Gimli
-- [ ] Track which upstream changes were accepted/rejected and why
+- [x] Weekly summary of OpenClaw activity (generateWeeklySummary)
+- [x] Highlight features that might benefit Gimli (in weekly summary)
+- [x] Track which upstream changes were accepted/rejected and why (sync-history)
 
 ---
 

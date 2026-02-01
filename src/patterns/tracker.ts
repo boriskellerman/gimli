@@ -499,7 +499,7 @@ export class PatternTracker {
       sql += ` OFFSET ${options.offset}`;
     }
 
-    const rows = this.db.prepare(sql).all(...params) as PatternObservationRow[];
+    const rows = this.db.prepare(sql).all(...params) as unknown as PatternObservationRow[];
     return rows.map(rowToObservation);
   }
 
@@ -536,7 +536,7 @@ export class PatternTracker {
       sql += ` OFFSET ${options.offset}`;
     }
 
-    const rows = this.db.prepare(sql).all(...params) as PatternRow[];
+    const rows = this.db.prepare(sql).all(...params) as unknown as PatternRow[];
     return rows.map(rowToPattern);
   }
 
@@ -562,12 +562,12 @@ export class PatternTracker {
     const existing = this.getPattern(id);
     if (!existing) return null;
 
-    const updated: Pattern = {
+    const updated = {
       ...existing,
       ...updates,
       id: existing.id,
       agentId: existing.agentId,
-    };
+    } as Pattern;
     const row = patternToRow(updated);
 
     this.db
@@ -621,7 +621,7 @@ export class PatternTracker {
       .prepare("DELETE FROM patterns WHERE agent_id = ? AND last_observed < ? AND active = 0")
       .run(this.agentId, cutoffMs);
 
-    return result.changes;
+    return Number(result.changes);
   }
 
   /**
@@ -653,7 +653,7 @@ export class PatternTracker {
       )
       .run(this.agentId, toDelete);
 
-    return result.changes;
+    return Number(result.changes);
   }
 
   /**

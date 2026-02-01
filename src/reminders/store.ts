@@ -186,7 +186,7 @@ export class ReminderStore {
       sql += ` OFFSET ${filter.offset}`;
     }
 
-    const rows = this.db.prepare(sql).all(...params) as ReminderRow[];
+    const rows = this.db.prepare(sql).all(...params) as unknown as ReminderRow[];
     return rows.map(rowToReminder);
   }
 
