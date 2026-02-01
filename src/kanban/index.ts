@@ -31,3 +31,50 @@ export {
   addCommentToTaskInMarkdown,
   parseCommentsFromBody,
 } from "./adapter.js";
+
+export {
+  // Presenter types
+  type SolutionSummaryView,
+  type SolutionSummaryRow,
+  type SolutionDetailView,
+  type ScoreBreakdown,
+  type CategoryBreakdown,
+  type CheckResult,
+  type FileChange,
+  type DiffView,
+  type FileDiff,
+  type DiffHunk,
+  type DiffLine,
+  type DiffRenderOptions,
+  type PresentationAction,
+  type ActionBarConfig,
+  type PresentationChannel,
+  type ActionHandlers,
+  // Presenter constants
+  CRITERION_WEIGHTS,
+  CRITERION_LABELS,
+  DEFAULT_DIFF_OPTIONS,
+  // Presenter utilities
+  isHighestScore,
+  formatStatus,
+  formatCheckPrefix,
+  renderActionBar,
+  parseAction,
+  buildSummaryView,
+  buildDetailView,
+  // Presenter rendering
+  renderSummaryCli,
+  renderDetailCli,
+  renderUnifiedDiffCli,
+  renderSplitDiffCli,
+  renderDiffCli,
+  // Presenter channels
+  CliPresentationChannel,
+  ChatPresentationChannel,
+  WebPresentationChannel,
+  // Presenter class
+  SolutionPresenter,
+  // Presenter factories
+  createPresenter,
+  createDefaultHandlers,
+} from "./presenter.js";
