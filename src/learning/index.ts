@@ -10,3 +10,4 @@ export * from "./feedback-loop.js";
 export * from "./preference-extraction.js";
 export * from "./checkpoints.js";
 export * from "./expertise-detection.js";
+export * from "./style-adaptation.js";
