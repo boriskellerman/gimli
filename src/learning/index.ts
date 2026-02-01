@@ -12,3 +12,5 @@ export * from "./checkpoints.js";
 export * from "./expertise-detection.js";
 export * from "./style-adaptation.js";
 export * from "./journal.js";
+export * from "./ab-testing.js";
+export * from "./velocity.js";
