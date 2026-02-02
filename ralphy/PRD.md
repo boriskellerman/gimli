@@ -303,8 +303,8 @@
 
 #### Grade 1: Orchestrator Agent
 - [x] Create custom orchestrator agent with specialized system prompt
-- [ ] Implement CRUD for agents (create, read, update, delete)
-- [ ] Build multi-agent observability (see all agents, their context, their work)
+- [x] Implement CRUD for agents (create, read, update, delete)
+- [x] Build multi-agent observability (see all agents, their context, their work)
 - [ ] Implement single-interface pattern for fleet management
 
 #### Grade 2: Orchestrator + ADWs
