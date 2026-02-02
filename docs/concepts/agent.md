@@ -114,4 +114,4 @@ At minimum, set:
 
 ---
 
-*Next: [Group Chats](/concepts/group-messages)* 🦞
+*Next: [Group Chats](/concepts/group-messages)* 🪓

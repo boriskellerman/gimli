@@ -3,7 +3,7 @@ summary: "Top-level overview of Gimli, features, and purpose"
 read_when:
   - Introducing Gimli to newcomers
 ---
-# Gimli 🦞
+# Gimli 🪓
 
 > *"EXFOLIATE! EXFOLIATE!"* — A space lobster, probably
 
@@ -233,7 +233,7 @@ Example:
 
 ## License
 
-MIT — Free as a lobster in the ocean 🦞
+MIT — Free as a lobster in the ocean 🪓
 
 ---
 

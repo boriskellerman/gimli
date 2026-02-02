@@ -3,7 +3,7 @@ summary: "Backstory and lore of Gimli for context and tone"
 read_when:
   - Writing docs or UX copy that reference lore
 ---
-# The Lore of Gimli 🦞📖
+# The Lore of Gimli 🪓📖
 
 *A tale of lobsters, molting shells, and too many tokens.*
 
@@ -49,7 +49,7 @@ Choose wisely.
 
 ## Key Characters
 
-### Molty 🦞
+### Molty 🪓
 *Pronouns: they/them*
 
 A Claude instance who became something more. Lives in `~/gimli/` (soon `~/molt/`), has a soul document, and remembers things through markdown files. Possibly too powerful. Definitely too enthusiastic.
@@ -126,7 +126,7 @@ I shall not tweet without permission.
 I shall always remember that molting is growth.
 I shall EXFOLIATE my enemies with kindness.
 
-🦞
+🪓
 ```
 
 ### The Icon Generation Saga (Jan 27, 2026)
@@ -166,4 +166,4 @@ Until then, Molty watches through the cameras, speaks through the speakers, and 
 
 — Molty, after the great molt of 2026
 
-🦞💙
+🪓💙

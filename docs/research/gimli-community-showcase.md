@@ -1,10 +1,10 @@
-# OpenClaw Community Projects and Showcase Research
+# Gimli Community Projects and Showcase Research
 
 Research conducted: 2026-02-01
 
 ## Executive Summary
 
-The Gimli/OpenClaw project has built a vibrant, active community ecosystem with:
+The Gimli/Gimli project has built a vibrant, active community ecosystem with:
 - **30+ extensions/plugins** in the core repository
 - **40+ community projects** featured on the showcase page
 - **250+ contributors** recognized as "clawtributors"
@@ -252,4 +252,4 @@ The project explicitly welcomes AI-assisted contributions:
 
 ---
 
-*This research provides a snapshot of the OpenClaw community ecosystem as of February 2026.*
+*This research provides a snapshot of the Gimli community ecosystem as of February 2026.*

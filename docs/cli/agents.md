@@ -47,7 +47,7 @@ gimli agents set-identity --workspace ~/gimli --from-identity
 Override fields explicitly:
 
 ```bash
-gimli agents set-identity --agent main --name "Gimli" --emoji "🦞" --avatar avatars/gimli.png
+gimli agents set-identity --agent main --name "Gimli" --emoji "🪓" --avatar avatars/gimli.png
 ```
 
 Config sample:
@@ -61,7 +61,7 @@ Config sample:
         identity: {
           name: "Gimli",
           theme: "space lobster",
-          emoji: "🦞",
+          emoji: "🪓",
           avatar: "avatars/gimli.png"
         }
       }

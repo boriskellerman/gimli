@@ -108,7 +108,7 @@ Remove or archive:
 ## Phase 3: Update Documentation
 
 ### 3.1 README.md Refresh
-- Remove lobster emoji (🦞) references
+- Remove lobster emoji (🪓) references
 - Verify all links work
 - Update badges if needed
 - Ensure installation instructions are current

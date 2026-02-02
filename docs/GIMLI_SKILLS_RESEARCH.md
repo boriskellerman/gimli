@@ -1,6 +1,6 @@
-# OpenClaw Skills, Clawhub & Ecosystem Research
+# Gimli Skills, Clawhub & Ecosystem Research
 
-> Research conducted for Gimli Phases 9-11: Understanding the OpenClaw ecosystem, skills system, and potential integrations.
+> Research conducted for Gimli Phases 9-11: Understanding the Gimli ecosystem, skills system, and potential integrations.
 
 ---
 
@@ -57,7 +57,7 @@ Your skill instructions in markdown...
 Skills load from three locations (highest to lowest priority):
 
 1. **Workspace skills** - `<workspace>/skills`
-2. **Managed/local skills** - `~/.openclaw/skills` (or `~/.gimli/skills`)
+2. **Managed/local skills** - `~/.gimli/skills` (or `~/.gimli/skills`)
 3. **Bundled skills** - Shipped with installation
 
 Additional folders can be configured via `skills.load.extraDirs`.
@@ -114,7 +114,7 @@ Configure skills in `~/.gimli/gimli.json`:
 
 ### What is Clawhub?
 
-Clawhub is the public skills registry for OpenClaw - think "GitHub for agent skills."
+Clawhub is the public skills registry for Gimli - think "GitHub for agent skills."
 
 **URL:** https://clawhub.com
 
@@ -150,7 +150,7 @@ pnpm add -g clawhub
 
 ### Featured Community Skills
 
-Based on the OpenClaw showcase, here are notable skills available:
+Based on the Gimli showcase, here are notable skills available:
 
 #### Development & Code Review
 - **PR Review → Telegram** - GitHub PR reviews with merge verdicts via Telegram
@@ -191,11 +191,11 @@ Based on the OpenClaw showcase, here are notable skills available:
 
 ---
 
-## Phase 11: OpenClaw Deep Dive
+## Phase 11: Gimli Deep Dive
 
 ### Platform Overview
 
-OpenClaw (formerly Moltbot, formerly Clawdbot) is an AI agent platform that bridges messaging channels to AI agents through a central Gateway process.
+Gimli (formerly Gimli, formerly Gimli) is an AI agent platform that bridges messaging channels to AI agents through a central Gateway process.
 
 ### Supported Channels
 
@@ -236,55 +236,55 @@ OpenClaw (formerly Moltbot, formerly Clawdbot) is an AI agent platform that brid
 ### Comprehensive CLI Commands
 
 #### Setup & Configuration
-- `openclaw setup` - Initialize config with wizard
-- `openclaw onboard --install-daemon` - Full setup wizard
-- `openclaw configure` - Configuration wizard
-- `openclaw doctor` - Health checks and fixes
+- `gimli setup` - Initialize config with wizard
+- `gimli onboard --install-daemon` - Full setup wizard
+- `gimli configure` - Configuration wizard
+- `gimli doctor` - Health checks and fixes
 
 #### Gateway Management
-- `openclaw gateway` - Run WebSocket Gateway
-- `openclaw gateway status|install|uninstall|start|stop|restart`
-- `openclaw logs` - Tail Gateway logs
-- `openclaw health` - Fetch Gateway health
-- `openclaw status` - Display session health
+- `gimli gateway` - Run WebSocket Gateway
+- `gimli gateway status|install|uninstall|start|stop|restart`
+- `gimli logs` - Tail Gateway logs
+- `gimli health` - Fetch Gateway health
+- `gimli status` - Display session health
 
 #### Messaging
-- `openclaw message send|poll|react|read|edit|delete|pin`
-- `openclaw message thread` - Thread management
-- `openclaw message voice|event` - Voice calls and events
+- `gimli message send|poll|react|read|edit|delete|pin`
+- `gimli message thread` - Thread management
+- `gimli message voice|event` - Voice calls and events
 
 #### Agent Control
-- `openclaw agent` - Run single agent turns
-- `openclaw agents list|add|delete` - Manage isolated agents
+- `gimli agent` - Run single agent turns
+- `gimli agents list|add|delete` - Manage isolated agents
 
 #### Skills & Plugins
-- `openclaw skills list|info|check`
-- `openclaw plugins list|info|install|enable|disable|doctor`
+- `gimli skills list|info|check`
+- `gimli plugins list|info|install|enable|disable|doctor`
 
 #### Node Control
-- `openclaw nodes status|list|describe|approve|reject`
-- `openclaw nodes camera snap|clip` - Camera capture
-- `openclaw nodes canvas` - Screen presentation
-- `openclaw nodes screen record` - Screen recording
-- `openclaw nodes location get` - Location data
+- `gimli nodes status|list|describe|approve|reject`
+- `gimli nodes camera snap|clip` - Camera capture
+- `gimli nodes canvas` - Screen presentation
+- `gimli nodes screen record` - Screen recording
+- `gimli nodes location get` - Location data
 
 #### Browser Automation
-- `openclaw browser start|stop|status`
-- `openclaw browser open|navigate|click|type|fill`
-- `openclaw browser screenshot|snapshot|evaluate|pdf`
+- `gimli browser start|stop|status`
+- `gimli browser open|navigate|click|type|fill`
+- `gimli browser screenshot|snapshot|evaluate|pdf`
 
 #### Scheduling
-- `openclaw cron status|list|add|edit|rm|enable|disable|runs|run`
+- `gimli cron status|list|add|edit|rm|enable|disable|runs|run`
 
 #### Memory & Search
-- `openclaw memory status|index|search` - Semantic search
-- `openclaw sessions` - List conversation sessions
-- `openclaw docs` - Search documentation
+- `gimli memory status|index|search` - Semantic search
+- `gimli sessions` - List conversation sessions
+- `gimli docs` - Search documentation
 
 ### Security Features
 
 - **DM Pairing** - Unknown DMs require approval code
-- **Security Audit** - `openclaw security audit --deep`
+- **Security Audit** - `gimli security audit --deep`
 - **Sandboxed Runs** - For untrusted inputs
 - **Credential Scoping** - Per-agent-run isolation
 
@@ -297,7 +297,7 @@ The showcase highlights "Kev's Dream Team" - 14+ agents under one gateway with O
 Supported levels: `off|minimal|low|medium|high|xhigh` (select models only)
 
 #### Profile Isolation
-- `--dev` flag isolates state under `~/.openclaw-dev`
+- `--dev` flag isolates state under `~/.gimli-dev`
 - `--profile <name>` creates named configuration profiles
 
 ---
@@ -312,8 +312,8 @@ Hooks provide an event-driven automation system that runs within the Gateway whe
 
 Hooks are automatically discovered from three directories (in precedence order):
 1. **Workspace hooks**: `<workspace>/hooks/` (per-agent)
-2. **Managed hooks**: `~/.openclaw/hooks/` (user-installed, shared)
-3. **Bundled hooks**: `<openclaw>/dist/hooks/bundled/` (shipped with OpenClaw)
+2. **Managed hooks**: `~/.gimli/hooks/` (user-installed, shared)
+3. **Bundled hooks**: `<gimli>/dist/hooks/bundled/` (shipped with Gimli)
 
 ### Hook Structure
 
@@ -374,7 +374,7 @@ The model's token budget includes:
 
 ### Injected Workspace Files
 
-OpenClaw automatically injects these markdown files if present:
+Gimli automatically injects these markdown files if present:
 - `AGENTS.md` - Agent configuration
 - `SOUL.md` - Personality/voice
 - `TOOLS.md` - Tool documentation
@@ -420,22 +420,22 @@ Isolated jobs run in `cron:<jobId>` sessions with:
 
 ```bash
 # One-shot task
-openclaw cron add --name "task" --at "2026-01-12T18:00:00Z" \
+gimli cron add --name "task" --at "2026-01-12T18:00:00Z" \
   --session main --system-event "text" --wake now
 
 # Recurring with delivery
-openclaw cron add --name "status" --cron "0 7 * * *" --tz "America/Los_Angeles" \
+gimli cron add --name "status" --cron "0 7 * * *" --tz "America/Los_Angeles" \
   --session isolated --message "prompt" --deliver --channel whatsapp --to "+15551234567"
 
 # With model/thinking overrides
-openclaw cron add --name "analysis" --cron "0 6 * * 1" \
+gimli cron add --name "analysis" --cron "0 6 * * 1" \
   --session isolated --message "prompt" --model "opus" --thinking high
 ```
 
 ### Storage
 
-- Job store: `~/.openclaw/cron/jobs.json`
-- Run history: `~/.openclaw/cron/runs/<jobId>.jsonl`
+- Job store: `~/.gimli/cron/jobs.json`
+- Run history: `~/.gimli/cron/runs/<jobId>.jsonl`
 
 ---
 
@@ -443,10 +443,10 @@ openclaw cron add --name "analysis" --cron "0 6 * * 1" \
 
 ### Architecture
 
-OpenClaw supports multiple agents with independent configurations:
+Gimli supports multiple agents with independent configurations:
 - Distinct sandbox profiles per agent
 - Custom tool restrictions (allow/deny lists)
-- Separate credential stores at `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`
+- Separate credential stores at `~/.gimli/agents/<agentId>/agent/auth-profiles.json`
 
 **Key principle:** Credentials are NOT shared between agents.
 
@@ -526,13 +526,13 @@ Tools are filtered in strict order (each level can only further restrict):
 
 ### Browser Profiles
 
-- **openclaw** - Isolated Chrome instance with dedicated user data
+- **gimli** - Isolated Chrome instance with dedicated user data
 - **chrome** - Control existing Chrome tabs via extension relay
 - Custom profiles can be created
 
 ### Connection Modes
 
-- **Local** - OpenClaw-managed Chrome instance
+- **Local** - Gimli-managed Chrome instance
 - **Chrome Extension** - Attach to existing browser tabs
 - **Remote** - Node host proxy for cross-machine control
 
@@ -543,9 +543,9 @@ Tools are filtered in strict order (each level can only further restrict):
 ### Security Audit Tool
 
 ```bash
-openclaw security audit           # Basic scan
-openclaw security audit --deep    # Live Gateway probe
-openclaw security audit --fix     # Auto-remediation
+gimli security audit           # Basic scan
+gimli security audit --deep    # Live Gateway probe
+gimli security audit --fix     # Auto-remediation
 ```
 
 Checks: inbound access, tool blast radius, network exposure, browser risks, filesystem permissions, plugins, model configuration.
@@ -576,11 +576,11 @@ Checks: inbound access, tool blast radius, network exposure, browser risks, file
 
 | Component | Location |
 |-----------|----------|
-| WhatsApp | `~/.openclaw/credentials/whatsapp/<accountId>/creds.json` |
+| WhatsApp | `~/.gimli/credentials/whatsapp/<accountId>/creds.json` |
 | Telegram token | config/env or `channels.telegram.tokenFile` |
-| Pairing allowlists | `~/.openclaw/credentials/<channel>-allowFrom.json` |
-| Model auth profiles | `~/.openclaw/agents/<agentId>/agent/auth-profiles.json` |
-| Session transcripts | `~/.openclaw/agents/<agentId>/sessions/*.jsonl` |
+| Pairing allowlists | `~/.gimli/credentials/<channel>-allowFrom.json` |
+| Model auth profiles | `~/.gimli/agents/<agentId>/agent/auth-profiles.json` |
+| Session transcripts | `~/.gimli/agents/<agentId>/sessions/*.jsonl` |
 
 ### Prompt Injection Mitigation
 
@@ -606,8 +606,8 @@ Best practices:
 3. Provider credentials
 
 **Audit:**
-1. Gateway logs: `/tmp/openclaw/openclaw-YYYY-MM-DD.log`
-2. Transcripts: `~/.openclaw/agents/<agentId>/sessions/*.jsonl`
+1. Gateway logs: `/tmp/gimli/gimli-YYYY-MM-DD.log`
+2. Transcripts: `~/.gimli/agents/<agentId>/sessions/*.jsonl`
 
 ---
 
@@ -687,7 +687,7 @@ AI researcher **Andrej Karpathy** called it "genuinely the most incredible sci-f
 
 | Project | Description |
 |---------|-------------|
-| **Home Assistant Add-on** | OpenClaw gateway for Home Assistant OS |
+| **Home Assistant Add-on** | Gimli gateway for Home Assistant OS |
 | **Bambu 3D Printer** | Natural language printer control |
 | **Roborock Vacuum** | Natural language vacuum management |
 | **Winix Air Purifier** | Autonomous room air quality management |
@@ -706,7 +706,7 @@ AI researcher **Andrej Karpathy** called it "genuinely the most incredible sci-f
 
 | Project | Description |
 |---------|-------------|
-| **Clawdia Phone Bridge** | Vapi voice assistant ↔ OpenClaw HTTP bridge |
+| **Clawdia Phone Bridge** | Vapi voice assistant ↔ Gimli HTTP bridge |
 | **OpenRouter Transcription** | Multi-lingual audio transcription |
 | **Telegram Voice Notes** | TTS with Telegram delivery |
 
@@ -726,7 +726,7 @@ AI researcher **Andrej Karpathy** called it "genuinely the most incredible sci-f
 
 ---
 
-## Feature Gap Analysis: OpenClaw vs Gimli
+## Feature Gap Analysis: Gimli vs Gimli
 
 ### Features Gimli Has
 
@@ -743,13 +743,13 @@ AI researcher **Andrej Karpathy** called it "genuinely the most incredible sci-f
 | iOS/Android nodes | ✅ Implemented | Canvas, camera, location |
 | Hooks system | ✅ Implemented | Event-driven automation |
 | Context management | ✅ Implemented | AGENTS.md, SOUL.md injection |
-| DM pairing security | ✅ Implemented | More restrictive than OpenClaw defaults |
+| DM pairing security | ✅ Implemented | More restrictive than Gimli defaults |
 | Sandboxing | ✅ Implemented | Per-session/agent isolation |
 | Multi-agent support | ✅ Implemented | sessions_spawn capability |
 
 ### Features to Consider Adding
 
-| Feature | Priority | OpenClaw Implementation | Notes |
+| Feature | Priority | Gimli Implementation | Notes |
 |---------|----------|------------------------|-------|
 | **Clawhub sync** | High | `clawhub sync` command | Install community skills easily |
 | **Reverse CAPTCHA** | Low | Moltbook feature | Agent authentication |
@@ -762,17 +762,17 @@ AI researcher **Andrej Karpathy** called it "genuinely the most incredible sci-f
 
 ### Security Comparison
 
-| Security Feature | Gimli | OpenClaw |
+| Security Feature | Gimli | Gimli |
 |------------------|-------|----------|
 | DM pairing default | ✅ Enabled | ✅ Enabled |
 | Sandboxing default | ✅ Non-main | Configurable |
 | Credential isolation | ✅ Per-agent | ✅ Per-agent |
 | Tool filtering hierarchy | ✅ Multi-level | ✅ Multi-level |
-| Security audit CLI | ✅ `gimli doctor` | ✅ `openclaw security audit` |
+| Security audit CLI | ✅ `gimli doctor` | ✅ `gimli security audit` |
 | Prompt injection mitigations | ✅ Built-in | ✅ Documented |
 | Gateway auth required | ✅ By default | ✅ By default |
 
-Gimli maintains security parity with OpenClaw while adding:
+Gimli maintains security parity with Gimli while adding:
 - More restrictive default tool permissions
 - Enhanced security-focused fork decisions
 - Additional audit checks in `gimli doctor`
@@ -786,13 +786,13 @@ Gimli maintains security parity with OpenClaw while adding:
 1. **Install Clawhub CLI** - `npm i -g clawhub`
 2. **Explore available skills** - `clawhub search "home automation"`
 3. **Test skill installation** - Try Home Assistant or Calendar skill
-4. **Review hooks system** - Ensure parity with OpenClaw bundled hooks
+4. **Review hooks system** - Ensure parity with Gimli bundled hooks
 
 ### Short-term
 
 1. **Implement Clawhub sync** in Gimli CLI (`gimli skills sync`)
 2. **Add session-memory hook** - Auto-save context on `/new`
-3. **Enhance cron isolated jobs** - Match OpenClaw's delivery options
+3. **Enhance cron isolated jobs** - Match Gimli's delivery options
 4. **Create skill templates** following AgentSkills format
 
 ### Medium-term
@@ -813,7 +813,7 @@ Gimli maintains security parity with OpenClaw while adding:
 
 ## Key Learnings
 
-### From OpenClaw Architecture
+### From Gimli Architecture
 
 1. **Hook-based extensibility** - Event-driven system is cleaner than callbacks
 2. **Isolated cron sessions** - Prevents noisy jobs from polluting main context
@@ -840,16 +840,16 @@ Gimli maintains security parity with OpenClaw while adding:
 
 ### Official Documentation
 - [AgentSkills.io](https://agentskills.io/home)
-- [OpenClaw Skills Documentation](https://docs.openclaw.ai/tools/skills)
-- [Clawhub Documentation](https://docs.openclaw.ai/tools/clawhub)
+- [Gimli Skills Documentation](https://docs.gimli.ai/tools/skills)
+- [Clawhub Documentation](https://docs.gimli.ai/tools/clawhub)
 - [Clawhub Registry](https://www.clawhub.com)
-- [OpenClaw Getting Started](https://docs.openclaw.ai/start/getting-started)
-- [OpenClaw CLI Reference](https://docs.openclaw.ai/cli)
-- [OpenClaw Hooks Documentation](https://docs.openclaw.ai/hooks)
-- [OpenClaw Security Documentation](https://docs.openclaw.ai/gateway/security)
-- [OpenClaw Multi-Agent Sandbox](https://docs.openclaw.ai/multi-agent-sandbox-tools)
-- [OpenClaw Cron Jobs](https://docs.openclaw.ai/automation/cron-jobs)
-- [OpenClaw Showcase](https://docs.openclaw.ai/start/showcase)
+- [Gimli Getting Started](https://docs.gimli.ai/start/getting-started)
+- [Gimli CLI Reference](https://docs.gimli.ai/cli)
+- [Gimli Hooks Documentation](https://docs.gimli.ai/hooks)
+- [Gimli Security Documentation](https://docs.gimli.ai/gateway/security)
+- [Gimli Multi-Agent Sandbox](https://docs.gimli.ai/multi-agent-sandbox-tools)
+- [Gimli Cron Jobs](https://docs.gimli.ai/automation/cron-jobs)
+- [Gimli Showcase](https://docs.gimli.ai/start/showcase)
 
 ### Moltbook Coverage
 - [Moltbook](https://www.moltbook.com)
@@ -857,5 +857,5 @@ Gimli maintains security parity with OpenClaw while adding:
 - [Washington Times: Bots inside Moltbook](https://www.washingtontimes.com/news/2026/jan/30/bots-inside-moltbook-social-network-strictly-ai/)
 
 ### Community Resources
-- [Awesome OpenClaw Skills (GitHub)](https://github.com/VoltAgent/awesome-openclaw-skills)
-- [OpenClaw Discord #showcase](https://discord.gg/openclaw)
+- [Awesome Gimli Skills (GitHub)](https://github.com/VoltAgent/awesome-gimli-skills)
+- [Gimli Discord #showcase](https://discord.gg/gimli)

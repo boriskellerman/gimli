@@ -1,6 +1,6 @@
 # Contributing to Gimli
 
-Welcome to the lobster tank! 🦞
+Welcome to the lobster tank! 🪓
 
 ## Quick Links
 - **GitHub:** https://github.com/gimli/gimli

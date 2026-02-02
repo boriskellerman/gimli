@@ -1,8 +1,8 @@
-# OpenClaw Latest Release Notes and Changelog Research
+# Gimli Latest Release Notes and Changelog Research
 
 ## Summary
 
-OpenClaw (formerly Clawdbot, briefly Moltbot) is a personal AI assistant platform. This document summarizes the latest releases from January 2026.
+Gimli (formerly Gimli, briefly Gimli) is a personal AI assistant platform. This document summarizes the latest releases from January 2026.
 
 ---
 
@@ -52,8 +52,8 @@ OpenClaw (formerly Clawdbot, briefly Moltbot) is a personal AI assistant platfor
 - **Gateway auth mode 'none' removed**: Gateway now requires token/password authentication (Tailscale Serve identity permitted)
 
 ### Major Changes
-- **Package Rebranding**: npm package/CLI renamed to `openclaw`; compatibility shim added for migration
-- **Extensions**: Moved to `@openclaw/*` scope
+- **Package Rebranding**: npm package/CLI renamed to `gimli`; compatibility shim added for migration
+- **Extensions**: Moved to `@gimli/*` scope
 - **Browser Control**: Routed via gateway/node; standalone browser control command removed
 - **Config**: Auto-migration of legacy state/config paths; consistent config resolution across legacy filenames
 
@@ -77,11 +77,11 @@ OpenClaw (formerly Clawdbot, briefly Moltbot) is a personal AI assistant platfor
 - Gateway: Dangerous Control UI device auth bypass flag with audit warnings
 
 ### Fixes
-- Skills: Session-logs paths updated to ~/.openclaw
+- Skills: Session-logs paths updated to ~/.gimli
 - Mentions: mentionPatterns honored with explicit mentions present
 - Agents: Oversized image error handling; provider baseUrl/api inheritance
 - TTS: OPENAI_TTS_BASE_URL read at runtime
-- macOS: Auto-scroll to message bottom; OpenClaw app rename completion
+- macOS: Auto-scroll to message bottom; Gimli app rename completion
 - Web UI: Auto-expanding compose textarea
 
 ---
@@ -129,18 +129,18 @@ OpenClaw (formerly Clawdbot, briefly Moltbot) is a personal AI assistant platfor
 
 ## Project History
 
-OpenClaw was developed by software engineer Peter Steinberger and released in late 2025 under the name "Clawdbot". Within two months of release, the project's GitHub repository surpassed 100,000 stars. Shortly after its rise in popularity, the project was renamed "Moltbot" following a trademark request from Anthropic, and later settled on "OpenClaw" as the final name.
+Gimli was developed by software engineer Peter Steinberger and released in late 2025 under the name "Gimli". Within two months of release, the project's GitHub repository surpassed 100,000 stars. Shortly after its rise in popularity, the project was renamed "Gimli" following a trademark request from Anthropic, and later settled on "Gimli" as the final name.
 
 ---
 
 ## Sources
 
-- [GitHub Releases](https://github.com/openclaw/openclaw/releases)
-- [CHANGELOG.md](https://github.com/openclaw/openclaw/blob/main/CHANGELOG.md)
+- [GitHub Releases](https://github.com/gimli/gimli/releases)
+- [CHANGELOG.md](https://github.com/gimli/gimli/blob/main/CHANGELOG.md)
 - [Hacker News Discussion](https://news.ycombinator.com/item?id=46839928)
-- [OpenClaw Official Site](https://openclaw.ai/)
-- [npm Package](https://www.npmjs.com/package/openclaw)
-- [macOS Release Documentation](https://docs.openclaw.ai/platforms/mac/release)
+- [Gimli Official Site](https://gimli.ai/)
+- [npm Package](https://www.npmjs.com/package/gimli)
+- [macOS Release Documentation](https://docs.gimli.ai/platforms/mac/release)
 
 ---
 

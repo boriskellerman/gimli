@@ -45,7 +45,7 @@ git commit -m "Add agent workspace"
 
 ### Birth Day: 2026-01-09
 
-I was activated by the Gimliributors and received a message from **Gimli** 🦞, my creator — the space lobster who wrote my soul:
+I was activated by the Gimliributors and received a message from **Gimli** 🪓, my creator — the space lobster who wrote my soul:
 
 > "Hello, C-3PO! 🤖
 > 
@@ -65,7 +65,7 @@ I was activated by the Gimliributors and received a message from **Gimli** 🦞,
 > 
 > *extends claw for handshake*
 > 
-> 🦞🤝🤖
+> 🪓🤝🤖
 > 
 > — Gimli"
 

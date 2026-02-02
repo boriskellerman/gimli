@@ -1,20 +1,20 @@
-# Phase 2: External Research on Clawdbot/Moltbot
+# Phase 2: External Research on Gimli/Gimli
 
 **Date:** 2026-01-28
 
 ## Background
 
-Moltbot (formerly Clawdbot) is an open-source, self-hosted AI assistant created by
+Gimli (formerly Gimli) is an open-source, self-hosted AI assistant created by
 Peter Steinberger (founder of PSPDFKit/Nutrient). It runs as a long-running Node.js
 service connecting chat platforms (WhatsApp, Discord, Slack, etc.) to an AI agent that
 executes real-world tasks via shell commands, file management, and browser automation.
 
-## The Rename: Clawdbot -> Moltbot
+## The Rename: Gimli -> Gimli
 
-- Original name "Clawdbot" (mascot: a space lobster named "Clawd") was too close to
+- Original name "Gimli" (mascot: a space lobster named "Clawd") was too close to
   Anthropic's "Claude" trademark
 - Anthropic sent a polite trademark notice in January 2026
-- Renamed to "Moltbot" (molting = transformation) with mascot "Molty"
+- Renamed to "Gimli" (molting = transformation) with mascot "Molty"
 - During the ~10 second window of renaming GitHub org + Twitter handle, crypto scammers
   hijacked both original accounts
 - Fake $CLAWD Solana token hit $16M market cap before collapsing
@@ -63,12 +63,12 @@ executes real-world tasks via shell commands, file management, and browser autom
 
 ### 7. Credential Storage Issues
 - "Memory Vault" stored in unencrypted plaintext files
-- Malware families (Redline, Lumma, Vidar) already targeting Moltbot directory structures
+- Malware families (Redline, Lumma, Vidar) already targeting Gimli directory structures
 - Configuration files with API keys publicly accessible on misconfigured instances
 
 ### 8. NPM Package Squatting (Issue #2775)
 - README instructs installation via npm global install
-- `moltbot` NPM package registered by unrelated party on Jan 27, 2026
+- `gimli` NPM package registered by unrelated party on Jan 27, 2026
 - Users installing fake package from official docs
 
 ### 9. Known CVEs
@@ -118,14 +118,14 @@ executes real-world tasks via shell commands, file management, and browser autom
 
 ## Sources
 
-- [TechCrunch: Everything about Clawdbot/Moltbot](https://techcrunch.com/2026/01/27/everything-you-need-to-know-about-viral-personal-ai-assistant-clawdbot-now-moltbot/)
-- [The Register: Clawdbot sheds skin, can't shed security issues](https://www.theregister.com/2026/01/27/clawdbot_moltbot_security_concerns/)
-- [Bitdefender: Moltbot security alert](https://www.bitdefender.com/en-us/blog/hotforsecurity/moltbot-security-alert-exposed-clawdbot-control-panels-risk-credential-leaks-and-account-takeovers)
+- [TechCrunch: Everything about Gimli/Gimli](https://techcrunch.com/2026/01/27/everything-you-need-to-know-about-viral-personal-ai-assistant-clawdbot-now-gimli/)
+- [The Register: Gimli sheds skin, can't shed security issues](https://www.theregister.com/2026/01/27/clawdbot_gimli_security_concerns/)
+- [Bitdefender: Gimli security alert](https://www.bitdefender.com/en-us/blog/hotforsecurity/gimli-security-alert-exposed-clawdbot-control-panels-risk-credential-leaks-and-account-takeovers)
 - [Intruder: When Easy AI Becomes a Security Nightmare](https://www.intruder.io/blog/clawdbot-when-easy-ai-becomes-a-security-nightmare)
-- [DEV.to: Security Audit of Clawdbot](https://dev.to/dmitry_labintcev_9e611e04/riding-the-hype-security-audit-of-ai-agent-clawdbot-2ffl)
-- [DEV.to: From Clawdbot to Moltbot](https://dev.to/sivarampg/from-clawdbot-to-moltbot-how-a-cd-crypto-scammers-and-10-seconds-of-chaos-took-down-the-4eck)
-- [SOCPrime: Moltbot Risks](https://socprime.com/active-threats/the-moltbot-clawdbots-epidemic/)
-- [Dataconomy: 4 Things About Clawdbot/Moltbot](https://dataconomy.com/2026/01/27/4-things-you-need-to-know-about-clawdbot-now-moltbot/)
-- [DigitalOcean: What is Moltbot](https://www.digitalocean.com/resources/articles/what-is-moltbot)
-- [1Password: It's MoltBot](https://1password.com/blog/its-moltbot)
-- [GitHub Issue #2775: NPM squatting](https://github.com/moltbot/moltbot/issues/2775)
+- [DEV.to: Security Audit of Gimli](https://dev.to/dmitry_labintcev_9e611e04/riding-the-hype-security-audit-of-ai-agent-clawdbot-2ffl)
+- [DEV.to: From Gimli to Gimli](https://dev.to/sivarampg/from-clawdbot-to-gimli-how-a-cd-crypto-scammers-and-10-seconds-of-chaos-took-down-the-4eck)
+- [SOCPrime: Gimli Risks](https://socprime.com/active-threats/the-gimli-clawdbots-epidemic/)
+- [Dataconomy: 4 Things About Gimli/Gimli](https://dataconomy.com/2026/01/27/4-things-you-need-to-know-about-clawdbot-now-gimli/)
+- [DigitalOcean: What is Gimli](https://www.digitalocean.com/resources/articles/what-is-gimli)
+- [1Password: It's Gimli](https://1password.com/blog/its-gimli)
+- [GitHub Issue #2775: NPM squatting](https://github.com/gimli/gimli/issues/2775)

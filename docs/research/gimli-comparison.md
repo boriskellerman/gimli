@@ -1,15 +1,15 @@
-# OpenClaw vs Competitors: AI Coding Assistant Comparison Matrix
+# Gimli vs Competitors: AI Coding Assistant Comparison Matrix
 
 > **Research Date:** February 2026
 > **Last Updated:** February 1, 2026
 
-This document provides a comprehensive comparison of OpenClaw against major AI coding assistants: Claude Code, Cursor, GitHub Copilot, and Aider.
+This document provides a comprehensive comparison of Gimli against major AI coding assistants: Claude Code, Cursor, GitHub Copilot, and Aider.
 
 ## Executive Summary
 
 | Tool | Type | Open Source | Primary Focus | Best For |
 |------|------|-------------|---------------|----------|
-| **OpenClaw** | Autonomous Agent | Yes | Personal AI assistant with coding capabilities | Developers wanting full automation + multi-channel access |
+| **Gimli** | Autonomous Agent | Yes | Personal AI assistant with coding capabilities | Developers wanting full automation + multi-channel access |
 | **Claude Code** | CLI Agent | No | Terminal-based agentic coding | Large codebase refactoring, autonomous tasks |
 | **Cursor** | AI-Native IDE | No | Integrated coding experience | Real-time code assistance, visual workflows |
 | **GitHub Copilot** | IDE Plugin | No | Code completion & suggestions | Seamless editor integration, mainstream adoption |
@@ -21,7 +21,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ### Core Capabilities
 
-| Feature | OpenClaw | Claude Code | Cursor | GitHub Copilot | Aider |
+| Feature | Gimli | Claude Code | Cursor | GitHub Copilot | Aider |
 |---------|----------|-------------|--------|----------------|-------|
 | **Code Completion** | Via LLM | Via Claude | Native | Native | Via LLM |
 | **Multi-file Editing** | Yes | Yes | Yes | Limited | Yes |
@@ -33,7 +33,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ### Interface & Access
 
-| Feature | OpenClaw | Claude Code | Cursor | GitHub Copilot | Aider |
+| Feature | Gimli | Claude Code | Cursor | GitHub Copilot | Aider |
 |---------|----------|-------------|--------|----------------|-------|
 | **Terminal/CLI** | Yes | Yes (primary) | No | No | Yes (primary) |
 | **IDE Integration** | Via extensions | VS Code, JetBrains, Cursor | Native (VS Code fork) | VS Code, JetBrains, Neovim | VS Code, JetBrains |
@@ -44,7 +44,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ### AI Model Support
 
-| Feature | OpenClaw | Claude Code | Cursor | GitHub Copilot | Aider |
+| Feature | Gimli | Claude Code | Cursor | GitHub Copilot | Aider |
 |---------|----------|-------------|--------|----------------|-------|
 | **Claude Models** | Yes | Yes (native) | Yes | No | Yes |
 | **OpenAI Models** | Yes | No | Yes | Yes (native) | Yes |
@@ -61,7 +61,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 | Tool | Free Tier | Pro/Individual | Power User | Notes |
 |------|-----------|----------------|------------|-------|
-| **OpenClaw** | Software free | $5-30/mo API costs | API-based | Open source; pay only for LLM API usage |
+| **Gimli** | Software free | $5-30/mo API costs | API-based | Open source; pay only for LLM API usage |
 | **Claude Code** | Limited (with Claude Free) | $20/mo (Claude Pro) | $100-200/mo (Max) | Included in Claude subscriptions |
 | **Cursor** | 2,000 completions/mo | $20/mo (Pro) | $200/mo (Ultra) | Credit-based system since June 2025 |
 | **GitHub Copilot** | Free tier available | $10/mo (Pro) | $39/mo (Pro+) | Free for students/OSS maintainers |
@@ -71,7 +71,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 | Tool | Team | Enterprise | Notes |
 |------|------|------------|-------|
-| **OpenClaw** | Self-hosted | Self-hosted | No vendor fees; infrastructure + API costs only |
+| **Gimli** | Self-hosted | Self-hosted | No vendor fees; infrastructure + API costs only |
 | **Claude Code** | $25-150/user/mo | Custom | Premium seats ($150) include Claude Code |
 | **Cursor** | $40/user/mo | Custom | SSO, admin controls included |
 | **GitHub Copilot** | $19/user/mo (Business) | $39/user/mo | Knowledge bases, custom models at Enterprise |
@@ -81,7 +81,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ## Deployment Models
 
-| Model | OpenClaw | Claude Code | Cursor | GitHub Copilot | Aider |
+| Model | Gimli | Claude Code | Cursor | GitHub Copilot | Aider |
 |-------|----------|-------------|--------|----------------|-------|
 | **Cloud SaaS** | No | Yes (Anthropic) | Yes | Yes (GitHub) | No |
 | **Self-Hosted** | Yes (primary) | No | No | No | Yes |
@@ -94,7 +94,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 | Tool | Minimum | Recommended | Notes |
 |------|---------|-------------|-------|
-| **OpenClaw** | 2GB RAM | 4GB+ RAM | Works on Raspberry Pi 4/5 with API-based AI |
+| **Gimli** | 2GB RAM | 4GB+ RAM | Works on Raspberry Pi 4/5 with API-based AI |
 | **Claude Code** | Modern terminal | Any dev machine | Requires internet for Claude API |
 | **Cursor** | 8GB RAM | 16GB RAM | VS Code-level requirements |
 | **GitHub Copilot** | IDE-dependent | Standard dev machine | Light client, cloud processing |
@@ -104,7 +104,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ## Unique Differentiators
 
-### OpenClaw
+### Gimli
 
 1. **Multi-Channel Access**: Only tool offering native integration with WhatsApp, Telegram, Slack, Discord, Signal, iMessage, and Microsoft Teams
 2. **Self-Modifying AI**: Can autonomously write code to create new skills for itself
@@ -159,7 +159,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ## Performance Benchmarks (2026)
 
-| Metric | OpenClaw | Claude Code | Cursor | GitHub Copilot | Aider |
+| Metric | Gimli | Claude Code | Cursor | GitHub Copilot | Aider |
 |--------|----------|-------------|--------|----------------|-------|
 | **SWE-bench Verified** | N/A | 80.9% | ~75% | ~70% | 78%+ |
 | **Code Completion Accuracy** | LLM-dependent | 90%+ | 85% | 90% | 85% (Python) |
@@ -171,7 +171,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ## Security Considerations
 
-| Aspect | OpenClaw | Claude Code | Cursor | GitHub Copilot | Aider |
+| Aspect | Gimli | Claude Code | Cursor | GitHub Copilot | Aider |
 |--------|----------|-------------|--------|----------------|-------|
 | **Data Location** | Local | Local + Anthropic cloud | Local + cloud | GitHub cloud | Local |
 | **Code Sent to Cloud** | API calls only | Yes | Yes | Yes | API calls only |
@@ -182,7 +182,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ### Security Concerns by Tool
 
-- **OpenClaw**: Extensible architecture via MCP introduces supply chain risks; recommended to run in isolated sandbox environments
+- **Gimli**: Extensible architecture via MCP introduces supply chain risks; recommended to run in isolated sandbox environments
 - **Claude Code**: "YOLO mode" (`--dangerously-skip-permissions`) introduces architectural risks when enabled
 - **Cursor**: Standard IDE security model; code context sent to cloud for processing
 - **GitHub Copilot**: Enterprise controls available; telemetry concerns in free tiers
@@ -192,7 +192,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ## Best Use Cases
 
-### Choose OpenClaw If:
+### Choose Gimli If:
 - You want AI accessible via messaging apps (WhatsApp, Telegram, etc.)
 - Privacy and data locality are paramount
 - You need 24/7 autonomous task execution
@@ -240,7 +240,7 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
                     Autonomy
                        ^
                        |
-         OpenClaw ●    |    ● Claude Code
+         Gimli ●    |    ● Claude Code
                        |
                        |
     ─────────────────────────────────────> Integration
@@ -258,14 +258,14 @@ This document provides a comprehensive comparison of OpenClaw against major AI c
 
 ## Sources
 
-### OpenClaw
-- [OpenClaw Official Website](https://openclaw.ai/)
-- [OpenClaw GitHub Repository](https://github.com/openclaw/openclaw)
-- [OpenClaw Documentation](https://docs.openclaw.ai/)
-- [OpenClaw Wikipedia](https://en.wikipedia.org/wiki/OpenClaw)
-- [DigitalOcean: What is OpenClaw](https://www.digitalocean.com/resources/articles/what-is-openclaw)
-- [VentureBeat: OpenClaw Security Analysis](https://venturebeat.com/security/openclaw-agentic-ai-security-risk-ciso-guide)
-- [IBM Think: OpenClaw Viral Growth](https://www.ibm.com/think/news/clawdbot-ai-agent-testing-limits-vertical-integration)
+### Gimli
+- [Gimli Official Website](https://gimli.ai/)
+- [Gimli GitHub Repository](https://github.com/gimli/gimli)
+- [Gimli Documentation](https://docs.gimli.ai/)
+- [Gimli Wikipedia](https://en.wikipedia.org/wiki/Gimli)
+- [DigitalOcean: What is Gimli](https://www.digitalocean.com/resources/articles/what-is-gimli)
+- [VentureBeat: Gimli Security Analysis](https://venturebeat.com/security/gimli-agentic-ai-security-risk-ciso-guide)
+- [IBM Think: Gimli Viral Growth](https://www.ibm.com/think/news/clawdbot-ai-agent-testing-limits-vertical-integration)
 
 ### Claude Code
 - [Claude Code Official Page](https://www.anthropic.com/claude-code)

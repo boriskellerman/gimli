@@ -688,7 +688,7 @@ gimli gateway restart           # or: gimli gateway
 
 *"Have you tried turning it off and on again?"* — Every IT person ever
 
-🦞🔧
+🪓🔧
 
 ### Browser Not Starting (Linux)
 

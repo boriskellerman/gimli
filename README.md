@@ -1,4 +1,4 @@
-# 🦞 Gimli — Personal AI Assistant
+# 🪓 Gimli — Personal AI Assistant
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/gimli/gimli/main/docs/whatsapp-gimli.jpg" alt="Gimli" width="400">
@@ -459,7 +459,7 @@ Use these when you’re past the onboarding flow and want the deeper reference.
 
 ## Molty
 
-Gimli was built for **Molty**, a space lobster AI assistant. 🦞
+Gimli was built for **Molty**, a space lobster AI assistant. 🪓
 by Peter Steinberger and the community.
 
 - [gimli.me](https://gimli.me)

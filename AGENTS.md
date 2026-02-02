@@ -4,7 +4,7 @@
 
 ## Project Identity
 
-**Gimli** is a security-hardened personal AI assistant with multi-channel messaging, voice, browser control, Canvas, skills, cron, webhooks, and companion apps. It's a fork of OpenClaw/MoltBot with enhanced security defaults.
+**Gimli** is a security-hardened personal AI assistant with multi-channel messaging, voice, browser control, Canvas, skills, cron, webhooks, and companion apps. It's a fork of Gimli with enhanced security defaults.
 
 - **Repository**: https://github.com/gimli/gimli
 - **Documentation**: https://docs.gimli.bot

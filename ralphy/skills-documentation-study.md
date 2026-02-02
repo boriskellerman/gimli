@@ -1,6 +1,6 @@
-# OpenClaw Skills Documentation Study
+# Gimli Skills Documentation Study
 
-This document summarizes the key learnings from studying the OpenClaw skills documentation at https://docs.openclaw.ai/tools/skills
+This document summarizes the key learnings from studying the Gimli skills documentation at https://docs.gimli.ai/tools/skills
 
 ## What Are Skills?
 
@@ -11,8 +11,8 @@ Skills teach agents how to use tools. Each skill is a directory containing a `SK
 Skills load from three sources (highest to lowest priority):
 
 1. **Workspace skills** (`<workspace>/skills`) - project-specific, highest priority
-2. **Managed/local skills** (`~/.openclaw/skills`) - user-installed
-3. **Bundled skills** - shipped with OpenClaw, lowest priority
+2. **Managed/local skills** (`~/.gimli/skills`) - user-installed
+3. **Bundled skills** - shipped with Gimli, lowest priority
 
 When naming conflicts occur, higher-priority skills override lower-priority ones. Additional folders can be configured via `skills.load.extraDirs`.
 
@@ -51,7 +51,7 @@ Skills can specify requirements that must be met for the skill to load:
 ---
 name: my-skill
 description: Does something cool
-metadata: {"openclaw": {"requires": {"bins": ["ffmpeg"], "env": ["API_KEY"], "config": ["some.config.path"]}}}
+metadata: {"gimli": {"requires": {"bins": ["ffmpeg"], "env": ["API_KEY"], "config": ["some.config.path"]}}}
 ---
 ```
 
@@ -59,7 +59,7 @@ metadata: {"openclaw": {"requires": {"bins": ["ffmpeg"], "env": ["API_KEY"], "co
 
 - **bins**: Required binary executables (e.g., `["ffmpeg", "docker"]`)
 - **env**: Required environment variables (e.g., `["OPENAI_API_KEY"]`)
-- **config**: Required OpenClaw config paths
+- **config**: Required Gimli config paths
 - **os**: Target operating systems (darwin, linux, win32)
 - **installers**: Optional installers for dependencies
 
@@ -84,7 +84,7 @@ This routes `/quick-action` directly to the specified tool without model inferen
 
 ## Per-Skill Configuration
 
-Configure individual skills in `~/.openclaw/openclaw.json`:
+Configure individual skills in `~/.gimli/gimli.json`:
 
 ```json
 {
@@ -107,7 +107,7 @@ Skills appear in the agent's system prompt via a compact XML list. The `formatSk
 
 ## Plugin Integration
 
-Plugins can ship skills by listing directories in `openclaw.plugin.json`. Plugin skills participate in normal precedence rules.
+Plugins can ship skills by listing directories in `gimli.plugin.json`. Plugin skills participate in normal precedence rules.
 
 ## ClawHub Registry
 
@@ -126,7 +126,7 @@ ClawHub (https://clawhub.com) is the public skills registry:
 
 ## Performance Optimization
 
-- OpenClaw snapshots eligible skills at session start
+- Gimli snapshots eligible skills at session start
 - Changes take effect on new sessions
 - Skills watcher (enabled by default) can refresh mid-session when SKILL.md files change
 - Configure watcher: `skills.load.watch` and `skills.load.watchDebounceMs`
@@ -141,7 +141,7 @@ ClawHub (https://clawhub.com) is the public skills registry:
 
 ## Relationship to Claude Code
 
-This documentation is for OpenClaw, which is compatible with/related to Claude Code. The skills system uses the AgentSkills specification which appears to be shared across these tools. Key similarities:
+This documentation is for Gimli, which is compatible with/related to Claude Code. The skills system uses the AgentSkills specification which appears to be shared across these tools. Key similarities:
 
 - SKILL.md file format with YAML frontmatter
 - Markdown instructions for the agent
@@ -151,7 +151,7 @@ This documentation is for OpenClaw, which is compatible with/related to Claude C
 
 ## References
 
-- Main skills documentation: https://docs.openclaw.ai/tools/skills
-- Skills configuration: https://docs.openclaw.ai/tools/skills-config
-- Slash commands: https://docs.openclaw.ai/tools/slash-commands
+- Main skills documentation: https://docs.gimli.ai/tools/skills
+- Skills configuration: https://docs.gimli.ai/tools/skills-config
+- Slash commands: https://docs.gimli.ai/tools/slash-commands
 - ClawHub registry: https://clawhub.com

@@ -27,7 +27,7 @@ Save to `~/.gimli/gimli.json` and you can DM the bot from that number.
   identity: {
     name: "Gimli",
     theme: "helpful assistant",
-    emoji: "🦞"
+    emoji: "🪓"
   },
   agent: {
     workspace: "~/gimli",

@@ -18,7 +18,7 @@ security_reviewed: false
 Explain the trigger for this feature:
 - User request / pain point
 - Technical debt / limitation
-- Upstream opportunity (OpenClaw sync)
+- Upstream opportunity (Gimli sync)
 - Security hardening need
 
 ### Current State

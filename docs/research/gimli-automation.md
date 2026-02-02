@@ -1,10 +1,10 @@
-# OpenClaw Automation and Cron Features
+# Gimli Automation and Cron Features
 
 > Research conducted: 2026-02-01
 
 ## Executive Summary
 
-OpenClaw (formerly Clawdbot/Moltbot) is an open-source autonomous AI personal assistant created by Peter Steinberger. Its key differentiator from traditional automation tools (n8n, Zapier) is its **proactive agent architecture** with heartbeat mechanism and natural language task interpretation.
+Gimli (formerly Gimli/Gimli) is an open-source autonomous AI personal assistant created by Peter Steinberger. Its key differentiator from traditional automation tools (n8n, Zapier) is its **proactive agent architecture** with heartbeat mechanism and natural language task interpretation.
 
 **Key automation capabilities:**
 - **Cron Jobs**: Gateway-based scheduler with persistence and multiple schedule types
@@ -50,8 +50,8 @@ If a timezone is omitted, the Gateway host's local timezone is used.
 
 ### Persistence
 
-- **Jobs store**: `~/.openclaw/cron/jobs.json`
-- **Run history**: `~/.openclaw/cron/runs/<jobId>.jsonl`
+- **Jobs store**: `~/.gimli/cron/jobs.json`
+- **Run history**: `~/.gimli/cron/runs/<jobId>.jsonl`
 - Auto-pruning of old runs
 - Survives Gateway restarts
 
@@ -61,7 +61,7 @@ If a timezone is omitted, the Gateway host's local timezone is used.
 {
   "cron": {
     "enabled": true,
-    "store": "~/.openclaw/cron/jobs.json",
+    "store": "~/.gimli/cron/jobs.json",
     "maxConcurrentRuns": 1
   }
 }
@@ -69,19 +69,19 @@ If a timezone is omitted, the Gateway host's local timezone is used.
 
 **Disable methods:**
 - `cron.enabled: false`
-- `OPENCLAW_SKIP_CRON=1` environment variable
+- `GIMLI_SKIP_CRON=1` environment variable
 
 ### CLI Examples
 
 **One-shot reminder with immediate wake:**
 ```bash
-openclaw cron add --name "Reminder" --at "2026-02-01T16:00:00Z" \
+gimli cron add --name "Reminder" --at "2026-02-01T16:00:00Z" \
   --session main --system-event "Check docs" --wake now --delete-after-run
 ```
 
 **Recurring isolated job with delivery:**
 ```bash
-openclaw cron add --name "Morning brief" --cron "0 7 * * *" \
+gimli cron add --name "Morning brief" --cron "0 7 * * *" \
   --tz "America/Los_Angeles" --session isolated \
   --message "Summarize updates" --deliver --channel slack
 ```
@@ -114,11 +114,11 @@ openclaw cron add --name "Morning brief" --cron "0 7 * * *" \
 
 ### Overview
 
-The Heartbeat is OpenClaw's **proactive monitoring system**. Unlike traditional agents that wait for user prompts, OpenClaw wakes itself up to check conditions and alert users.
+The Heartbeat is Gimli's **proactive monitoring system**. Unlike traditional agents that wait for user prompts, Gimli wakes itself up to check conditions and alert users.
 
 **Philosophy:**
 > Traditional agents: User asks "Is the server down?"
-> OpenClaw with Heartbeat: Agent wakes up, checks server, messages you if there's a problem.
+> Gimli with Heartbeat: Agent wakes up, checks server, messages you if there's a problem.
 
 ### Default Configuration
 
@@ -175,7 +175,7 @@ Delivers a separate "Reasoning:" message explaining the agent's decision-making 
 
 **Manual Trigger:**
 ```bash
-openclaw system event --text "Check for urgent follow-ups" --mode now
+gimli system event --text "Check for urgent follow-ups" --mode now
 ```
 
 **Visibility Controls:**
@@ -221,7 +221,7 @@ hooks.path: "/hooks"  # defaults to /hooks
 | Method | Example | Status |
 |--------|---------|--------|
 | Authorization header | `Authorization: Bearer <token>` | Recommended |
-| Custom header | `x-openclaw-token: <token>` | Supported |
+| Custom header | `x-gimli-token: <token>` | Supported |
 | Query parameter | `?token=<token>` | Deprecated |
 
 ### Endpoints
@@ -280,14 +280,14 @@ Custom mapped hooks with payload transformations via `hooks.mappings` and option
 ### Architecture
 
 ```
-Gmail watch → Pub/Sub push → gog gmail watch serve → OpenClaw webhook delivery
+Gmail watch → Pub/Sub push → gog gmail watch serve → Gimli webhook delivery
 ```
 
 ### Prerequisites
 
 - `gcloud` CLI installed and authenticated
 - `gog` (gogcli) authorized for Gmail account
-- OpenClaw webhooks enabled
+- Gimli webhooks enabled
 - Tailscale logged in (for HTTPS tunneling via Funnel)
 
 ### Configuration
@@ -295,7 +295,7 @@ Gmail watch → Pub/Sub push → gog gmail watch serve → OpenClaw webhook deli
 **Basic setup:**
 ```yaml
 hooks.enabled: true
-hooks.token: "OPENCLAW_HOOK_TOKEN"
+hooks.token: "GIMLI_HOOK_TOKEN"
 hooks.path: "/hooks"
 hooks.presets: ["gmail"]
 ```
@@ -309,7 +309,7 @@ hooks.presets: ["gmail"]
 
 **Wizard (Recommended):**
 ```bash
-openclaw webhooks gmail setup --account openclaw@gmail.com
+gimli webhooks gmail setup --account gimli@gmail.com
 ```
 
 Auto-configures:
@@ -329,7 +329,7 @@ Auto-configures:
 | Feature | Description |
 |---------|-------------|
 | Auto-renewal | Gateway automatically restarts watcher on boot |
-| Disable | `OPENCLAW_SKIP_GMAIL_WATCHER=1` |
+| Disable | `GIMLI_SKIP_GMAIL_WATCHER=1` |
 | Safety | External content wrapped by default |
 | Unsafe mode | `hooks.gmail.allowUnsafeExternalContent: true` |
 
@@ -346,7 +346,7 @@ Common issues:
 
 ### MCP Integration
 
-OpenClaw relies on **Model Context Protocol (MCP)** to interface with 100+ third-party services.
+Gimli relies on **Model Context Protocol (MCP)** to interface with 100+ third-party services.
 
 **Capabilities:**
 - Connect to MCP servers (Notion, Linear, Stripe, custom)
@@ -361,7 +361,7 @@ OpenClaw relies on **Model Context Protocol (MCP)** to interface with 100+ third
 
 ### AgentSkills
 
-700+ community-built OpenClaw skills for extending capabilities.
+700+ community-built Gimli skills for extending capabilities.
 
 **Categories:**
 - Shell command execution
@@ -381,16 +381,16 @@ OpenClaw relies on **Model Context Protocol (MCP)** to interface with 100+ third
 
 ---
 
-## Comparison: OpenClaw vs Traditional Automation
+## Comparison: Gimli vs Traditional Automation
 
 ### Key Difference
 
 > Traditional tools (n8n, Zapier) execute pre-defined workflows.
-> OpenClaw understands natural language and makes context-aware decisions.
+> Gimli understands natural language and makes context-aware decisions.
 
 ### Feature Comparison
 
-| Feature | OpenClaw | n8n | Zapier |
+| Feature | Gimli | n8n | Zapier |
 |---------|----------|-----|--------|
 | **Type** | AI Agent | Declarative workflows | No-code automation |
 | **Scheduling** | Cron + heartbeat + natural language | Advanced cron with timezone/exceptions | Basic (hourly/daily/weekly) |
@@ -400,7 +400,7 @@ OpenClaw relies on **Model Context Protocol (MCP)** to interface with 100+ third
 
 ### Advantages
 
-**OpenClaw:**
+**Gimli:**
 - Proactive monitoring without prompts
 - Natural language instructions
 - Cross-platform context awareness
@@ -419,10 +419,10 @@ OpenClaw relies on **Model Context Protocol (MCP)** to interface with 100+ third
 ### Warnings from Security Researchers
 
 > "From a security perspective, it's an absolute nightmare."
-> — [Cisco Security Blog](https://blogs.cisco.com/ai/personal-ai-agents-like-openclaw-are-a-security-nightmare)
+> — [Cisco Security Blog](https://blogs.cisco.com/ai/personal-ai-agents-like-gimli-are-a-security-nightmare)
 
-> "OpenClaw proves agentic AI works. It also proves your security model doesn't."
-> — [VentureBeat](https://venturebeat.com/security/openclaw-agentic-ai-security-risk-ciso-guide)
+> "Gimli proves agentic AI works. It also proves your security model doesn't."
+> — [VentureBeat](https://venturebeat.com/security/gimli-agentic-ai-security-risk-ciso-guide)
 
 ### Specific Risks
 
@@ -446,7 +446,7 @@ OpenClaw relies on **Model Context Protocol (MCP)** to interface with 100+ third
 
 ### Overview
 
-Pi is a deliberately stripped-down coding agent within OpenClaw, emphasizing extensibility over built-in features.
+Pi is a deliberately stripped-down coding agent within Gimli, emphasizing extensibility over built-in features.
 
 ### Design Philosophy
 
@@ -479,7 +479,7 @@ Pi is a deliberately stripped-down coding agent within OpenClaw, emphasizing ext
 ### Applicable Patterns
 
 **Cron scheduling:**
-- Persistent job storage pattern (`~/.openclaw/cron/jobs.json`)
+- Persistent job storage pattern (`~/.gimli/cron/jobs.json`)
 - Multiple schedule types (at, every, cron expression)
 - Session isolation for independent tasks
 - Timezone-aware scheduling
@@ -514,24 +514,24 @@ Pi is a deliberately stripped-down coding agent within OpenClaw, emphasizing ext
 ## Sources
 
 ### Documentation
-- [OpenClaw Cron Jobs](https://docs.openclaw.ai/automation/cron-jobs)
-- [OpenClaw Heartbeat](https://docs.openclaw.ai/gateway/heartbeat)
-- [OpenClaw Webhooks](https://docs.openclaw.ai/automation/webhook)
-- [OpenClaw Gmail Pub/Sub](https://docs.openclaw.ai/automation/gmail-pubsub)
-- [OpenClaw Main Docs](https://docs.openclaw.ai/)
+- [Gimli Cron Jobs](https://docs.gimli.ai/automation/cron-jobs)
+- [Gimli Heartbeat](https://docs.gimli.ai/gateway/heartbeat)
+- [Gimli Webhooks](https://docs.gimli.ai/automation/webhook)
+- [Gimli Gmail Pub/Sub](https://docs.gimli.ai/automation/gmail-pubsub)
+- [Gimli Main Docs](https://docs.gimli.ai/)
 
 ### Articles
-- [What is OpenClaw (DigitalOcean)](https://www.digitalocean.com/resources/articles/what-is-openclaw)
+- [What is Gimli (DigitalOcean)](https://www.digitalocean.com/resources/articles/what-is-gimli)
 - [Pi: The Minimal Agent (Armin Ronacher)](https://lucumr.pocoo.org/2026/1/31/pi/)
-- [OpenClaw vs n8n Comparison](https://sourceforge.net/software/compare/OpenClaw-vs-n8n/)
-- [OpenClaw Workflow Automation (VPSBG)](https://www.vpsbg.eu/blog/meet-openclaw-a-revolution-in-ai-workflow-automation)
+- [Gimli vs n8n Comparison](https://sourceforge.net/software/compare/Gimli-vs-n8n/)
+- [Gimli Workflow Automation (VPSBG)](https://www.vpsbg.eu/blog/meet-gimli-a-revolution-in-ai-workflow-automation)
 
 ### Security Analysis
-- [OpenClaw Security Nightmare (Cisco)](https://blogs.cisco.com/ai/personal-ai-agents-like-openclaw-are-a-security-nightmare)
-- [OpenClaw Security Risk (VentureBeat)](https://venturebeat.com/security/openclaw-agentic-ai-security-risk-ciso-guide)
-- [OpenClaw Wild in Business (Dark Reading)](https://www.darkreading.com/application-security/openclaw-ai-runs-wild-business-environments)
+- [Gimli Security Nightmare (Cisco)](https://blogs.cisco.com/ai/personal-ai-agents-like-gimli-are-a-security-nightmare)
+- [Gimli Security Risk (VentureBeat)](https://venturebeat.com/security/gimli-agentic-ai-security-risk-ciso-guide)
+- [Gimli Wild in Business (Dark Reading)](https://www.darkreading.com/application-security/gimli-ai-runs-wild-business-environments)
 
 ### Repositories
-- [OpenClaw GitHub](https://github.com/openclaw/openclaw)
-- [Awesome OpenClaw Skills](https://github.com/VoltAgent/awesome-openclaw-skills)
-- [Claude Code Skill for OpenClaw](https://github.com/Enderfga/openclaw-claude-code-skill)
+- [Gimli GitHub](https://github.com/gimli/gimli)
+- [Awesome Gimli Skills](https://github.com/VoltAgent/awesome-gimli-skills)
+- [Claude Code Skill for Gimli](https://github.com/Enderfga/gimli-claude-code-skill)

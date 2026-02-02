@@ -1,10 +1,10 @@
 # Gimli PRD - Ralphy Task List
 
-> **Context**: Gimli is a security-hardened fork of OpenClaw/MoltBot - a personal AI assistant with multi-channel messaging, voice, browser control, Canvas, skills, cron, webhooks, and companion apps. Gimli already has built-in memory and learning systems. This PRD focuses on Linux deployment testing, security validation, enhancing existing systems, and adding AGI-style autonomous capabilities.
+> **Context**: Gimli is a security-hardened fork of Gimli - a personal AI assistant with multi-channel messaging, voice, browser control, Canvas, skills, cron, webhooks, and companion apps. Gimli already has built-in memory and learning systems. This PRD focuses on Linux deployment testing, security validation, enhancing existing systems, and adding AGI-style autonomous capabilities.
 
 ## ⚠️ Security-First Principles
 
-**Gimli prioritizes security over OpenClaw defaults. All work must:**
+**Gimli prioritizes security over Gimli defaults. All work must:**
 - Never weaken existing security configurations
 - Default to restrictive permissions (opt-in, not opt-out)
 - Validate all external inputs (channels, webhooks, API responses)
@@ -182,12 +182,12 @@
 
 ---
 
-## Phase 8: OpenClaw Upstream Sync
+## Phase 8: Gimli Upstream Sync
 
-> **Goal**: Automatically monitor OpenClaw for new features and security patches, evaluate them, and integrate beneficial changes while preserving Gimli's security hardening.
+> **Goal**: Automatically monitor Gimli for new features and security patches, evaluate them, and integrate beneficial changes while preserving Gimli's security hardening.
 
 ### Monitoring System
-- [x] Create cron job that checks OpenClaw repo for new commits (daily or weekly)
+- [x] Create cron job that checks Gimli repo for new commits (daily or weekly)
 - [x] Build changelog parser to extract meaningful feature descriptions
 - [x] Implement diff analyzer to categorize changes (feature, bugfix, security, breaking)
 - [x] Create notification system when significant changes detected
@@ -215,7 +215,7 @@
 - [x] Log all upstream integrations for audit trail (sync-history)
 
 ### Reporting
-- [x] Weekly summary of OpenClaw activity (generateWeeklySummary)
+- [x] Weekly summary of Gimli activity (generateWeeklySummary)
 - [x] Highlight features that might benefit Gimli (in weekly summary)
 - [x] Track which upstream changes were accepted/rejected and why (sync-history)
 
@@ -389,7 +389,7 @@
 - **Runtime**: Node ≥22
 - **Package manager**: pnpm preferred, npm acceptable
 - **Model**: Anthropic Claude (Opus 4.5 recommended for long-context)
-- **Upstream**: OpenClaw at https://github.com/openclaw/openclaw.ai
+- **Upstream**: Gimli at https://github.com/gimli/gimli.ai
 
 ### Principles
 - **Security first**: Never weaken existing protections

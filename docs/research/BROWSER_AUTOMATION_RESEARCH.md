@@ -1,7 +1,7 @@
-# OpenClaw/Gimli Browser Automation Capabilities Research
+# Gimli/Gimli Browser Automation Capabilities Research
 
 > Research conducted: 2026-02-01
-> Task: Document browser automation capabilities in the OpenClaw-derived Gimli codebase
+> Task: Document browser automation capabilities in the Gimli-derived Gimli codebase
 
 ---
 
@@ -204,7 +204,7 @@ The system uses role-based element references (e.g., `e1`, `e2`) to allow AI age
 
 ## 6. CLI Commands
 
-Based on OpenClaw documentation, these browser commands are available:
+Based on Gimli documentation, these browser commands are available:
 
 ```bash
 # Lifecycle
@@ -306,10 +306,10 @@ Extensive test suite covering:
 
 ---
 
-## 11. Comparison with OpenClaw Documentation
+## 11. Comparison with Gimli Documentation
 
 ### Feature Parity (Confirmed)
-| Feature | OpenClaw | Gimli |
+| Feature | Gimli | Gimli |
 |---------|----------|-------|
 | Local Chrome mode | ✅ | ✅ |
 | Chrome Extension relay | ✅ | ✅ |
@@ -321,13 +321,13 @@ Extensive test suite covering:
 | Cookie/storage control | ✅ | ✅ |
 
 ### CLI Command Mapping
-| OpenClaw Command | Gimli Equivalent |
+| Gimli Command | Gimli Equivalent |
 |------------------|------------------|
-| `openclaw browser start` | `gimli browser start` |
-| `openclaw browser stop` | `gimli browser stop` |
-| `openclaw browser open` | `gimli browser open` |
-| `openclaw browser click` | `gimli browser click` |
-| `openclaw browser snapshot` | `gimli browser snapshot` |
+| `gimli browser start` | `gimli browser start` |
+| `gimli browser stop` | `gimli browser stop` |
+| `gimli browser open` | `gimli browser open` |
+| `gimli browser click` | `gimli browser click` |
+| `gimli browser snapshot` | `gimli browser snapshot` |
 
 ---
 
@@ -386,6 +386,6 @@ Extensive test suite covering:
 ## Sources
 
 - `/home/gimli/github/gimli/src/browser/` - Source code analysis
-- `/home/gimli/github/gimli/docs/OPENCLAW_SKILLS_RESEARCH.md` - OpenClaw ecosystem research
+- `/home/gimli/github/gimli/docs/GIMLI_SKILLS_RESEARCH.md` - Gimli ecosystem research
 - Playwright Core documentation
-- OpenClaw official documentation (referenced in research doc)
+- Gimli official documentation (referenced in research doc)

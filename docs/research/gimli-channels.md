@@ -1,4 +1,4 @@
-# OpenClaw New Channels and Integrations Research
+# Gimli New Channels and Integrations Research
 
 > Research conducted: 2026-02-01
 > Focus: New messaging channels, third-party integrations, API developments, and community-built extensions
@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This research identifies potential new channels and integrations for Gimli/OpenClaw based on:
+This research identifies potential new channels and integrations for Gimli/Gimli based on:
 1. Current market trends in messaging platforms (2025-2026)
 2. AI agent integration patterns with MCP and other protocols
 3. Enterprise collaboration platform developments

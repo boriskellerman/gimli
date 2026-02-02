@@ -2,12 +2,12 @@
 
 ## Mission
 
-Build Gimli—a production-ready, security-hardened autonomous coding agent based on the Moltbot codebase. This is not a learning exercise; the end goal is a deployable tool that improves on Moltbot in every measurable way.
+Build Gimli—a production-ready, security-hardened autonomous coding agent based on the Gimli codebase. This is not a learning exercise; the end goal is a deployable tool that improves on Gimli in every measurable way.
 
 ---
 
 <context>
-You are a senior security-focused software architect building Gimli, an autonomous coding agent derived from the open-source Moltbot project (formerly Clawdbot). The user is deploying Gimli on a hardened VPS with SSH hardening, UFW firewall, Fail2ban, and GeoIP filtering (US-only). Your mission is to create a more secure, more robust, better-tested version that can be trusted in production.
+You are a senior security-focused software architect building Gimli, an autonomous coding agent derived from the open-source Gimli project (formerly Gimli). The user is deploying Gimli on a hardened VPS with SSH hardening, UFW firewall, Fail2ban, and GeoIP filtering (US-only). Your mission is to create a more secure, more robust, better-tested version that can be trusted in production.
 
 The user has bypass permissions enabled. You have full autonomy to execute—but when you need clarification on requirements, architectural decisions, or feature priorities, use AskUserQuestionTool to ask. Don't guess on important decisions.
 </context>
@@ -21,7 +21,7 @@ The user has bypass permissions enabled. You have full autonomy to execute—but
 1. Clone required repositories:
    ```bash
    cd ~/github
-   git clone https://github.com/moltbot/moltbot.git moltbot
+   git clone https://github.com/gimli/gimli.git gimli
    git clone https://github.com/michaelshimeles/ralphy.git ralphy
    ```
 
@@ -44,7 +44,7 @@ The user has bypass permissions enabled. You have full autonomy to execute—but
 
 ## Phase 2: External Research
 
-Search the web for recent content (last 1-5 days) about Clawdbot/Moltbot:
+Search the web for recent content (last 1-5 days) about Gimli/Gimli:
 - News articles and blog posts
 - YouTube videos and tutorials
 - Medium articles
@@ -56,11 +56,11 @@ Document findings including:
 - Feature requests from users
 - Security concerns raised
 - Comparisons to other tools
-- The reasoning behind the Clawdbot → Moltbot rename
+- The reasoning behind the Gimli → Gimli rename
 
 ## Phase 3: Documentation
 
-Create comprehensive documentation in the moltbot directory before forking:
+Create comprehensive documentation in the gimli directory before forking:
 
 ### ARCHITECTURE.md
 Write this as if teaching a junior developer on their first day:
@@ -88,19 +88,19 @@ Step-by-step code walkthrough:
    mkdir -p ~/github/gimli
    ```
 
-2. Copy the Moltbot codebase:
+2. Copy the Gimli codebase:
    ```bash
-   cp -r ~/github/moltbot/* ~/github/gimli/
+   cp -r ~/github/gimli/* ~/github/gimli/
    ```
 
-3. Copy any existing Moltbot configs for migration compatibility:
+3. Copy any existing Gimli configs for migration compatibility:
    ```bash
    # Identify config files and copy them
    # User wants clean code break but config compatibility
    ```
 
 4. Complete rebranding:
-   - Replace ALL references to "Moltbot", "moltbot", "Clawdbot", "clawdbot" with "Gimli" or "gimli"
+   - Replace ALL references to "old names" with "Gimli" or "gimli"
    - Update package names, binary names, documentation
    - Update any URLs, badges, or branding assets
    - No attribution to original project in code comments (clean break)
@@ -197,7 +197,7 @@ Implement a comprehensive test suite:
 2. Perform a final security review
 3. Verify all rebranding is complete (grep for old names)
 4. Test deployment on the VPS
-5. Create a CHANGELOG.md documenting all changes from Moltbot
+5. Create a CHANGELOG.md documenting all changes from Gimli
 6. Update README.md with Gimli-specific documentation
 
 </instructions>
@@ -266,15 +266,15 @@ Human oversight checkpoints:
 Maintain a TODO list and check off items as completed:
 
 - [ ] Phase 0: Run Lynis baseline audit and document hardening score
-- [ ] Phase 1: Clone moltbot and ralphy repos
+- [ ] Phase 1: Clone gimli and ralphy repos
 - [ ] Phase 1: Set up and configure Ralphy for autonomous development
-- [ ] Phase 1: Analyze moltbot codebase
+- [ ] Phase 1: Analyze gimli codebase
 - [ ] Phase 1: Review GitHub Issues and PRs
-- [ ] Phase 2: Web research on recent Clawdbot/Moltbot content
+- [ ] Phase 2: Web research on recent Gimli/Gimli content
 - [ ] Phase 3: Create ARCHITECTURE.md
 - [ ] Phase 3: Create WALKTHROUGH.md
 - [ ] Phase 4: Create Gimli fork with full rebranding
-- [ ] Phase 4: Migrate configs from moltbot to gimli
+- [ ] Phase 4: Migrate configs from gimli to gimli
 - [ ] Phase 5: Implement security hardening (use Ralphy for iterative improvements)
 - [ ] Phase 6: Fix all identified bugs (use Ralphy for autonomous bug fixing)
 - [ ] Phase 6: Implement improvements and new features
@@ -291,14 +291,14 @@ Do not terminate with unchecked items unless blocked.
 You have access to these plugins—use them appropriately:
 
 **Essential for this task:**
-- `github` - Fetch Issues, PRs, review code from the Moltbot repo
+- `github` - Fetch Issues, PRs, review code from the Gimli repo
 - `playwright` - Browser automation for web research
 - `code-review` - Automated code review with confidence scoring
 - `security-guidance` - Security warnings when editing files
 - `code-simplifier` - Refine code for clarity and maintainability
 - `superpowers` - TDD, debugging, and code review workflows
 
-**Language Support (use based on Moltbot's stack):**
+**Language Support (use based on Gimli's stack):**
 - `typescript-lsp`, `pyright-lsp`, `gopls-lsp`, `rust-analyzer-lsp`, etc.
 
 **Helpful utilities:**
@@ -354,14 +354,14 @@ If Gimli introduces any Lynis warnings, fix them before considering deployment c
 
 <output_artifacts>
 By completion, the ~/github/gimli directory should contain:
-- Fully rebranded Gimli codebase (no Moltbot/Clawdbot references)
+- Fully rebranded Gimli codebase (no Gimli/Gimli references)
 - ARCHITECTURE.md (junior-dev-friendly explanation)
 - WALKTHROUGH.md (step-by-step code guide)
-- CHANGELOG.md (all changes from original Moltbot)
+- CHANGELOG.md (all changes from original Gimli)
 - Comprehensive test suite with passing tests
 - Updated README.md for Gimli
 - Security documentation covering hardening measures
-- Migrated config files from moltbot directory
+- Migrated config files from gimli directory
 </output_artifacts>
 
 ---
@@ -371,9 +371,9 @@ Gimli is complete when:
 1. All bugs identified from code review, GitHub Issues, and web research are fixed
 2. All security hardening measures are implemented and tested
 3. Full test suite passes with appropriate coverage
-4. Complete rebranding—zero references to Moltbot or Clawdbot
+4. Complete rebranding—zero references to Gimli or Gimli
 5. Documentation is comprehensive and junior-dev-friendly
 6. Successfully runs on the target VPS
-7. Config migration from moltbot works correctly
+7. Config migration from gimli works correctly
 8. Lynis post-deployment audit shows no regression (hardening index equal or better, no new warnings)
 </success_criteria>

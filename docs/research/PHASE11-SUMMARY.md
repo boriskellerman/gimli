@@ -1,4 +1,4 @@
-# Phase 11: OpenClaw Deep Dive - Research Summary
+# Phase 11: Gimli Deep Dive - Research Summary
 
 > **Research Date:** February 1, 2026
 > **Total Research Documents:** 8 files, ~98 KB
@@ -8,15 +8,15 @@
 
 ## Executive Summary
 
-This comprehensive research covers the OpenClaw ecosystem (formerly Clawdbot/Moltbot) including releases, security, channels, automation, community projects, browser capabilities, voice integration, and competitor comparison.
+This comprehensive research covers the Gimli ecosystem (formerly Gimli/Gimli) including releases, security, channels, automation, community projects, browser capabilities, voice integration, and competitor comparison.
 
 ### Key Findings
 
-1. **Active Development**: OpenClaw releases v2026.1.21-1.31 show rapid iteration with major features every few days
-2. **Security Concerns**: 9 critical vulnerabilities identified in original Moltbot, most now addressed
+1. **Active Development**: Gimli releases v2026.1.21-1.31 show rapid iteration with major features every few days
+2. **Security Concerns**: 9 critical vulnerabilities identified in original Gimli, most now addressed
 3. **Channel Ecosystem**: 20+ potential new channels identified, with Bluesky and Viber as high priorities
 4. **MCP Standard**: Model Context Protocol emerging as universal AI tool integration standard (97M+ monthly downloads)
-5. **Competitive Position**: OpenClaw uniquely offers multi-channel messaging + autonomous coding in one platform
+5. **Competitive Position**: Gimli uniquely offers multi-channel messaging + autonomous coding in one platform
 
 ---
 
@@ -24,14 +24,14 @@ This comprehensive research covers the OpenClaw ecosystem (formerly Clawdbot/Mol
 
 | Document | Size | Key Topics |
 |----------|------|------------|
-| [openclaw-releases.md](./openclaw-releases.md) | 5.9 KB | Version history v2026.1.21-1.31, rebrand details |
-| [openclaw-security.md](./openclaw-security.md) | 6.5 KB | 9 vulnerabilities, CVEs, security controls |
-| [openclaw-channels.md](./openclaw-channels.md) | 20.5 KB | 20+ channel opportunities, MCP, integrations |
-| [openclaw-automation.md](./openclaw-automation.md) | 15.9 KB | Cron jobs, webhooks, event automation |
-| [openclaw-community.md](./openclaw-community.md) | 8.0 KB | Notable projects, tutorials, showcases |
-| [openclaw-browser.md](./openclaw-browser.md) | 12.5 KB | Playwright, browser profiles, automation |
-| [openclaw-voice.md](./openclaw-voice.md) | 14.1 KB | Vapi, TTS, wake word, phone bridge |
-| [openclaw-comparison.md](./openclaw-comparison.md) | 15.1 KB | vs Claude Code, Cursor, Copilot, Aider |
+| [gimli-releases.md](./gimli-releases.md) | 5.9 KB | Version history v2026.1.21-1.31, rebrand details |
+| [gimli-security.md](./gimli-security.md) | 6.5 KB | 9 vulnerabilities, CVEs, security controls |
+| [gimli-channels.md](./gimli-channels.md) | 20.5 KB | 20+ channel opportunities, MCP, integrations |
+| [gimli-automation.md](./gimli-automation.md) | 15.9 KB | Cron jobs, webhooks, event automation |
+| [gimli-community.md](./gimli-community.md) | 8.0 KB | Notable projects, tutorials, showcases |
+| [gimli-browser.md](./gimli-browser.md) | 12.5 KB | Playwright, browser profiles, automation |
+| [gimli-voice.md](./gimli-voice.md) | 14.1 KB | Vapi, TTS, wake word, phone bridge |
+| [gimli-comparison.md](./gimli-comparison.md) | 15.1 KB | vs Claude Code, Cursor, Copilot, Aider |
 
 ---
 
@@ -59,7 +59,7 @@ This comprehensive research covers the OpenClaw ecosystem (formerly Clawdbot/Mol
 
 ## Security Summary
 
-### Critical Vulnerabilities Identified (from Moltbot)
+### Critical Vulnerabilities Identified (from Gimli)
 
 | Issue | Severity | Status |
 |-------|----------|--------|
@@ -85,7 +85,7 @@ This comprehensive research covers the OpenClaw ecosystem (formerly Clawdbot/Mol
 
 ## Competitive Analysis Summary
 
-| Capability | OpenClaw/Gimli | Others |
+| Capability | Gimli/Gimli | Others |
 |------------|---------------|--------|
 | Multi-channel messaging | **Unique** (30+ channels) | None |
 | Autonomous coding | Yes | Claude Code, Aider |
@@ -95,14 +95,14 @@ This comprehensive research covers the OpenClaw ecosystem (formerly Clawdbot/Mol
 | Open source | Yes | Aider only |
 | Multi-LLM support | Yes | Cursor, Aider |
 
-**Unique Differentiator:** OpenClaw/Gimli is the only platform combining autonomous coding with multi-channel messaging access.
+**Unique Differentiator:** Gimli/Gimli is the only platform combining autonomous coding with multi-channel messaging access.
 
 ---
 
 ## Sources
 
 Research drew from 50+ sources including:
-- Official OpenClaw documentation and GitHub releases
+- Official Gimli documentation and GitHub releases
 - TechCrunch, The Register, Bitdefender security coverage
 - Hacker News and community discussions
 - Platform-specific documentation (Viber, LINE, Bluesky, etc.)

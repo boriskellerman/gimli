@@ -375,7 +375,7 @@ gimli skills list --available     # Include uninstalled
 
 ### `gimli upstream check`
 
-Check for OpenClaw upstream updates.
+Check for Gimli upstream updates.
 
 ```bash
 gimli upstream check

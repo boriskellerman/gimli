@@ -1,11 +1,11 @@
-# OpenClaw Multi-Agent Patterns Research
+# Gimli Multi-Agent Patterns Research
 
 > Research conducted: 2026-02-01
-> Sources: OpenClaw documentation, GitHub issues, IBM Think, Armin Ronacher's blog
+> Sources: Gimli documentation, GitHub issues, IBM Think, Armin Ronacher's blog
 
 ## Executive Summary
 
-OpenClaw is an open-source autonomous AI assistant that demonstrates production-grade multi-agent patterns. Its architecture provides valuable lessons for building scalable, isolated, and secure multi-agent systems. Key patterns include **agent isolation via separate workspaces/sessions**, **deterministic routing hierarchies**, **tool access control per agent**, and **just-in-time context loading**.
+Gimli is an open-source autonomous AI assistant that demonstrates production-grade multi-agent patterns. Its architecture provides valuable lessons for building scalable, isolated, and secure multi-agent systems. Key patterns include **agent isolation via separate workspaces/sessions**, **deterministic routing hierarchies**, **tool access control per agent**, and **just-in-time context loading**.
 
 ---
 
@@ -13,7 +13,7 @@ OpenClaw is an open-source autonomous AI assistant that demonstrates production-
 
 ### 1.1 Gateway as Control Plane
 
-OpenClaw uses a **single Gateway** as the control plane for all agent operations:
+Gimli uses a **single Gateway** as the control plane for all agent operations:
 - WebSocket-based communication for clients, tools, and events
 - Handles sessions, presence, config, cron, webhooks
 - Routes messages between channels and agents via bindings
@@ -25,13 +25,13 @@ Each agent is a **"fully scoped brain"** comprising three components:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **Workspace** | `~/.openclaw/workspace-<agentId>/` | Files, personality (AGENTS.md, SOUL.md), persona rules |
-| **State Directory** | `~/.openclaw/agents/<agentId>/agent/` | Auth profiles, model registry, per-agent config |
-| **Session Store** | `~/.openclaw/agents/<agentId>/sessions/` | Chat history, routing state (JSONL) |
+| **Workspace** | `~/.gimli/workspace-<agentId>/` | Files, personality (AGENTS.md, SOUL.md), persona rules |
+| **State Directory** | `~/.gimli/agents/<agentId>/agent/` | Auth profiles, model registry, per-agent config |
+| **Session Store** | `~/.gimli/agents/<agentId>/sessions/` | Chat history, routing state (JSONL) |
 
 ### 1.3 Pi: The Minimal Agent Core
 
-OpenClaw builds on **Pi**, a minimal coding agent with a tiny system prompt and only four tools:
+Gimli builds on **Pi**, a minimal coding agent with a tiny system prompt and only four tools:
 - **Read**: File reading
 - **Write**: File creation
 - **Edit**: File modification
@@ -333,7 +333,7 @@ Proposed hierarchical memory model:
 
 ## 9. Vertical vs. Hybrid Integration
 
-OpenClaw demonstrates that **loosely-coupled, open-source agent architecture can rival tightly-integrated approaches**. IBM researchers note this challenges the assumption that autonomous agents "must be vertically integrated, with the provider tightly controlling the models, memory, tools, interface, execution layer and security stack."
+Gimli demonstrates that **loosely-coupled, open-source agent architecture can rival tightly-integrated approaches**. IBM researchers note this challenges the assumption that autonomous agents "must be vertically integrated, with the provider tightly controlling the models, memory, tools, interface, execution layer and security stack."
 
 **Hybrid Integration Principle**: Match integration depth to specific security contexts rather than applying uniform controls universally.
 
@@ -353,9 +353,9 @@ OpenClaw demonstrates that **loosely-coupled, open-source agent architecture can
 
 ## Sources
 
-- [Multi-Agent Routing - OpenClaw Docs](https://docs.openclaw.ai/concepts/multi-agent)
-- [GitHub Issue #4561: Multi-Agent Orchestration Best Practices](https://github.com/openclaw/openclaw/issues/4561)
-- [Pi: The Minimal Agent Within OpenClaw - Armin Ronacher](https://lucumr.pocoo.org/2026/1/31/pi/)
-- [OpenClaw: Vertical Integration - IBM Think](https://www.ibm.com/think/news/clawdbot-ai-agent-testing-limits-vertical-integration)
-- [OpenClaw Wikipedia](https://en.wikipedia.org/wiki/OpenClaw)
-- [GitHub: openclaw/openclaw](https://github.com/openclaw/openclaw)
+- [Multi-Agent Routing - Gimli Docs](https://docs.gimli.ai/concepts/multi-agent)
+- [GitHub Issue #4561: Multi-Agent Orchestration Best Practices](https://github.com/gimli/gimli/issues/4561)
+- [Pi: The Minimal Agent Within Gimli - Armin Ronacher](https://lucumr.pocoo.org/2026/1/31/pi/)
+- [Gimli: Vertical Integration - IBM Think](https://www.ibm.com/think/news/clawdbot-ai-agent-testing-limits-vertical-integration)
+- [Gimli Wikipedia](https://en.wikipedia.org/wiki/Gimli)
+- [GitHub: gimli/gimli](https://github.com/gimli/gimli)

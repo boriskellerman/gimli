@@ -4,12 +4,12 @@ Docs: https://docs.gimli.bot
 
 ## Gimli Fork - 2026.1.28
 
-Complete fork from Moltbot/Clawdbot with full rebranding and security hardening.
+Complete fork from Gimli/Gimli with full rebranding and security hardening.
 
 ### Rebranding
-- Complete rebrand across 2,087+ files: all Moltbot/Clawdbot references replaced with Gimli
+- Complete rebrand across 2,087+ files: all Gimli/Gimli references replaced with Gimli
 - Environment variables: `CLAWDBOT_*`/`MOLTBOT_*` -> `GIMLI_*`
-- Config paths: `~/.clawdbot`/`~/.moltbot` -> `~/.gimli`
+- Config paths: `~/.clawdbot`/`~/.gimli` -> `~/.gimli`
 - Single binary: `gimli` (removed legacy compatibility shims)
 - Renamed all source files, directories, Android packages, iOS/macOS modules
 
