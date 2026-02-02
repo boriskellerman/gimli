@@ -270,8 +270,8 @@
 
 #### Grade 6: Prompt Chains / Agentic Workflows
 - [x] Build plan → build → test → review → document workflow
-- [ ] Create scout agents that research before building
-- [ ] Chain templates together for end-to-end feature development
+- [x] Create scout agents that research before building
+- [x] Chain templates together for end-to-end feature development
 
 #### Grade 7: Agent Experts
 - [ ] Create Database Expert (Gimli's data layer mental model)
