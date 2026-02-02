@@ -1,0 +1,495 @@
+# Security Expert - Gimli Security Domain Mental Model
+# TAC Agent Expert: Authentication, Sandboxing, and Credential Handling
+#
+# This expert encodes the security knowledge for the Gimli codebase,
+# following the TAC "Act → Learn → Reuse" pattern from Lesson 13.
+
+name: security-expert
+domain: security
+version: "1.0.0"
+updated: "2026-02-02"
+description: >
+  Expert knowledge for Gimli's security systems including authentication,
+  sandboxing, credential handling, access control, and security auditing.
+  Designed to help agents make security-conscious decisions.
+
+# Core mental model of Gimli's security architecture
+mental_model:
+  philosophy: >
+    Gimli's security follows a "defense in depth" model with five distinct layers.
+    The key insight is that most security failures are access control issues
+    ("someone messaged the bot and it did what they asked"), not sophisticated exploits.
+    Security is about controlling WHO can talk, WHERE they can act, and WHAT they can do.
+
+  principle: "Access control before intelligence - limit blast radius, not model capabilities"
+
+  five_layers:
+    - name: Identity Layer
+      purpose: Control WHO can communicate with Gimli
+      mechanisms:
+        - DM pairing with time-limited codes
+        - Channel allowlists
+        - Self-only DM fallback
+      config_keys:
+        - channels.<channel>.dmPolicy
+        - channels.<channel>.allowFrom
+      critical_files:
+        - src/pairing/pairing-store.ts
+        - src/web/inbound/access-control.ts
+
+    - name: Scope Layer
+      purpose: Control WHERE the bot can act
+      mechanisms:
+        - Group allowlists
+        - Mention gating (requireMention)
+        - Per-account channel policies
+      config_keys:
+        - channels.<channel>.groupPolicy
+        - channels.<channel>.requireMention
+        - channels.<channel>.groups
+      critical_files:
+        - src/config/group-policy.ts
+
+    - name: Tools Layer
+      purpose: Control WHAT actions the bot can perform
+      mechanisms:
+        - Tool policies (allow/deny lists)
+        - Elevated mode for trusted senders
+        - Tool profiles (minimal, coding, messaging, full)
+      config_keys:
+        - agents.defaults.tools
+        - tools.elevated.allowFrom
+      critical_files:
+        - src/agents/tool-policy.ts
+        - src/auto-reply/reply/reply-elevated.ts
+
+    - name: Sandbox Layer
+      purpose: Contain blast radius of untrusted code
+      mechanisms:
+        - Docker-based sandboxing
+        - Network isolation
+        - Read-only workspace mounts
+        - Per-session/per-agent containers
+      config_keys:
+        - agents.defaults.sandbox.mode
+        - agents.defaults.sandbox.scope
+        - agents.defaults.sandbox.workspaceAccess
+        - agents.defaults.sandbox.docker.network
+      critical_files:
+        - src/agents/sandbox/*.ts
+
+    - name: Model Layer
+      purpose: Resistance to prompt injection
+      mechanisms:
+        - Instruction-hardened models
+        - Model size recommendations
+        - Small model risk warnings
+      notes: >
+        Assume the model can be manipulated; rely on other layers for security.
+        Models >= 300B params with tool access need sandboxing for untrusted input.
+
+# Authentication systems and patterns
+authentication:
+  gateway_auth:
+    description: HTTP/WebSocket authentication to the Gimli gateway
+    modes:
+      token:
+        description: Bearer token authentication
+        implementation: Timing-safe comparison via timingSafeEqual
+        config: gateway.auth.token or GIMLI_GATEWAY_TOKEN env
+        recommendation: Preferred for programmatic access
+      password:
+        description: Hashed password authentication
+        implementation: Timing-safe comparison
+        config: GIMLI_GATEWAY_PASSWORD env
+        recommendation: Use for human operators
+      tailscale:
+        description: Identity via Tailscale Serve headers
+        implementation: tailscale whois validation
+        note: Requires Tailscale Serve/Funnel integration
+    local_trust:
+      description: Automatic trust for loopback connections
+      addresses: ["127.0.0.1", "::1"]
+      note: Local requests skip auth when binding to loopback
+    critical_files:
+      - src/gateway/auth.ts
+
+  dm_pairing:
+    description: Identity verification for messaging channel DMs
+    default_policy: pairing
+    policies:
+      pairing:
+        description: Require approval with time-limited code
+        code_format: 8 uppercase characters, no ambiguous chars
+        expiry: 1 hour
+        max_pending: 3 per channel
+        flow:
+          - Unknown sender messages
+          - Bot generates pairing code
+          - Code sent to sender
+          - Admin approves via CLI (gimli pairing approve)
+          - Sender added to allowlist
+      allowlist:
+        description: Block unknown senders entirely
+        note: No pairing handshake, whitelist-only
+      open:
+        description: Allow anyone (explicit opt-in required)
+        requirement: allowFrom must contain "*"
+        warning: Security risk - use with caution
+      disabled:
+        description: Ignore all inbound DMs
+    critical_files:
+      - src/pairing/pairing-store.ts
+      - src/web/inbound/access-control.ts
+
+  device_auth:
+    description: Authentication for multi-node deployments
+    storage: ~/.gimli/identity/device-auth.json
+    permissions: "0600"
+    features:
+      - Role-based device identification
+      - Scope-based permissions
+    critical_files:
+      - src/infra/device-auth-store.ts
+
+# Credential handling patterns
+credentials:
+  storage_locations:
+    whatsapp: ~/.gimli/credentials/whatsapp/<accountId>/creds.json
+    telegram: Config or channels.telegram.tokenFile
+    discord: Config or env (DISCORD_BOT_TOKEN)
+    slack: Config or env (channels.slack.*)
+    pairing_allowlists: ~/.gimli/credentials/<channel>-allowFrom.json
+    model_auth_profiles: ~/.gimli/agents/<agentId>/agent/auth-profiles.json
+    device_auth: ~/.gimli/identity/device-auth.json
+    session_transcripts: ~/.gimli/agents/<agentId>/sessions/*.jsonl
+
+  permission_requirements:
+    credentials_directory:
+      path: ~/.gimli/credentials/
+      mode: "0700"
+      note: User-only access, no group or world
+    config_files:
+      mode: "0600"
+    auth_profiles:
+      path: ~/.gimli/agents/<agentId>/agent/auth-profiles.json
+      mode: "0600"
+    session_files:
+      mode: "0600"
+
+  secure_patterns:
+    atomic_writes:
+      description: Write to temp file, then atomic rename
+      library: proper-lockfile for concurrent access
+    json_handling:
+      description: Validate JSON before parsing, handle malformed gracefully
+    cli_credentials:
+      sources:
+        - ~/.claude/.credentials.json (Claude CLI)
+        - ~/.codex/auth.json (OpenRouter/Codex)
+        - ~/.qwen/oauth_creds.json (Qwen)
+      caching: Cache invalidation on file modification
+
+  sensitive_data_redaction:
+    description: Automatic redaction of secrets in logs and output
+    modes:
+      "off": No redaction
+      tools: Default - redact tool outputs
+    patterns_detected:
+      - ENV assignments (KEY=value, TOKEN: value)
+      - JSON fields ("apiKey", "token", "secret")
+      - CLI flags (--api-key, --token)
+      - Bearer tokens
+      - PEM private keys
+      - Token prefixes (sk-, ghp_, github_pat_, xox[baprs]-, npm_)
+    masking: Show first 6 + last 4 chars, redact middle
+    config: logging.redactSensitive, logging.redactPatterns
+    critical_files:
+      - src/logging/redact.ts
+
+# Sandboxing decision patterns
+sandboxing:
+  docker_sandbox:
+    description: Container-based isolation for untrusted code execution
+    modes:
+      "off": No sandboxing (use for trusted main session)
+      non-main: Default - sandbox all non-main sessions
+      all: Sandbox everything including main session
+    scope_options:
+      session: Per-session container (strongest isolation)
+      agent: Per-agent container (reuse across sessions)
+      shared: Single container for all sandboxed work
+
+    workspace_access:
+      none: No access to host filesystem
+      ro: Read-only mount
+      rw: Read-write mount (use sparingly)
+
+    network:
+      default: "none" (no network access)
+      recommendation: Keep disabled unless explicitly needed
+
+    images:
+      default: gimli-sandbox:bookworm-slim
+      browser: Sandboxed browser image for CDP
+
+  sandboxed_tools:
+    - exec
+    - read
+    - write
+    - edit
+    - apply_patch
+    - process
+    - browser
+
+  host_only_tools:
+    - system.run (on paired nodes)
+    - elevated exec
+
+  decision_tree:
+    - condition: Is this the main session?
+      yes: Sandbox mode depends on config (default: no sandbox)
+      no: Sandbox by default (mode: non-main)
+    - condition: Does the session have untrusted input?
+      yes: Enable sandbox, consider network isolation
+      no: May relax constraints for trusted operators
+    - condition: Are browser/web tools enabled with small model?
+      yes: REQUIRE sandbox (security audit warning)
+      no: Follow normal sandbox rules
+
+# Security audit patterns
+security_audit:
+  command: gimli security audit [--deep] [--fix]
+  categories:
+    inbound_access:
+      checks:
+        - DM policies configured
+        - Group policies set
+        - Allowlists present
+    tool_blast_radius:
+      checks:
+        - Elevated tools exposure
+        - Open rooms with powerful tools
+    network_exposure:
+      checks:
+        - Gateway bind address
+        - Auth configuration
+        - Tailscale Serve/Funnel
+    browser_control:
+      checks:
+        - Remote CDP endpoints
+        - Relay ports
+    local_disk_hygiene:
+      checks:
+        - File permissions
+        - Symlink detection
+        - Config includes
+    plugins:
+      checks:
+        - Extensions without allowlists
+    model_hygiene:
+      checks:
+        - Legacy models
+        - Small model risk with tools
+
+  severity_levels:
+    critical: Immediate action required
+    warn: Should be addressed
+    info: Informational
+
+  auto_fix_capable:
+    - File permission corrections (chmod)
+    - Tighten default configurations
+
+  critical_files:
+    - src/cli/security-cli.ts
+    - src/security/audit.ts
+    - src/security/audit-fs.ts
+
+# Decision patterns for security choices
+decision_patterns:
+  new_channel_integration:
+    steps:
+      - Set dmPolicy to "pairing" by default
+      - Configure allowFrom for known senders
+      - Set groupPolicy appropriately
+      - Document security implications
+
+  adding_tool_access:
+    steps:
+      - Check if tool is in sandboxed list
+      - Verify sandbox mode for session type
+      - Consider elevated mode requirements
+      - Add to tool policy allow list if needed
+
+  handling_credentials:
+    steps:
+      - Store in ~/.gimli/credentials/ or agent-specific paths
+      - Set file permissions to 0600 (files) or 0700 (dirs)
+      - Use atomic writes with proper-lockfile
+      - Enable redaction in logging
+      - Never log raw credentials
+
+  exposing_gateway:
+    steps:
+      - Prefer loopback binding
+      - If LAN needed, use Tailscale Serve
+      - Enable token or password auth
+      - Run gimli security audit --deep
+      - Document exposure in deployment notes
+
+  multi_user_sessions:
+    steps:
+      - Set dmScope appropriately (main vs isolated)
+      - Warn if dmPolicy open with multi-user
+      - Consider session isolation needs
+      - Document access patterns
+
+# Common pitfalls and how to avoid them
+pitfalls:
+  - name: World-readable credentials
+    symptom: gimli security audit reports file permission issues
+    cause: Credentials created without proper umask
+    fix: Run gimli security audit --fix
+    prevention: Always create credential files with 0600 mode
+
+  - name: Open DM policy on multi-user
+    symptom: Multiple users accessing same session context
+    cause: dmPolicy="open" without dmScope consideration
+    fix: Set dmScope="session" for isolation
+    prevention: Use pairing policy by default
+
+  - name: Elevated tools in open rooms
+    symptom: Untrusted users can execute privileged commands
+    cause: tools.elevated.allowFrom too permissive
+    fix: Restrict to specific trusted senders
+    prevention: Review elevated allowlist regularly
+
+  - name: Small model with tool access
+    symptom: Security audit warns about model risk
+    cause: Models <300B params more susceptible to injection
+    fix: Enable sandboxing or use larger model
+    prevention: Check model size before enabling tools
+
+  - name: Gateway exposed without auth
+    symptom: Unauthenticated access to gateway
+    cause: Binding to 0.0.0.0 without token/password
+    fix: Set gateway.auth.token or use loopback binding
+    prevention: Always configure auth before LAN exposure
+
+  - name: Secrets in logs
+    symptom: API keys visible in log files
+    cause: Redaction disabled or new pattern not covered
+    fix: Enable logging.redactSensitive="tools"
+    prevention: Add new token patterns to redaction config
+
+# Code references for quick navigation
+code_references:
+  authentication:
+    gateway_auth: src/gateway/auth.ts
+    device_auth: src/infra/device-auth-store.ts
+    cli_credentials: src/agents/cli-credentials.ts
+
+  access_control:
+    dm_pairing: src/pairing/pairing-store.ts
+    access_control: src/web/inbound/access-control.ts
+    group_policy: src/config/group-policy.ts
+    tool_policy: src/agents/tool-policy.ts
+    elevated_mode: src/auto-reply/reply/reply-elevated.ts
+
+  sandboxing:
+    sandbox_core: src/agents/sandbox/*.ts
+    docker_config: src/agents/sandbox/docker.ts
+
+  auditing:
+    security_cli: src/cli/security-cli.ts
+    audit_core: src/security/audit.ts
+    filesystem_audit: src/security/audit-fs.ts
+    doctor_security: src/commands/doctor-security.ts
+
+  credentials:
+    redaction: src/logging/redact.ts
+    permission_checks: src/security/credentials-permissions.test.ts
+
+  documentation:
+    sandboxing_docs: docs/gateway/sandboxing.md
+    security_audit_docs: docs/reference/security-audit.md
+
+# Configuration quick reference
+config_reference:
+  gateway:
+    bind: "loopback"  # or "lan", "all"
+    port: 18789
+    auth:
+      mode: "token"  # or "password", "tailscale"
+      token: "<secret>"
+
+  channels:
+    whatsapp:
+      dmPolicy: "pairing"  # or "allowlist", "open", "disabled"
+      allowFrom: []
+      groupPolicy: "disabled"  # or "open", "allowlist"
+      requireMention: true
+
+  agents:
+    defaults:
+      sandbox:
+        mode: "non-main"  # or "off", "all"
+        scope: "session"  # or "agent", "shared"
+        workspaceAccess: "ro"  # or "none", "rw"
+        docker:
+          network: "none"
+
+  tools:
+    elevated:
+      allowFrom: []  # List of trusted sender identifiers
+
+  logging:
+    redactSensitive: "tools"  # or "off"
+
+# Threat model summary
+threat_model:
+  attack_vectors_addressed:
+    prompt_injection:
+      mitigations:
+        - DM pairing limits who can send prompts
+        - Mention gating in groups
+        - Model choice (instruction-hardened)
+        - Sandboxing for blast radius
+
+    untrusted_input:
+      mitigations:
+        - web_fetch/web_search separation
+        - Sandboxing for code execution
+        - Tool policy restrictions
+
+    remote_code_execution:
+      mitigations:
+        - Pairing for node access
+        - Elevated mode approvals
+        - Docker sandboxing
+
+    credential_leakage:
+      mitigations:
+        - Log redaction
+        - Secure file permissions
+        - Security audit checks
+
+    multi_user_confusion:
+      mitigations:
+        - Session isolation (dmScope)
+        - Per-user contexts
+
+  incident_response:
+    contain:
+      - Disable elevated tools
+      - Close network exposure
+      - Freeze DM access
+    rotate:
+      - Gateway auth tokens
+      - Remote client secrets
+      - Provider credentials
+    audit:
+      - Check logs
+      - Review transcripts
+      - Verify config changes

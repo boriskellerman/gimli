@@ -1,0 +1,368 @@
+# Channel Expert - Troubleshooting Mental Model
+#
+# Common issues, diagnostics, and solutions for messaging channels.
+#
+# TAC Pattern: Act -> Learn -> Reuse
+# Last synced: 2026-02-02
+
+version: "1.0"
+expert: channel
+domain: gimli-channel-troubleshooting
+updated_at: "2026-02-02T00:00:00Z"
+
+# Diagnostic Commands
+diagnostics:
+  primary_commands:
+    doctor:
+      command: "gimli doctor"
+      purpose: "Overall health check"
+      checks:
+        - "Configuration validity"
+        - "Credential presence"
+        - "Dependency availability"
+        - "Security settings"
+
+    channels_status:
+      command: "gimli channels status"
+      purpose: "Show all channel account states"
+      output:
+        - "Channel name"
+        - "Account ID"
+        - "Status (linked/configured/enabled)"
+        - "Last activity timestamps"
+
+    channels_status_probe:
+      command: "gimli channels status --probe"
+      purpose: "Active connectivity probes"
+      checks:
+        - "Token validity"
+        - "API connectivity"
+        - "Permission verification"
+        - "Common misconfigurations"
+      note: "More detailed but slower"
+
+    gateway_logs:
+      command: "tail -f /tmp/gimli-gateway.log"
+      alternative: "journalctl -u gimli-gateway -f"
+      purpose: "Real-time gateway output"
+
+  per_channel:
+    telegram:
+      status: "gimli channels status telegram --probe"
+      logs: "grep telegram /tmp/gimli-gateway.log"
+
+    discord:
+      status: "gimli channels status discord --probe"
+      logs: "grep discord /tmp/gimli-gateway.log"
+
+    whatsapp:
+      status: "gimli channels status whatsapp --probe"
+      logs: "grep whatsapp /tmp/gimli-gateway.log"
+
+# Common Issues by Category
+issues:
+  connection:
+    - symptom: "Channel shows 'not linked'"
+      causes:
+        - "Missing or invalid token"
+        - "Session expired"
+        - "Network connectivity issue"
+      diagnosis:
+        - "gimli channels status <channel> --probe"
+        - "Check credential files exist"
+        - "Verify network access to API"
+      solutions:
+        - "Re-run setup: gimli channels setup <channel>"
+        - "Check firewall/proxy settings"
+        - "Verify token hasn't been revoked"
+
+    - symptom: "Gateway crashes on startup"
+      causes:
+        - "Invalid configuration"
+        - "Missing dependencies"
+        - "Port already in use"
+      diagnosis:
+        - "gimli doctor"
+        - "Check gateway logs for stack trace"
+        - "ss -ltnp | grep 18789"
+      solutions:
+        - "Fix configuration errors"
+        - "Install missing dependencies"
+        - "Kill conflicting process"
+
+    - symptom: "Frequent disconnects/reconnects"
+      causes:
+        - "Network instability"
+        - "Rate limiting"
+        - "Platform-side issues"
+      diagnosis:
+        - "Monitor reconnect count in logs"
+        - "Check platform status page"
+      solutions:
+        - "Improve network stability"
+        - "Reduce message frequency"
+        - "Add retry/backoff logic"
+
+  authentication:
+    - symptom: "Token rejected / 401 Unauthorized"
+      causes:
+        - "Token revoked or expired"
+        - "Wrong token type"
+        - "Token for wrong environment"
+      diagnosis:
+        - "Verify token still valid on platform"
+        - "Check token prefix/format"
+      solutions:
+        - "Generate new token"
+        - "Re-run setup with correct token"
+
+    - symptom: "QR code keeps regenerating"
+      causes:
+        - "Session not persisting"
+        - "Write permission issue"
+        - "File corruption"
+      diagnosis:
+        - "Check ~/.gimli/credentials/ permissions"
+        - "Look for session files"
+      solutions:
+        - "Fix directory permissions (chmod 700)"
+        - "Delete corrupt session files"
+        - "Re-pair from scratch"
+
+    - symptom: "Logged out unexpectedly"
+      causes:
+        - "Platform revoked session"
+        - "Used on multiple devices"
+        - "TOS violation detection"
+      diagnosis:
+        - "Check platform notifications"
+        - "Review recent activity"
+      solutions:
+        - "Re-authenticate"
+        - "Avoid multi-device conflicts"
+        - "Review usage patterns"
+
+  messaging:
+    - symptom: "Messages not received"
+      causes:
+        - "DM policy blocking"
+        - "Not on allowlist"
+        - "Mention required in group"
+        - "Wrong intents (Discord)"
+      diagnosis:
+        - "Check dmPolicy setting"
+        - "Verify allowFrom list"
+        - "Test with known-good user"
+        - "Check intent configuration"
+      solutions:
+        - "Add user to allowlist"
+        - "Approve pairing request"
+        - "Enable required intents"
+        - "Set allowUnmentionedGroups"
+
+    - symptom: "Messages not sending"
+      causes:
+        - "Rate limited"
+        - "Permission denied"
+        - "Target not found"
+        - "Message too long"
+      diagnosis:
+        - "Check error in gateway logs"
+        - "Verify target exists"
+        - "Check rate limit headers"
+      solutions:
+        - "Reduce message frequency"
+        - "Add required permissions"
+        - "Verify target ID format"
+        - "Split long messages"
+
+    - symptom: "Bot responds in DM but not group"
+      causes:
+        - "Privacy mode (Telegram)"
+        - "Missing mention"
+        - "Group not in allowlist"
+        - "Missing channel permissions"
+      diagnosis:
+        - "Check groupChannels config"
+        - "Verify mention requirement"
+        - "Check bot permissions in group"
+      solutions:
+        - "Disable privacy mode"
+        - "Add @mention"
+        - "Add group to groupChannels"
+        - "Invite bot with correct permissions"
+
+  permissions:
+    - symptom: "Missing Access / Permission Denied"
+      causes:
+        - "Bot role lacks permissions"
+        - "Channel-level restrictions"
+        - "Wrong OAuth scopes"
+      diagnosis:
+        - "Check bot permissions on platform"
+        - "Review OAuth scopes"
+        - "Test in different channel"
+      solutions:
+        - "Add required permissions to bot role"
+        - "Reinstall with correct scopes"
+        - "Use channel permission overrides"
+
+    - symptom: "Can't access threads"
+      causes:
+        - "Missing thread permissions"
+        - "Thread archived"
+        - "Wrong threading config"
+      diagnosis:
+        - "Check thread-specific permissions"
+        - "Verify thread state"
+      solutions:
+        - "Add thread permissions"
+        - "Unarchive thread"
+        - "Configure threading adapter"
+
+# Platform-Specific Issues
+platform_issues:
+  telegram:
+    - symptom: "HttpError: Network request failed"
+      cause: "IPv6 DNS resolution issue"
+      solution: "Force IPv4 or enable IPv6 egress"
+
+    - symptom: "setMyCommands failed"
+      cause: "Outbound HTTPS blocked"
+      solution: "Check firewall for api.telegram.org"
+
+    - symptom: "Privacy mode blocking messages"
+      cause: "Default privacy mode enabled"
+      solution: "@BotFather /setprivacy → Disable"
+
+    - symptom: "Webhook conflicts"
+      cause: "Both polling and webhook active"
+      solution: "Use one method only"
+
+  discord:
+    - symptom: "MESSAGE_CONTENT intent missing"
+      cause: "Privileged intent not enabled"
+      solution: "Enable in Developer Portal"
+
+    - symptom: "Gateway code 4014"
+      cause: "Disallowed intents"
+      solution: "Enable required intents or remove from code"
+
+    - symptom: "Slash commands not appearing"
+      cause: "Global commands delay"
+      solution: "Use guild commands for faster updates"
+
+    - symptom: "Rate limited (429)"
+      cause: "Too many API requests"
+      solution: "Implement rate limit handling"
+
+  whatsapp:
+    - symptom: "Disconnected: Connection Closed"
+      cause: "Session invalidated"
+      solution: "Delete session, re-pair"
+
+    - symptom: "Messages delayed"
+      cause: "Multi-device sync"
+      solution: "Wait for sync, check primary device"
+
+    - symptom: "Media fails to send"
+      cause: "File too large or wrong format"
+      solution: "Check file size limits, convert format"
+
+    - symptom: "Account banned"
+      cause: "TOS violation detected"
+      solution: "Review usage, appeal if appropriate"
+
+  slack:
+    - symptom: "Socket disconnected"
+      cause: "Network interruption or token issue"
+      solution: "Reconnect, verify tokens"
+
+    - symptom: "missing_scope error"
+      cause: "Required OAuth scope not granted"
+      solution: "Reinstall app with required scopes"
+
+    - symptom: "not_in_channel error"
+      cause: "Bot not member of channel"
+      solution: "Invite bot to channel"
+
+    - symptom: "Thread replies going to channel"
+      cause: "Threading config issue"
+      solution: "Check reply_broadcast setting"
+
+  signal:
+    - symptom: "CLI not responding"
+      cause: "signal-cli not running"
+      solution: "Start signal-cli REST server"
+
+    - symptom: "Linked device expired"
+      cause: "Primary device inactive"
+      solution: "Keep primary device online, relink"
+
+    - symptom: "Rate limited"
+      cause: "Too many messages"
+      solution: "Reduce message frequency"
+
+# Recovery Procedures
+recovery:
+  full_reset:
+    description: "Complete channel reset"
+    steps:
+      - "Stop gateway"
+      - "Delete credential files: rm ~/.gimli/credentials/<channel>-*"
+      - "Remove from config or disable"
+      - "Re-run setup"
+      - "Restart gateway"
+    when: "When partial fixes don't work"
+
+  token_rotation:
+    description: "Replace compromised or expired token"
+    steps:
+      - "Generate new token on platform"
+      - "Update config: gimli config set channels.<channel>.accounts.<id>.botToken <new>"
+      - "Restart gateway"
+    when: "Token compromised or revoked"
+
+  session_refresh:
+    description: "Re-establish session without full reset"
+    steps:
+      - "Stop gateway"
+      - "Delete session-specific files only"
+      - "Restart gateway"
+      - "Complete re-authentication if prompted"
+    when: "Session corrupted but token valid"
+
+  gateway_restart:
+    description: "Clean gateway restart"
+    steps:
+      - "pkill -9 -f gimli-gateway || true"
+      - "Wait 5 seconds"
+      - "nohup gimli gateway run --bind loopback --port 18789 > /tmp/gimli-gateway.log 2>&1 &"
+      - "Verify: gimli channels status --probe"
+    when: "Gateway unresponsive or stuck"
+
+# Debugging Tips
+debugging:
+  log_analysis:
+    - "Look for ERROR or WARN prefixes"
+    - "Check timestamps for timing issues"
+    - "Search for specific channel name"
+    - "Look for stack traces"
+
+  network_debugging:
+    - "curl -v to test API endpoints"
+    - "Check DNS resolution"
+    - "Verify TLS/SSL connectivity"
+    - "Test from same network as gateway"
+
+  configuration_debugging:
+    - "gimli config get channels.<channel>"
+    - "Validate JSON syntax"
+    - "Check for typos in account IDs"
+    - "Verify file permissions"
+
+  common_gotchas:
+    - "Account ID case sensitivity"
+    - "Missing quotes in JSON"
+    - "Wrong token type (bot vs user vs app)"
+    - "Stale cached configuration"

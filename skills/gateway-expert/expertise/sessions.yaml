@@ -1,0 +1,325 @@
+# Session Management Expertise
+# Mental model for session keys, persistence, and lifecycle
+
+version: 1
+domain: session-management
+updated: 2026-02-01
+
+mental_model:
+  name: Gateway Session Management
+  description: |
+    Sessions represent conversation contexts between users and agents.
+    Each session has a unique key, persisted transcript, and metadata.
+    Sessions are scoped by agent and can be isolated (sandboxed) or main.
+
+session_key_anatomy:
+  description: |
+    Session keys uniquely identify conversation contexts.
+    They follow a hierarchical naming pattern.
+
+  formats:
+    main_session:
+      pattern: "agent:{agentId}"
+      example: "agent:pi"
+      description: Primary session for an agent
+
+    legacy_main:
+      pattern: "main"
+      description: Alias for default agent's main session
+
+    group_session:
+      pattern: "agent:{agentId}:group:{groupId}"
+      example: "agent:pi:group:chat123"
+      description: Group chat session
+
+    channel_session:
+      pattern: "agent:{agentId}:{channel}:{chatType}:{targetId}"
+      example: "agent:pi:telegram:direct:123456"
+      description: Channel-specific session
+
+    thread_session:
+      pattern: "agent:{agentId}:{channel}:thread:{parentId}:{threadId}"
+      example: "agent:pi:discord:thread:ch123:thread456"
+      description: Threaded conversation
+
+    special_keys:
+      - key: "global"
+        description: Shared across all sessions (rarely used)
+      - key: "unknown"
+        description: Fallback for unresolved sessions
+
+session_scopes:
+  per_sender:
+    description: Each sender gets their own session (default)
+    use_case: Most messaging platforms
+
+  per_agent:
+    description: One session shared across all senders
+    use_case: Shared assistant scenarios
+
+  per_group:
+    description: Each group/channel gets a session
+    use_case: Group chat contexts
+
+session_entry:
+  description: Metadata stored for each session
+  fields:
+    sessionId:
+      type: string
+      description: UUID for transcript file naming
+
+    displayName:
+      type: string
+      description: User-friendly session label
+
+    subject:
+      type: string
+      description: Conversation topic/subject
+
+    label:
+      type: string
+      description: Custom label for filtering
+
+    channel:
+      type: string
+      description: Source channel (telegram, discord, etc.)
+
+    chatType:
+      type: string
+      enum: [direct, group, channel, thread]
+      description: Type of chat
+
+    createdAt:
+      type: number
+      description: Timestamp of session creation
+
+    updatedAt:
+      type: number
+      description: Last activity timestamp
+
+    thinkingLevel:
+      type: string
+      enum: [off, minimal, low, medium, high, xhigh]
+      description: Agent reasoning depth
+
+    modelOverride:
+      type: string
+      description: Model override for this session
+
+    providerOverride:
+      type: string
+      description: Provider override for this session
+
+    inputTokens:
+      type: number
+      description: Total input tokens consumed
+
+    outputTokens:
+      type: number
+      description: Total output tokens generated
+
+    spawnedBy:
+      type: string
+      description: Parent session key if spawned
+
+persistence:
+  store_location:
+    default: "~/.gimli/sessions/"
+    template: "~/.gimli/agents/{agentId}/sessions/"
+    config_key: "session.store"
+
+  store_format:
+    sessions_json:
+      description: Index file mapping keys to entries
+      location: "{store}/sessions.json"
+      format: JSON object keyed by session key
+
+    transcripts:
+      description: Individual session transcripts
+      location: "{store}/transcripts/{sessionId}.jsonl"
+      format: JSON Lines (one message per line)
+
+  transcript_structure:
+    messages:
+      - role: system | user | assistant | tool
+        content: string
+        timestamp: number
+        metadata: object
+
+lifecycle:
+  creation:
+    trigger: First message to a new session key
+    steps:
+      - Generate sessionId (UUID)
+      - Create entry in sessions.json
+      - Initialize transcript file
+
+  update:
+    trigger: New message or metadata change
+    steps:
+      - Append to transcript file
+      - Update entry metadata (tokens, timestamp)
+      - Persist sessions.json
+
+  reset:
+    trigger: /reset command or API call
+    steps:
+      - Archive existing transcript (optional)
+      - Clear transcript file
+      - Reset token counts
+      - Keep session metadata
+
+  delete:
+    trigger: sessions.delete API call
+    steps:
+      - Remove entry from sessions.json
+      - Delete or archive transcript file
+
+  compact:
+    trigger: sessions.compact API call
+    description: Reduce transcript size while preserving context
+    steps:
+      - Summarize old messages
+      - Keep recent messages
+      - Update transcript file
+
+isolation:
+  main_session:
+    sandbox: false
+    description: Full tool access on host
+
+  non_main_session:
+    sandbox: true
+    description: Restricted tool access, may use Docker
+
+  sandbox_features:
+    - Limited file system access
+    - No direct host command execution
+    - Isolated environment variables
+
+session_resolution:
+  description: How session keys are resolved to store entries
+
+  rules:
+    - pattern: '"global" or "unknown"'
+      action: Use as-is (special keys)
+
+    - pattern: "main"
+      action: Resolve to "agent:{defaultAgentId}"
+
+    - pattern: "agent:{agentId}:..."
+      action: Use as-is (already canonical)
+
+    - pattern: "{channel}:{chatType}:{id}"
+      action: Prefix with "agent:{defaultAgentId}:"
+
+  code_reference: |
+    resolveSessionStoreKey() in src/gateway/session-utils.ts
+    parseAgentSessionKey() in src/routing/session-key.ts
+
+rpc_methods:
+  sessions.list:
+    description: List sessions with filtering
+    params:
+      limit: number
+      agentId: string
+      label: string
+      search: string
+      activeMinutes: number
+      includeDerivedTitles: boolean
+      includeLastMessage: boolean
+    returns:
+      sessions: GatewaySessionRow[]
+      count: number
+      defaults: GatewaySessionsDefaults
+
+  sessions.preview:
+    description: Get session preview with messages
+    params:
+      key: string
+      limit: number
+    returns:
+      entry: SessionEntry
+      messages: Message[]
+
+  sessions.resolve:
+    description: Resolve session key to canonical form
+    params:
+      key: string
+    returns:
+      canonicalKey: string
+      storePath: string
+
+  sessions.patch:
+    description: Update session metadata
+    params:
+      key: string
+      patch: Partial<SessionEntry>
+    returns:
+      updated: boolean
+
+  sessions.reset:
+    description: Clear session transcript
+    params:
+      key: string
+      archive: boolean
+    returns:
+      success: boolean
+
+  sessions.delete:
+    description: Delete session entirely
+    params:
+      key: string
+    returns:
+      deleted: boolean
+
+  sessions.compact:
+    description: Compact session transcript
+    params:
+      key: string
+      keepMessages: number
+    returns:
+      compacted: boolean
+      removedCount: number
+
+agent_tools:
+  sessions_list:
+    description: Agent tool to list sessions
+    use_case: Find sessions for user or context
+
+  sessions_history:
+    description: Agent tool to read session history
+    use_case: Recall past conversations
+
+  sessions_send:
+    description: Agent tool to send to another session
+    use_case: Cross-session communication
+
+  sessions_spawn:
+    description: Agent tool to spawn sub-agent session
+    use_case: Parallel task execution
+
+best_practices:
+  - Use canonical session keys (agent:id:...) for consistency
+  - Check session existence before operations
+  - Handle session not found gracefully
+  - Compact long sessions periodically
+  - Use labels for session organization
+  - Track spawnedBy for sub-agent tracing
+
+troubleshooting:
+  session_not_found:
+    cause: Invalid key or session deleted
+    fix: List sessions, verify key format
+
+  transcript_missing:
+    cause: File deleted or path mismatch
+    fix: Check store path, verify sessionId
+
+  tokens_not_tracking:
+    cause: Entry not updated after run
+    fix: Verify gateway persists after each run
+
+  session_not_isolated:
+    cause: Main session detected incorrectly
+    fix: Check session key matches main pattern

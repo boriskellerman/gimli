@@ -22,11 +22,18 @@ import {
   normalizeAgentPayload,
   normalizeHookHeaders,
   normalizeWakePayload,
-  readJsonBody,
+  readJsonBodyWithRaw,
   resolveHookChannel,
   resolveHookDeliver,
 } from "./hooks.js";
+import { isGitHubWebhook, verifyGitHubSignature } from "../hooks/github-verify.js";
 import { applyHookMappings } from "./hooks-mapping.js";
+import { getHookRunStore, type HookRunStatus } from "./hooks-runs.js";
+import {
+  getWorkflowRunStore,
+  validateWorkflowConfig,
+  type WorkflowRunMetadata,
+} from "./hooks-workflow.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
@@ -94,15 +101,115 @@ export function createHooksRequestHandler(
       );
     }
 
-    if (req.method !== "POST") {
+    const subPath = url.pathname.slice(basePath.length).replace(/^\/+/, "");
+
+    // Handle GET requests for run observability endpoints
+    if (req.method === "GET") {
+      // GET /hooks/runs - List recent runs
+      if (subPath === "runs") {
+        const runStore = getHookRunStore();
+        const status = url.searchParams.get("status") as HookRunStatus | null;
+        const name = url.searchParams.get("name") ?? undefined;
+        const limitParam = url.searchParams.get("limit");
+        const offsetParam = url.searchParams.get("offset");
+        const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 100) : 50;
+        const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10) || 0) : 0;
+
+        const result = runStore.listRuns({
+          status: status ?? undefined,
+          name,
+          limit,
+          offset,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          runs: result.runs,
+          total: result.total,
+          limit,
+          offset,
+        });
+        return true;
+      }
+
+      // GET /hooks/runs/stats - Get run statistics
+      if (subPath === "runs/stats") {
+        const runStore = getHookRunStore();
+        const stats = runStore.getStats();
+        sendJson(res, 200, { ok: true, stats });
+        return true;
+      }
+
+      // GET /hooks/runs/:runId - Get specific run
+      if (subPath.startsWith("runs/")) {
+        const runId = subPath.slice("runs/".length);
+        if (runId && !runId.includes("/")) {
+          const runStore = getHookRunStore();
+          const run = runStore.getRun(runId);
+          if (!run) {
+            sendJson(res, 404, { ok: false, error: "run not found" });
+            return true;
+          }
+          sendJson(res, 200, { ok: true, run });
+          return true;
+        }
+      }
+
+      // GET /hooks/workflows - List recent workflow runs
+      if (subPath === "workflows") {
+        const workflowStore = getWorkflowRunStore();
+        const status = url.searchParams.get("status") as WorkflowRunMetadata["status"] | null;
+        const workflowId = url.searchParams.get("workflowId") ?? undefined;
+        const limitParam = url.searchParams.get("limit");
+        const offsetParam = url.searchParams.get("offset");
+        const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 100) : 50;
+        const offset = offsetParam ? Math.max(0, parseInt(offsetParam, 10) || 0) : 0;
+
+        const result = workflowStore.listWorkflowRuns({
+          status: status ?? undefined,
+          workflowId,
+          limit,
+          offset,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          workflows: result.workflows,
+          total: result.total,
+          limit,
+          offset,
+        });
+        return true;
+      }
+
+      // GET /hooks/workflows/:workflowRunId - Get specific workflow run
+      if (subPath.startsWith("workflows/")) {
+        const workflowRunId = subPath.slice("workflows/".length);
+        if (workflowRunId && !workflowRunId.includes("/")) {
+          const workflowStore = getWorkflowRunStore();
+          const workflow = workflowStore.getWorkflowRun(workflowRunId);
+          if (!workflow) {
+            sendJson(res, 404, { ok: false, error: "workflow run not found" });
+            return true;
+          }
+          sendJson(res, 200, { ok: true, workflow });
+          return true;
+        }
+      }
+
+      // Other GET requests not allowed
       res.statusCode = 405;
-      res.setHeader("Allow", "POST");
+      res.setHeader("Allow", "POST, GET");
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("Method Not Allowed");
       return true;
     }
 
-    const subPath = url.pathname.slice(basePath.length).replace(/^\/+/, "");
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, GET");
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.end("Method Not Allowed");
+      return true;
+    }
     if (!subPath) {
       res.statusCode = 404;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -110,15 +217,31 @@ export function createHooksRequestHandler(
       return true;
     }
 
-    const body = await readJsonBody(req, hooksConfig.maxBodyBytes);
+    const headers = normalizeHookHeaders(req);
+
+    // Read body with raw string for signature verification
+    const body = await readJsonBodyWithRaw(req, hooksConfig.maxBodyBytes);
     if (!body.ok) {
       const status = body.error === "payload too large" ? 413 : 400;
       sendJson(res, status, { ok: false, error: body.error });
       return true;
     }
 
+    // Verify GitHub webhook signature if configured and request looks like GitHub
+    if (subPath === "github" && isGitHubWebhook(headers)) {
+      if (hooksConfig.githubWebhookSecret) {
+        const signature = headers["x-hub-signature-256"];
+        if (!verifyGitHubSignature(body.raw, signature, hooksConfig.githubWebhookSecret)) {
+          logHooks.warn("GitHub webhook signature verification failed");
+          res.statusCode = 401;
+          res.setHeader("Content-Type", "text/plain; charset=utf-8");
+          res.end("Invalid signature");
+          return true;
+        }
+      }
+    }
+
     const payload = typeof body.value === "object" && body.value !== null ? body.value : {};
-    const headers = normalizeHookHeaders(req);
 
     if (subPath === "wake") {
       const normalized = normalizeWakePayload(payload as Record<string, unknown>);
@@ -153,6 +276,147 @@ export function createHooksRequestHandler(
       }
       const runId = dispatchAgentHook(normalized.value);
       sendJson(res, 202, { ok: true, runId });
+      return true;
+    }
+
+    // POST /hooks/workflow - Trigger an ADW (AI Developer Workflow)
+    if (subPath === "workflow") {
+      const validated = validateWorkflowConfig(payload);
+      if (!validated.ok) {
+        sendJson(res, 400, { ok: false, error: validated.error });
+        return true;
+      }
+
+      const workflowConfig = validated.config;
+      const workflowStore = getWorkflowRunStore();
+      const workflowRunId = `wf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      // Create workflow run entry
+      workflowStore.createWorkflowRun({
+        workflowRunId,
+        workflowId: workflowConfig.id,
+        workflowName: workflowConfig.name,
+        stepsTotal: workflowConfig.steps.length,
+      });
+
+      // Dispatch each step as a separate agent hook (sequentially in background)
+      // The actual sequential execution is handled asynchronously
+      void (async () => {
+        workflowStore.startWorkflowRun(workflowRunId);
+        const runStore = getHookRunStore();
+        const stepResults: Array<{
+          stepId: string;
+          stepName: string;
+          status: "ok" | "error" | "skipped";
+          runId?: string;
+          summary?: string;
+          outputText?: string;
+          error?: string;
+          startedAt: number;
+          completedAt?: number;
+        }> = [];
+
+        let previousStepStatus: "ok" | "error" | "skipped" | null = null;
+
+        for (let i = 0; i < workflowConfig.steps.length; i++) {
+          const step = workflowConfig.steps[i];
+          const stepStartedAt = Date.now();
+
+          // Check condition
+          const condition = step.condition ?? "always";
+          let shouldRun = true;
+          if (condition === "previous-success" && previousStepStatus !== "ok") {
+            shouldRun = false;
+          } else if (condition === "previous-error" && previousStepStatus !== "error") {
+            shouldRun = false;
+          }
+
+          if (!shouldRun) {
+            stepResults.push({
+              stepId: step.id,
+              stepName: step.name,
+              status: "skipped",
+              startedAt: stepStartedAt,
+              completedAt: Date.now(),
+            });
+            workflowStore.updateWorkflowStep(workflowRunId, step.id, i + 1);
+            continue;
+          }
+
+          // Dispatch step as agent hook
+          const sessionKey =
+            workflowConfig.sessionKey ?? `workflow:${workflowConfig.id}:${workflowRunId}`;
+          const stepRunId = dispatchAgentHook({
+            message: step.message,
+            name: `${workflowConfig.name}/${step.name}`,
+            wakeMode: "now",
+            sessionKey: `${sessionKey}:step:${step.id}`,
+            deliver: workflowConfig.deliver ?? false,
+            channel: workflowConfig.channel ?? "last",
+            to: workflowConfig.to,
+            model: step.model ?? workflowConfig.model,
+            thinking: step.thinking ?? workflowConfig.thinking,
+            timeoutSeconds: step.timeoutSeconds,
+          });
+
+          // Poll for completion (with timeout)
+          const timeoutMs = (step.timeoutSeconds ?? 300) * 1000;
+          const pollIntervalMs = 1000;
+          const maxPolls = Math.ceil(timeoutMs / pollIntervalMs);
+          let run = runStore.getRun(stepRunId);
+          let polls = 0;
+
+          while (
+            run &&
+            (run.status === "pending" || run.status === "running") &&
+            polls < maxPolls
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+            run = runStore.getRun(stepRunId);
+            polls++;
+          }
+
+          const stepStatus =
+            run?.status === "completed" ? "ok" : run?.status === "error" ? "error" : "error";
+          previousStepStatus = stepStatus;
+
+          stepResults.push({
+            stepId: step.id,
+            stepName: step.name,
+            status: stepStatus,
+            runId: stepRunId,
+            summary: run?.summary,
+            outputText: run?.outputText,
+            error: run?.error,
+            startedAt: stepStartedAt,
+            completedAt: Date.now(),
+          });
+
+          workflowStore.updateWorkflowStep(workflowRunId, step.id, i + 1);
+
+          // Stop on error unless continueOnError is set
+          if (stepStatus === "error" && !workflowConfig.continueOnError) {
+            break;
+          }
+        }
+
+        // Determine overall workflow status
+        const hasErrors = stepResults.some((r) => r.status === "error");
+        const allComplete = stepResults.every((r) => r.status === "ok" || r.status === "skipped");
+        const workflowStatus = allComplete ? "completed" : hasErrors ? "error" : "partial";
+
+        workflowStore.completeWorkflowRun(workflowRunId, {
+          workflowId: workflowConfig.id,
+          workflowName: workflowConfig.name,
+          status: workflowStatus,
+          steps: stepResults,
+          startedAt: stepResults[0]?.startedAt ?? Date.now(),
+          completedAt: Date.now(),
+          summary: `Workflow ${workflowConfig.name}: ${stepResults.filter((r) => r.status === "ok").length}/${stepResults.length} steps completed`,
+        });
+      })();
+
+      sendJson(res, 202, { ok: true, workflowRunId });
       return true;
     }
 

@@ -1,3 +1,4 @@
+import type { ADWConfig } from "./types.adw.js";
 import type { AgentBinding, AgentsConfig } from "./types.agents.js";
 import type { ApprovalsConfig } from "./types.approvals.js";
 import type { AuthConfig } from "./types.auth.js";
@@ -91,6 +92,8 @@ export type GimliConfig = {
   channels?: ChannelsConfig;
   cron?: CronConfig;
   hooks?: HooksConfig;
+  /** ADW (AI Developer Workflows) trigger endpoint configuration */
+  adw?: ADWConfig;
   discovery?: DiscoveryConfig;
   canvasHost?: CanvasHostConfig;
   talk?: TalkConfig;

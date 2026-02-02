@@ -235,6 +235,8 @@ export type AgentDefaultsConfig = {
     /** Auto-prune sandbox containers. */
     prune?: SandboxPruneSettings;
   };
+  /** Self-correction for recoverable tool errors (default: enabled). */
+  selfCorrection?: AgentSelfCorrectionConfig;
 };
 
 export type AgentCompactionMode = "default" | "safeguard";
@@ -248,6 +250,21 @@ export type AgentCompactionConfig = {
   maxHistoryShare?: number;
   /** Pre-compaction memory flush (agentic turn). Default: enabled. */
   memoryFlush?: AgentCompactionMemoryFlushConfig;
+};
+
+export type AgentSelfCorrectionConfig = {
+  /** Enable self-correction for tool errors (default: true). */
+  enabled?: boolean;
+  /** Maximum number of self-correction attempts per run (default: 2). */
+  maxAttempts?: number;
+  /** Delay in milliseconds before triggering self-correction (default: 0). */
+  delayMs?: number;
+  /** Custom self-correction prompt. Use {toolName} and {error} placeholders. */
+  prompt?: string;
+  /** Tool names to exclude from self-correction. */
+  excludeTools?: string[];
+  /** Error patterns (regex) to exclude from self-correction. */
+  excludeErrorPatterns?: string[];
 };
 
 export type AgentCompactionMemoryFlushConfig = {

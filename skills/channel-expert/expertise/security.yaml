@@ -1,0 +1,303 @@
+# Channel Expert - Security Mental Model
+#
+# Security patterns, DM policies, allowlists, and pairing for messaging channels.
+#
+# TAC Pattern: Act -> Learn -> Reuse
+# Last synced: 2026-02-02
+
+version: "1.0"
+expert: channel
+domain: gimli-channel-security
+updated_at: "2026-02-02T00:00:00Z"
+
+# DM Policy System
+dm_policy:
+  description: |
+    DM policies control who can send direct messages to Gimli.
+    This is a critical security feature to prevent unauthorized access.
+
+  policies:
+    pairing:
+      description: "Unknown senders receive pairing code (RECOMMENDED)"
+      security_level: high
+      flow:
+        - "Unknown user sends DM"
+        - "Bot responds with pairing code"
+        - "Operator runs: gimli pairing approve <channel> <code>"
+        - "User is added to allowlist"
+        - "Future messages are accepted"
+      pros:
+        - "No prior configuration needed"
+        - "Self-service for new users"
+        - "Audit trail of approvals"
+      cons:
+        - "Requires operator to approve"
+        - "Slight delay for new users"
+
+    allowlist:
+      description: "Only pre-approved senders can message"
+      security_level: high
+      flow:
+        - "Configure allowFrom in channel config"
+        - "Only listed users can send DMs"
+        - "Unknown users are silently ignored"
+      pros:
+        - "No pairing process needed"
+        - "Deterministic access control"
+      cons:
+        - "Must know user IDs upfront"
+        - "Manual configuration required"
+
+    open:
+      description: "Accept all messages (NOT RECOMMENDED)"
+      security_level: low
+      warning: |
+        ONLY use for:
+        - Internal bots behind VPN
+        - Testing/development
+        - Controlled environments
+      risks:
+        - "Spam/abuse exposure"
+        - "Resource exhaustion"
+        - "Potential data leakage"
+
+  configuration:
+    config_path: "channels.<channel>.accounts.<accountId>.dmPolicy"
+    default_value: "pairing"
+    example: |
+      {
+        "channels": {
+          "telegram": {
+            "accounts": {
+              "default": {
+                "dmPolicy": "pairing"
+              }
+            }
+          }
+        }
+      }
+
+# Pairing System
+pairing:
+  description: |
+    The pairing system allows unknown users to request access through
+    a code-based verification flow. This provides security without
+    requiring pre-configuration of user lists.
+
+  commands:
+    list:
+      command: "gimli pairing list"
+      description: "Show pending pairing requests"
+      output_includes:
+        - code
+        - requester_id
+        - channel
+        - created_at
+        - expires_at
+
+    approve:
+      command: "gimli pairing approve <channel> <code>"
+      description: "Approve a pairing request"
+      effect: "User added to allowlist"
+
+    reject:
+      command: "gimli pairing reject <channel> <code>"
+      description: "Reject a pairing request"
+      effect: "Request deleted, user not added"
+
+  storage:
+    location: "~/.gimli/credentials/<channel>-pairing.json"
+    permissions: "0o600"
+    schema:
+      pending_requests:
+        code: "string"
+        requester: "string"
+        created_at: "timestamp"
+        expires_at: "timestamp"
+        metadata: "object"
+
+  expiry:
+    default_ttl: "24 hours"
+    cleanup: "Automatic on load"
+
+# Allowlist Management
+allowlists:
+  description: |
+    Allowlists control which users and groups can interact with Gimli.
+    They work in conjunction with DM policies.
+
+  types:
+    dm_allowlist:
+      purpose: "Users allowed to send DMs"
+      config_path: "channels.<channel>.accounts.<accountId>.allowFrom"
+      storage: "~/.gimli/credentials/<channel>-allowFrom.json"
+
+    group_allowlist:
+      purpose: "Groups where bot can listen without @mention"
+      config_path: "channels.<channel>.accounts.<accountId>.groupChannels"
+
+  normalization:
+    description: "Entries are normalized per-channel"
+    examples:
+      telegram: "User IDs (numeric strings)"
+      whatsapp: "JIDs (phone@s.whatsapp.net)"
+      discord: "User IDs (snowflake strings)"
+      slack: "User IDs (U...)"
+
+  wildcard_support:
+    supported: false
+    note: "Each entry must be explicit"
+
+  commands:
+    add:
+      method: "gimli config set channels.<channel>.accounts.<id>.allowFrom [...]"
+      alternative: "Direct JSON edit"
+
+    remove:
+      method: "gimli config set channels.<channel>.accounts.<id>.allowFrom [...]"
+      alternative: "Direct JSON edit"
+
+# Group Security
+group_security:
+  mention_gating:
+    description: |
+      In groups, Gimli only responds when @mentioned by default.
+      This prevents noise and accidental triggers.
+
+    config:
+      allow_unmentioned:
+        path: "channels.<channel>.accounts.<accountId>.allowUnmentionedGroups"
+        type: "boolean"
+        default: false
+
+      group_channels:
+        path: "channels.<channel>.accounts.<accountId>.groupChannels"
+        type: "string[]"
+        description: "Specific groups that don't require @mention"
+
+  group_allowlist:
+    description: "Control which groups bot can participate in"
+    config_path: "channels.<channel>.accounts.<accountId>.groupChannels"
+
+# Credential Storage
+credentials:
+  base_directory: "~/.gimli/credentials/"
+  permissions:
+    directory: "0o700"
+    files: "0o600"
+
+  file_types:
+    tokens:
+      pattern: "*.enc"
+      encryption: "AES-256-GCM"
+      key_derivation: "PBKDF2 600k iterations"
+
+    pairing:
+      pattern: "<channel>-pairing.json"
+      format: "JSON"
+      contains: "pending requests"
+
+    allowlists:
+      pattern: "<channel>-allowFrom.json"
+      format: "JSON"
+      contains: "approved senders"
+
+    sessions:
+      pattern: "<channel>-session/"
+      format: "varies by channel"
+      examples:
+        whatsapp: "Baileys auth state"
+        matrix: "Matrix session data"
+
+  security_practices:
+    - "Never log credentials"
+    - "Defensive overwrite before deletion"
+    - "Atomic writes via temp + rename"
+    - "File locking for concurrent access"
+
+# Channel-Specific Security
+channel_security:
+  telegram:
+    considerations:
+      - "Bot tokens are permanent unless revoked"
+      - "Privacy mode controls group visibility"
+    commands:
+      revoke_token: "@BotFather /revoke"
+      reset_token: "@BotFather /token"
+
+  discord:
+    considerations:
+      - "Bot tokens never expire"
+      - "Intents control data access"
+      - "Privileged intents require verification"
+    permissions:
+      - "Prefer minimal required permissions"
+      - "Use per-channel overrides when possible"
+
+  whatsapp:
+    considerations:
+      - "Session can be invalidated by WhatsApp"
+      - "Multi-device session persists locally"
+    risks:
+      - "Session hijacking if files exposed"
+      - "Account ban if TOS violated"
+
+  slack:
+    considerations:
+      - "Tokens can be rotated via API"
+      - "User tokens are more powerful than bot tokens"
+    scopes:
+      - "Request minimum necessary scopes"
+      - "Prefer bot tokens over user tokens"
+
+  signal:
+    considerations:
+      - "Phone number required"
+      - "Linked device to primary"
+    privacy:
+      - "End-to-end encrypted"
+      - "No centralized user directory"
+
+# Security Audit Points
+audit:
+  regular_checks:
+    - "Review pairing approvals"
+    - "Audit allowlist entries"
+    - "Verify credential permissions"
+    - "Check for expired sessions"
+
+  commands:
+    status: "gimli channels status --probe"
+    doctor: "gimli doctor"
+    pairing_review: "gimli pairing list"
+
+  log_locations:
+    gateway: "/tmp/gimli-gateway.log or systemd journal"
+    credential_access: "Not logged by default"
+
+# Incident Response
+incident_response:
+  token_compromise:
+    steps:
+      - "Revoke/regenerate token immediately"
+      - "Update configuration"
+      - "Restart gateway"
+      - "Review recent activity"
+    per_channel:
+      telegram: "@BotFather /revoke then /token"
+      discord: "Developer Portal > Reset Token"
+      slack: "Reinstall app"
+
+  session_hijack:
+    steps:
+      - "Delete session files"
+      - "Revoke sessions on platform"
+      - "Re-authenticate"
+      - "Review allowlists"
+
+  spam_attack:
+    steps:
+      - "Switch to allowlist mode temporarily"
+      - "Review pairing requests"
+      - "Block offending users"
+      - "Consider rate limiting"

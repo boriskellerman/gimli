@@ -371,3 +371,21 @@ export type { ProcessedLineMessage } from "../line/markdown-to-line.js";
 
 // Media utilities
 export { loadWebMedia, type WebMediaResult } from "../web/media.js";
+
+// Agent SDK - Programmatic agent execution
+export { query, queryOnce, queryWithCallback } from "../agent-sdk/index.js";
+export type {
+  AgentQueryOptions,
+  AgentQueryResult,
+  AgentMessage,
+  AgentMessageType,
+  AgentMessageBase,
+  AgentAssistantChunkMessage,
+  AgentAssistantMessage,
+  AgentToolCallMessage,
+  AgentToolResultMessage,
+  AgentReasoningMessage,
+  AgentResultMessage,
+  AgentErrorMessage,
+  AgentMessageCallback,
+} from "../agent-sdk/index.js";

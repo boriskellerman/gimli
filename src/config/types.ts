@@ -1,5 +1,6 @@
 // Split into focused modules to keep files small and improve edit locality.
 
+export * from "./types.adw.js";
 export * from "./types.agent-defaults.js";
 export * from "./types.agents.js";
 export * from "./types.approvals.js";

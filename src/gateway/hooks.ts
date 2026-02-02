@@ -14,6 +14,8 @@ export type HooksConfigResolved = {
   token: string;
   maxBodyBytes: number;
   mappings: HookMappingResolved[];
+  /** GitHub webhook secret for signature verification */
+  githubWebhookSecret?: string;
 };
 
 export function resolveHooksConfig(cfg: GimliConfig): HooksConfigResolved | null {
@@ -33,11 +35,13 @@ export function resolveHooksConfig(cfg: GimliConfig): HooksConfigResolved | null
       ? cfg.hooks.maxBodyBytes
       : DEFAULT_HOOKS_MAX_BODY_BYTES;
   const mappings = resolveHookMappings(cfg.hooks);
+  const githubWebhookSecret = cfg.hooks?.github?.webhookSecret?.trim() || undefined;
   return {
     basePath: trimmed,
     token,
     maxBodyBytes,
     mappings,
+    githubWebhookSecret,
   };
 }
 
@@ -65,6 +69,18 @@ export async function readJsonBody(
   req: IncomingMessage,
   maxBytes: number,
 ): Promise<{ ok: true; value: unknown } | { ok: false; error: string }> {
+  const result = await readJsonBodyWithRaw(req, maxBytes);
+  if (!result.ok) return result;
+  return { ok: true, value: result.value };
+}
+
+/**
+ * Read JSON body and also return the raw string for signature verification.
+ */
+export async function readJsonBodyWithRaw(
+  req: IncomingMessage,
+  maxBytes: number,
+): Promise<{ ok: true; value: unknown; raw: string } | { ok: false; error: string }> {
   return await new Promise((resolve) => {
     let done = false;
     let total = 0;
@@ -85,12 +101,12 @@ export async function readJsonBody(
       done = true;
       const raw = Buffer.concat(chunks).toString("utf-8").trim();
       if (!raw) {
-        resolve({ ok: true, value: {} });
+        resolve({ ok: true, value: {}, raw: "" });
         return;
       }
       try {
         const parsed = JSON.parse(raw) as unknown;
-        resolve({ ok: true, value: parsed });
+        resolve({ ok: true, value: parsed, raw });
       } catch (err) {
         resolve({ ok: false, error: String(err) });
       }

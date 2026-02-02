@@ -1,0 +1,287 @@
+# Authentication Expertise
+# Mental model for device auth, tokens, and security
+
+version: 1
+domain: authentication
+updated: 2026-02-01
+
+mental_model:
+  name: Gateway Authentication System
+  description: |
+    The gateway uses a multi-layered authentication system:
+    - Device identity (Ed25519 keypairs)
+    - Challenge-response authentication
+    - Token-based session persistence
+    - Role-based access control
+
+device_identity:
+  description: |
+    Each client device has a unique cryptographic identity.
+    This enables device-level trust and token binding.
+
+  keypair:
+    algorithm: Ed25519
+    private_key:
+      location: "~/.gimli/device-identity/private.pem"
+      format: PEM-encoded PKCS#8
+    public_key:
+      location: "~/.gimli/device-identity/public.pem"
+      format: PEM-encoded SPKI
+    device_id:
+      derivation: SHA-256 hash of public key
+      format: Base64URL (truncated)
+
+  generation:
+    trigger: First connection attempt
+    steps:
+      - Check for existing keypair
+      - Generate Ed25519 keypair if missing
+      - Derive device ID from public key
+      - Store in device-identity directory
+
+  code_reference: |
+    loadOrCreateDeviceIdentity() in src/infra/device-identity.ts
+
+challenge_response:
+  description: |
+    Gateway issues a cryptographic challenge to verify device ownership.
+
+  flow:
+    - name: Challenge
+      gateway_action: Send connect.challenge event with nonce
+      payload: { nonce: string }
+
+    - name: Sign
+      client_action: |
+        Build payload containing:
+        - deviceId
+        - clientId (app identifier)
+        - clientMode (backend, operator, probe)
+        - role (operator, viewer, etc.)
+        - scopes (permissions requested)
+        - signedAtMs (timestamp)
+        - token (if already have one)
+        - nonce (from challenge)
+
+        Sign payload with private key using Ed25519.
+
+    - name: Connect
+      client_action: |
+        Send connect request with:
+        - device.id: deviceId
+        - device.publicKey: Base64URL-encoded public key
+        - device.signature: Base64URL-encoded signature
+        - device.signedAt: timestamp
+        - device.nonce: the challenge nonce
+
+    - name: Verify
+      gateway_action: |
+        - Verify signature against public key
+        - Check nonce matches issued challenge
+        - Check timestamp within acceptable window
+        - Validate device is paired (if pairing required)
+
+  code_reference: |
+    buildDeviceAuthPayload() in src/gateway/device-auth.ts
+    signDevicePayload() in src/infra/device-identity.ts
+
+token_management:
+  description: |
+    After successful authentication, gateway issues tokens
+    for subsequent connections.
+
+  device_token:
+    purpose: Bypass challenge for future connections
+    lifetime: "Configurable (default: long-lived)"
+    storage:
+      location: "~/.gimli/device-auth/"
+      format: JSON with token, role, scopes
+
+  token_flow:
+    initial_auth:
+      - Device authenticates via challenge-response
+      - Gateway issues deviceToken in HelloOk.auth
+      - Client stores token for future use
+
+    subsequent_auth:
+      - Client includes token in connect.auth.token
+      - Gateway verifies token
+      - Skips challenge if token valid
+
+  token_rotation:
+    trigger: Security concern or scheduled rotation
+    method: device.token.rotate RPC
+    steps:
+      - Request rotation with current token
+      - Gateway invalidates old token
+      - Issues new token
+      - Client updates stored token
+
+  token_revocation:
+    trigger: Device compromised or deauthorized
+    method: device.token.revoke RPC
+    steps:
+      - Identify token to revoke
+      - Gateway invalidates token
+      - Device must re-pair
+
+  code_reference: |
+    storeDeviceAuthToken() in src/infra/device-auth-store.ts
+    loadDeviceAuthToken() in src/infra/device-auth-store.ts
+
+pairing:
+  description: |
+    New devices must be approved before they can connect.
+    This provides a trust boundary for new clients.
+
+  dm_policy:
+    configuration: gimli.json -> gateway.dmPolicy
+    values:
+      open: Any device can connect (legacy, less secure)
+      pairing: Devices must be approved first (recommended)
+
+  pairing_flow:
+    - name: Request
+      client_action: Connect with valid device identity
+      gateway_action: |
+        If device not paired:
+        - Create pairing request
+        - Reject connection with "device not paired"
+        - Notify owner of pending request
+
+    - name: Approval
+      owner_action: |
+        Review pairing request:
+        - Device ID
+        - Client name/version
+        - Request time
+        Approve or reject via CLI or UI
+
+    - name: Completion
+      gateway_action: |
+        If approved:
+        - Add device to paired list
+        - Store device public key
+        - Allow future connections
+
+        If rejected:
+        - Remove pairing request
+        - Device remains unauthorized
+
+  cli_commands:
+    list: gimli pairing list
+    approve: gimli pairing approve <deviceId>
+    reject: gimli pairing reject <deviceId>
+
+  rpc_methods:
+    - device.pair.list
+    - device.pair.approve
+    - device.pair.reject
+
+roles_and_scopes:
+  description: |
+    Access control is based on roles and scopes.
+
+  roles:
+    operator:
+      description: Full control over gateway
+      default_scopes: [operator.admin]
+
+    viewer:
+      description: Read-only access
+      default_scopes: [sessions.read, config.read]
+
+    agent:
+      description: Agent execution context
+      default_scopes: [agent.execute, tools.use]
+
+  scopes:
+    operator.admin: Full administrative access
+    sessions.read: Read session data
+    sessions.write: Modify sessions
+    config.read: Read configuration
+    config.write: Modify configuration
+    agent.execute: Run agent
+    tools.use: Use agent tools
+    channels.manage: Manage channel connections
+
+  enforcement:
+    location: Gateway RPC handlers
+    pattern: Check scopes before executing method
+
+client_modes:
+  description: Different connection modes for different use cases
+
+  modes:
+    backend:
+      description: Backend service connection
+      use_case: CLI tools, integrations
+      capabilities: Full RPC access
+
+    operator:
+      description: Operator console
+      use_case: macOS app, control interfaces
+      capabilities: Full control + events
+
+    probe:
+      description: Health check connection
+      use_case: Monitoring, status checks
+      capabilities: Limited to status methods
+
+    viewer:
+      description: Read-only viewer
+      use_case: Dashboards, observers
+      capabilities: Read-only access
+
+tls_security:
+  description: |
+    For remote connections, TLS provides transport security.
+    Fingerprint pinning prevents MITM attacks.
+
+  fingerprint_verification:
+    purpose: Verify gateway identity
+    flow:
+      - Client configured with expected fingerprint
+      - Connection uses wss:// (TLS)
+      - Client extracts server certificate fingerprint
+      - Compares against expected fingerprint
+      - Rejects if mismatch
+
+  fingerprint_format:
+    algorithm: SHA-256
+    format: Hex string, colon-separated
+    example: "AA:BB:CC:DD:..."
+
+  code_reference: |
+    validateTlsFingerprint() in src/gateway/client.ts
+    normalizeFingerprint() in src/infra/tls/fingerprint.ts
+
+security_best_practices:
+  - Enable dmPolicy="pairing" for new devices
+  - Use TLS fingerprint for remote connections
+  - Rotate tokens periodically
+  - Revoke tokens for compromised devices
+  - Use minimal scopes for each client
+  - Monitor pairing requests
+  - Keep device keys secure (proper file permissions)
+
+troubleshooting:
+  device_not_paired:
+    cause: New device hasn't been approved
+    fix: Check `gimli pairing list`, approve device
+
+  token_expired:
+    cause: Device token invalidated
+    fix: Re-authenticate via challenge-response
+
+  signature_invalid:
+    cause: Wrong private key or corrupted
+    fix: Regenerate device identity, re-pair
+
+  fingerprint_mismatch:
+    cause: Wrong gateway or MITM attempt
+    fix: Verify gateway fingerprint, update config
+
+  permission_denied:
+    cause: Missing required scope
+    fix: Check role/scopes, request appropriate access

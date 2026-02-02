@@ -1,0 +1,388 @@
+# Channel Expert - Architecture Mental Model
+#
+# This YAML encodes the comprehensive understanding of Gimli's messaging channel architecture.
+# Agents load this expertise to make informed decisions about channel operations.
+#
+# TAC Pattern: Act -> Learn -> Reuse
+# Last synced: 2026-02-02
+# Source files analyzed: src/channels/registry.ts, src/channels/plugins/types.plugin.ts,
+#                        src/channels/plugins/types.core.ts, src/routing/resolve-route.ts
+
+version: "1.0"
+expert: channel
+domain: gimli-messaging-channels
+updated_at: "2026-02-02T00:00:00Z"
+
+# Overview of the channel architecture
+architecture:
+  description: |
+    Gimli's messaging channel system is a plugin-based architecture that enables
+    communication across 30+ messaging platforms. Each channel is implemented as
+    a ChannelPlugin with standardized adapters for configuration, messaging,
+    security, and gateway integration. The system prioritizes:
+    - Unified API across heterogeneous platforms
+    - Security-first design with DM pairing
+    - Multi-account support per channel
+    - Extensibility via plugin discovery
+
+  design_principles:
+    - name: unified_plugin_contract
+      description: "All channels implement ChannelPlugin interface"
+      rationale: "Consistent API enables shared tooling and routing"
+
+    - name: adapter_composition
+      description: "Optional adapters for capabilities (threading, streaming, etc.)"
+      rationale: "Channels only implement what they support"
+
+    - name: security_first
+      description: "DM pairing by default, allowlists for groups"
+      rationale: "Never accept messages from unknown senders without explicit approval"
+
+    - name: multi_account
+      description: "Each channel supports multiple named accounts"
+      rationale: "Separate work/personal, multiple bots, per-client configurations"
+
+    - name: lazy_loading
+      description: "Channel plugins loaded on demand via registry"
+      rationale: "Avoid loading unused channels and their dependencies"
+
+  core_components:
+    channel_registry:
+      location: src/channels/registry.ts
+      purpose: "Channel metadata, aliases, and normalization"
+      exports:
+        - CHAT_CHANNEL_ORDER
+        - CHANNEL_ALIASES
+        - normalizeChatChannelId
+        - normalizeAnyChannelId
+
+    channel_plugin:
+      location: src/channels/plugins/types.plugin.ts
+      purpose: "Plugin contract definition"
+      key_type: ChannelPlugin
+
+    channel_capabilities:
+      location: src/channels/plugins/types.core.ts
+      purpose: "Capability flags and adapter types"
+      key_types:
+        - ChannelCapabilities
+        - ChannelMeta
+        - ChannelAccountSnapshot
+
+    routing:
+      location: src/routing/resolve-route.ts
+      purpose: "Agent and session resolution for messages"
+      key_function: resolveAgentRoute
+
+# Channel plugin contract
+plugin_contract:
+  required_fields:
+    - id: "ChannelId - unique identifier"
+    - meta: "ChannelMeta - display info, docs path, blurb"
+    - capabilities: "ChannelCapabilities - feature flags"
+    - config: "ChannelConfigAdapter - account resolution"
+
+  optional_adapters:
+    - name: onboarding
+      type: ChannelOnboardingAdapter
+      purpose: "CLI wizard hooks for setup"
+
+    - name: setup
+      type: ChannelSetupAdapter
+      purpose: "Account setup and validation"
+
+    - name: pairing
+      type: ChannelPairingAdapter
+      purpose: "DM pairing code management"
+
+    - name: security
+      type: ChannelSecurityAdapter
+      purpose: "DM policy and allowlist resolution"
+
+    - name: groups
+      type: ChannelGroupAdapter
+      purpose: "Group membership and context"
+
+    - name: mentions
+      type: ChannelMentionAdapter
+      purpose: "Mention stripping and formatting"
+
+    - name: outbound
+      type: ChannelOutboundAdapter
+      purpose: "Message sending to channel"
+
+    - name: status
+      type: ChannelStatusAdapter
+      purpose: "Account status and probing"
+
+    - name: gateway
+      type: ChannelGatewayAdapter
+      purpose: "Gateway integration and message handling"
+
+    - name: auth
+      type: ChannelAuthAdapter
+      purpose: "Authentication flows"
+
+    - name: elevated
+      type: ChannelElevatedAdapter
+      purpose: "Elevated permission operations"
+
+    - name: commands
+      type: ChannelCommandAdapter
+      purpose: "Native slash commands"
+
+    - name: streaming
+      type: ChannelStreamingAdapter
+      purpose: "Streaming message coalescing"
+
+    - name: threading
+      type: ChannelThreadingAdapter
+      purpose: "Thread context and reply handling"
+
+    - name: messaging
+      type: ChannelMessagingAdapter
+      purpose: "Target normalization and formatting"
+
+    - name: agentPrompt
+      type: ChannelAgentPromptAdapter
+      purpose: "Channel-specific prompt hints"
+
+    - name: directory
+      type: ChannelDirectoryAdapter
+      purpose: "User/group directory lookup"
+
+    - name: resolver
+      type: ChannelResolverAdapter
+      purpose: "Peer resolution"
+
+    - name: actions
+      type: ChannelMessageActionAdapter
+      purpose: "Message actions (reactions, polls)"
+
+    - name: heartbeat
+      type: ChannelHeartbeatAdapter
+      purpose: "Connection health monitoring"
+
+    - name: agentTools
+      type: ChannelAgentToolFactory
+      purpose: "Channel-owned agent tools"
+
+# Channel capabilities matrix
+capabilities:
+  chat_types:
+    - direct: "One-on-one DMs"
+    - group: "Multi-participant group chats"
+    - channel: "Broadcast channels (Telegram, Discord)"
+    - thread: "Threaded conversations"
+
+  feature_flags:
+    - polls: "Create and manage polls"
+    - reactions: "Add emoji reactions to messages"
+    - edit: "Edit sent messages"
+    - unsend: "Delete/recall sent messages"
+    - reply: "Reply to specific messages"
+    - effects: "Message effects (iMessage, etc.)"
+    - groupManagement: "Add/remove group members"
+    - threads: "Thread-based conversations"
+    - media: "Send images, video, audio, files"
+    - nativeCommands: "Platform slash commands"
+    - blockStreaming: "Channel blocks streaming (use coalescing)"
+
+  channel_matrix:
+    telegram:
+      chatTypes: [direct, group, channel]
+      reactions: limited
+      threads: false
+      media: true
+      edit: true
+      nativeCommands: true
+      blockStreaming: true
+
+    whatsapp:
+      chatTypes: [direct, group]
+      reactions: true
+      threads: limited
+      media: true
+      edit: true
+      unsend: true
+
+    discord:
+      chatTypes: [direct, group, channel, thread]
+      reactions: true
+      threads: true
+      media: true
+      edit: true
+      nativeCommands: true
+
+    slack:
+      chatTypes: [direct, group, channel, thread]
+      reactions: true
+      threads: true
+      media: true
+      edit: true
+
+    signal:
+      chatTypes: [direct, group]
+      reactions: false
+      threads: false
+      media: true
+      edit: true
+      unsend: true
+
+    imessage:
+      chatTypes: [direct, group]
+      reactions: true
+      threads: true
+      media: true
+      effects: true
+
+# Routing system
+routing:
+  description: |
+    The routing system maps incoming messages to agents and sessions.
+    It uses bindings configured in gimli.json to determine which agent
+    handles which conversations, with fallback to the default agent.
+
+  resolution_priority:
+    - binding.peer: "Specific user/group binding (highest priority)"
+    - binding.guild: "Discord server binding"
+    - binding.team: "Microsoft Teams binding"
+    - binding.account: "Account-level binding"
+    - binding.channel: "Channel-level binding"
+    - default: "Default agent (lowest priority)"
+
+  session_key_format: "agent:<agentId>:<channel>:<scope>:<peerId>"
+
+  dm_scope_options:
+    main: "All DMs share one session"
+    per-peer: "Each user gets isolated session"
+    per-channel-peer: "Per channel + user"
+    per-account-channel-peer: "Most isolated (per account + channel + user)"
+
+  binding_example: |
+    {
+      "channels": {
+        "discord": {
+          "routes": [{
+            "match": { "guildId": "123456789" },
+            "agentId": "work-bot"
+          }]
+        }
+      }
+    }
+
+# Security model
+security:
+  dm_policy:
+    pairing:
+      description: "Unknown senders receive pairing code"
+      flow:
+        - "User sends first message"
+        - "System replies with pairing code"
+        - "User runs: gimli pairing approve <channel> <code>"
+        - "Future messages allowed"
+      commands:
+        - "gimli pairing list"
+        - "gimli pairing approve <channel> <code>"
+        - "gimli pairing reject <channel> <code>"
+
+    allowlist:
+      description: "Only pre-approved senders can message"
+      config_path: "channels.<channel>.accounts.<id>.allowFrom"
+
+    open:
+      description: "Accept all messages (NOT RECOMMENDED)"
+      warning: "Only use for internal/controlled environments"
+
+  group_gating:
+    mention_required: "Bot must be @mentioned in groups"
+    allowUnmentionedGroups: "Config flag to skip mention requirement"
+    groupChannels: "Allowlist of group IDs for unprompted listening"
+
+  credentials:
+    storage: "~/.gimli/credentials/"
+    pairing_files: "<channel>-pairing.json"
+    allowlist_files: "<channel>-allowFrom.json"
+    permissions: "0o600 (owner read/write only)"
+
+# Account management
+accounts:
+  structure: |
+    {
+      "channels": {
+        "<channel>": {
+          "accounts": {
+            "<accountId>": {
+              "enabled": true,
+              "botToken": "...",
+              "dmPolicy": "pairing",
+              "allowFrom": []
+            }
+          }
+        }
+      }
+    }
+
+  multi_account_features:
+    - "Work vs personal separation"
+    - "Multiple bots per platform"
+    - "Per-client routing"
+    - "Failover between accounts"
+
+  account_states:
+    linked: "Connected and authenticated"
+    not_linked: "Needs authentication"
+    configured: "Has config but not connected"
+    not_configured: "No config present"
+    enabled: "Active in gateway"
+    disabled: "Explicitly disabled"
+
+  common_config_fields:
+    - botToken: "Bot API token"
+    - appToken: "App-level token (Slack)"
+    - enabled: "Whether account is active"
+    - dmPolicy: "DM handling policy"
+    - allowFrom: "Allowlist entries"
+    - groupChannels: "Allowed group IDs"
+    - allowUnmentionedGroups: "Skip mention in groups"
+
+# Plugin discovery
+plugin_discovery:
+  sources:
+    bundled: "extensions/* in Gimli repo"
+    workspace: "User's workspace plugins"
+    global: "npm global installs"
+    config: "Explicitly listed in config"
+
+  manifest_structure:
+    package_json: |
+      {
+        "gimli": {
+          "extensions": ["./index.ts"]
+        }
+      }
+
+  extension_directory: "extensions/<channel>/"
+
+  bundled_channels:
+    - telegram
+    - whatsapp
+    - discord
+    - slack
+    - googlechat
+    - signal
+    - imessage
+
+  extension_channels:
+    - msteams
+    - matrix
+    - line
+    - mattermost
+    - nextcloud-talk
+    - nostr
+    - tlon
+    - twitch
+    - zalo
+    - zalouser
+    - bluebubbles
+    - voice-call

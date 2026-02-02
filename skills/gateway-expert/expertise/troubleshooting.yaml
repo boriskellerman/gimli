@@ -1,0 +1,373 @@
+# Troubleshooting Expertise
+# Common issues, diagnostic patterns, and solutions
+
+version: 1
+domain: troubleshooting
+updated: 2026-02-01
+
+mental_model:
+  name: Gateway Troubleshooting Guide
+  description: |
+    Systematic approach to diagnosing and resolving gateway issues.
+    Covers connection, authentication, sessions, channels, and performance.
+
+diagnostic_commands:
+  gateway_health:
+    - command: gimli gateway status
+      purpose: Check if gateway is running
+      output: Running state, port, uptime
+
+    - command: gimli doctor
+      purpose: Comprehensive health check
+      output: Issues found and fixes suggested
+
+    - command: ss -ltnp | grep 18789
+      purpose: Verify port binding
+      output: Process listening on gateway port
+
+    - command: gimli logs --tail
+      purpose: View recent gateway logs
+      output: Log entries with timestamps
+
+  connection_diagnostics:
+    - command: gimli channels status
+      purpose: Check channel connection status
+      output: Status of each configured channel
+
+    - command: gimli channels status --probe
+      purpose: Active health check of channels
+      output: Detailed probe results
+
+    - command: curl -s http://127.0.0.1:18789
+      purpose: Check HTTP endpoint (if enabled)
+      output: Gateway info or connection refused
+
+  session_diagnostics:
+    - command: gimli sessions list
+      purpose: List all sessions
+      output: Session keys, timestamps, token counts
+
+    - command: gimli sessions preview <key>
+      purpose: View session history
+      output: Recent messages in session
+
+    - command: ls -la ~/.gimli/sessions/
+      purpose: Check session storage
+      output: Session files and sizes
+
+  configuration_diagnostics:
+    - command: gimli config get gateway
+      purpose: View gateway configuration
+      output: Gateway settings
+
+    - command: gimli config get channels
+      purpose: View channel configuration
+      output: Per-channel settings
+
+    - command: cat ~/.gimli/gimli.json
+      purpose: Raw configuration file
+      output: Full JSON configuration
+
+common_issues:
+  connection_refused:
+    symptoms:
+      - '"Connection refused" error'
+      - Cannot connect to gateway
+      - CLI commands timeout
+
+    causes:
+      - Gateway not running
+      - Wrong port
+      - Gateway crashed
+
+    diagnosis:
+      - step: Check gateway status
+        command: gimli gateway status
+        expected: "Gateway is running on port 18789"
+
+      - step: Check port binding
+        command: ss -ltnp | grep 18789
+        expected: Process listening on port
+
+      - step: Check logs for crash
+        command: gimli logs --tail 50
+        expected: Look for error messages
+
+    solutions:
+      gateway_not_running:
+        command: gimli gateway run --port 18789
+        description: Start the gateway
+
+      gateway_crashed:
+        steps:
+          - Check logs for crash reason
+          - Fix underlying issue
+          - Restart gateway
+
+  authentication_failed:
+    symptoms:
+      - '"Auth failed" error'
+      - '"Device not paired" message'
+      - Connection closed after hello
+
+    causes:
+      - Invalid token
+      - Device not approved
+      - Wrong credentials
+
+    diagnosis:
+      - step: Check device identity
+        command: ls -la ~/.gimli/device-identity/
+        expected: private.pem and public.pem exist
+
+      - step: Check pairing status
+        command: gimli pairing list
+        expected: Device in approved list
+
+      - step: Check token storage
+        command: ls -la ~/.gimli/device-auth/
+        expected: Token files present
+
+    solutions:
+      device_not_paired:
+        steps:
+          - Run `gimli pairing list` on gateway host
+          - Find pending request
+          - Run `gimli pairing approve <id>`
+
+      invalid_token:
+        steps:
+          - Clear device auth: rm ~/.gimli/device-auth/*
+          - Reconnect (will re-authenticate)
+
+      wrong_credentials:
+        steps:
+          - Check GIMLI_GATEWAY_TOKEN env var
+          - Verify password if using password auth
+
+  session_not_found:
+    symptoms:
+      - '"Session not found" error'
+      - Messages not persisting
+      - History missing
+
+    causes:
+      - Invalid session key
+      - Session deleted
+      - Wrong agent ID
+
+    diagnosis:
+      - step: List sessions
+        command: gimli sessions list
+        expected: See available sessions
+
+      - step: Check session key format
+        pattern: "agent:<agentId>:<channel>:<type>:<id>"
+        expected: Properly formatted key
+
+      - step: Check session store
+        command: ls ~/.gimli/sessions/
+        expected: sessions.json exists
+
+    solutions:
+      invalid_key:
+        description: Use canonical session key format
+        example: "agent:pi:telegram:direct:123456"
+
+      session_deleted:
+        description: Session was removed, start new conversation
+
+      wrong_agent:
+        steps:
+          - Check default agent ID
+          - Use full session key with correct agent
+
+  channel_not_connecting:
+    symptoms:
+      - 'Channel shows "disconnected"'
+      - Messages not received
+      - '"Channel error" in logs'
+
+    causes:
+      - Missing credentials
+      - Invalid token
+      - Network issues
+      - Platform API changes
+
+    diagnosis:
+      - step: Check channel status
+        command: gimli channels status --probe --channel <channel>
+        expected: Connection details
+
+      - step: Check credentials
+        command: gimli config get channels.<channel>
+        expected: Token/credentials configured
+
+      - step: Check logs
+        command: gimli logs --tail 50
+        expected: Channel-specific errors
+
+    solutions:
+      missing_credentials:
+        steps:
+          - Configure channel credentials
+          - Example: gimli config set channels.telegram.botToken "..."
+
+      invalid_token:
+        steps:
+          - Regenerate token on platform
+          - Update configuration
+          - Restart gateway
+
+      network_issues:
+        steps:
+          - Check internet connectivity
+          - Verify firewall rules
+          - Test platform API directly
+
+  messages_not_delivered:
+    symptoms:
+      - Bot not responding
+      - Messages dropped
+      - No agent activity
+
+    causes:
+      - Sender not in allowlist
+      - Mention gating active
+      - Channel misconfigured
+
+    diagnosis:
+      - step: Check allowlist
+        command: gimli config get channels.<channel>.allowFrom
+        expected: Sender ID in list
+
+      - step: Check mention gating
+        command: gimli config get channels.<channel>.group.requireMention
+        expected: true/false
+
+      - step: Check logs for routing
+        command: gimli logs --tail 100 | grep -i "message\|route"
+        expected: Message processing logs
+
+    solutions:
+      not_in_allowlist:
+        command: gimli config set channels.<channel>.allowFrom '["sender_id"]'
+        description: Add sender to allowlist
+
+      mention_required:
+        options:
+          - Mention bot in message
+          - Disable: gimli config set channels.<channel>.group.requireMention false
+
+  performance_issues:
+    symptoms:
+      - Slow responses
+      - High memory usage
+      - Gateway lag
+
+    causes:
+      - Large sessions
+      - Many active connections
+      - Resource constraints
+
+    diagnosis:
+      - step: Check session sizes
+        command: ls -lah ~/.gimli/sessions/transcripts/
+        expected: Reasonable file sizes
+
+      - step: Check memory usage
+        command: ps aux | grep gimli
+        expected: Memory usage within limits
+
+      - step: Check connection count
+        description: Look at gateway logs for active connections
+
+    solutions:
+      large_sessions:
+        steps:
+          - Compact sessions: gimli sessions compact <key>
+          - Reset old sessions: gimli sessions reset <key>
+
+      many_connections:
+        steps:
+          - Review connected clients
+          - Disconnect unused clients
+          - Consider load balancing
+
+      resource_constraints:
+        steps:
+          - Increase available memory
+          - Reduce concurrent sessions
+          - Optimize model selection
+
+debugging_patterns:
+  connection_debugging:
+    - Enable verbose logging: gimli gateway run --verbose
+    - Monitor WebSocket frames: Check logs for frame details
+    - Test with minimal client: Use wscat or similar
+
+  session_debugging:
+    - Print session key: Log the resolved session key
+    - Check transcript: Read transcript JSONL file
+    - Verify store: Inspect sessions.json
+
+  channel_debugging:
+    - Probe channel: gimli channels status --probe
+    - Test credentials: Platform-specific verification
+    - Monitor inbound: Watch logs for incoming messages
+
+  authentication_debugging:
+    - Check device ID: Compare across client and gateway
+    - Verify signature: Manual verification of signed payload
+    - Token inspection: Decode and check token claims
+
+log_analysis:
+  log_locations:
+    unified: "~/.gimli/logs/"
+    gateway: Gateway stdout when running
+    macos: Console.app, filter by "gimli"
+
+  log_patterns:
+    connection: '"client connected", "client disconnected"'
+    authentication: '"auth failed", "device paired"'
+    session: '"session resolved", "session not found"'
+    channel: '"channel connected", "channel error"'
+    agent: '"agent started", "agent completed"'
+
+  grep_examples:
+    - command: gimli logs | grep -i error
+      purpose: Find all errors
+
+    - command: gimli logs | grep "session:"
+      purpose: Session-related logs
+
+    - command: gimli logs | grep "channel:"
+      purpose: Channel-related logs
+
+escalation_path:
+  level_1:
+    - Run `gimli doctor`
+    - Check obvious configuration issues
+    - Restart gateway
+
+  level_2:
+    - Enable verbose logging
+    - Analyze log patterns
+    - Check resource usage
+
+  level_3:
+    - Review source code for relevant section
+    - Check for known issues in GitHub
+    - Create minimal reproduction
+
+  level_4:
+    - File issue on GitHub with reproduction
+    - Include logs and configuration (sanitized)
+    - Describe expected vs actual behavior
+
+prevention:
+  - Run `gimli doctor` after configuration changes
+  - Monitor gateway logs for warnings
+  - Keep sessions compacted
+  - Update to latest version regularly
+  - Backup configuration before major changes

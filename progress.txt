@@ -1,0 +1,65 @@
+# Progress: Test sub-agent delegation patterns
+
+## Summary
+Created comprehensive test suite for sub-agent delegation patterns in the Gimli codebase.
+
+## Completed Work
+
+### New Test File Created
+- **File**: `src/agents/subagent-delegation-patterns.test.ts`
+- **Tests**: 23 tests covering the full sub-agent delegation system
+
+### Test Coverage Areas
+
+1. **Delegation Chain Prevention** (3 tests)
+   - Prevents sub-agents from spawning further sub-agents (infinite chain prevention)
+   - Allows delegation from main agent sessions
+   - Allows delegation from channel-based sessions
+
+2. **Run Lifecycle Management** (4 tests)
+   - Registration and tracking in the registry
+   - Lifecycle start event handling
+   - Lifecycle end event and cleanup triggering
+   - Lifecycle error event handling with outcome tracking
+
+3. **Cleanup Strategies** (2 tests)
+   - Session deletion when cleanup mode is "delete"
+   - Session preservation when cleanup mode is "keep"
+
+4. **Timeout Handling** (3 tests)
+   - Passes runTimeoutSeconds to agent calls
+   - Supports legacy timeoutSeconds parameter
+   - Prefers runTimeoutSeconds over legacy parameter
+
+5. **Registry Operations** (3 tests)
+   - Lists runs filtered by requester session
+   - Releases runs from registry
+   - Graceful handling of non-existent run releases
+
+6. **Requester Origin Propagation** (2 tests)
+   - Captures requester origin from agent context
+   - Normalizes whitespace in origin fields
+
+7. **System Prompt Generation** (2 tests)
+   - Includes task description in subagent system prompt
+   - Includes requester session context in prompt
+
+8. **Lane Assignment** (1 test)
+   - Verifies sub-agents spawn on the dedicated "subagent" lane
+
+9. **Deliver Flag** (1 test)
+   - Confirms deliver=false for sub-agent runs (prevents external delivery)
+
+10. **Group Context Propagation** (1 test)
+    - Forwards groupId, groupChannel, groupSpace to sub-agents
+
+11. **Registry Persistence** (1 test)
+    - Generates unique child session keys per spawn (UUID-based)
+
+## Verification
+- All 23 tests passing
+- Linting clean (0 errors, 0 warnings)
+- Formatting applied
+
+## Files Changed
+- Created: `src/agents/subagent-delegation-patterns.test.ts`

@@ -1,0 +1,77 @@
+name: Phase 11 - OpenClaw Deep Dive Research (Remaining Tasks)
+description: |
+  Complete the remaining web research tasks for Phase 11.
+  Focus on community projects, browser automation, voice capabilities, and competitor comparison.
+
+tasks:
+  # Group 1: Community & Browser Research (run in parallel)
+  - title: Research OpenClaw community projects and showcase
+    description: |
+      Search for community projects built on OpenClaw:
+      - Reddit discussions (r/openclaw, r/ClaudeAI, etc.)
+      - Hacker News threads
+      - Twitter/X posts about OpenClaw
+      - YouTube tutorials and demos
+      - Blog posts and case studies
+      - Discord community highlights
+
+      Document notable projects in docs/research/openclaw-community.md with:
+      - Project name and description
+      - GitHub links if available
+      - Use cases demonstrated
+      - Community reception
+    parallel_group: 1
+
+  - title: Research OpenClaw browser automation capabilities
+    description: |
+      Search for OpenClaw browser control features:
+      - Playwright integration details
+      - Chrome extension mode
+      - Browser profiles and isolation
+      - Screenshot and snapshot capabilities
+      - Form automation patterns
+      - Security considerations for browser tools
+
+      Document findings in docs/research/openclaw-browser.md
+    parallel_group: 1
+
+  - title: Research OpenClaw voice and phone capabilities
+    description: |
+      Search for voice/phone integration in OpenClaw:
+      - Vapi integration for phone calls
+      - Text-to-speech options and providers
+      - Voice note processing and transcription
+      - Phone bridge capabilities
+      - Wake word detection
+      - Real-time voice conversation patterns
+
+      Document findings in docs/research/openclaw-voice.md
+    parallel_group: 1
+
+  # Group 2: Comparison and Compilation
+  - title: Research OpenClaw vs competitors comparison
+    description: |
+      Search for comparisons between OpenClaw and other AI agent platforms:
+      - vs Claude Code (Anthropic's official CLI)
+      - vs Cursor (AI-first IDE)
+      - vs GitHub Copilot
+      - vs Aider, Continue, and other coding assistants
+      - Unique features and differentiators
+      - Pricing and deployment models
+
+      Document comparison matrix in docs/research/openclaw-comparison.md
+    parallel_group: 2
+
+  - title: Compile research into comprehensive summary
+    description: |
+      After all research is complete, create a comprehensive summary:
+      1. Read all files in docs/research/openclaw-*.md
+      2. Create docs/research/PHASE11-SUMMARY.md with:
+         - Executive summary of all findings
+         - Key recommendations for Gimli
+         - Priority actions (immediate, short-term, long-term)
+         - Links to detailed research documents
+      3. Include research timestamps and sources
+
+      This is the final compilation task.
+    parallel_group: 3

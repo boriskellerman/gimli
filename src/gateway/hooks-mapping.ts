@@ -75,6 +75,22 @@ const hookPresetMappings: Record<string, HookMappingConfig[]> = {
         "New email from {{messages[0].from}}\nSubject: {{messages[0].subject}}\n{{messages[0].snippet}}\n{{messages[0].body}}",
     },
   ],
+  github: [
+    {
+      id: "github-issue",
+      match: { path: "github" },
+      action: "agent",
+      wakeMode: "now",
+      name: "GitHub",
+      // Session key includes repo and issue/PR number for multi-turn conversations
+      sessionKey: "hook:github:{{repository.full_name}}:{{issue.number}}{{pull_request.number}}",
+      messageTemplate: `GitHub {{action}} on {{repository.full_name}}:
+{{#issue}}Issue #{{number}}: {{title}}
+{{body}}{{/issue}}{{#pull_request}}PR #{{number}}: {{title}}
+{{body}}{{/pull_request}}{{#comment}}Comment by {{user.login}}:
+{{body}}{{/comment}}`,
+    },
+  ],
 };
 
 const transformCache = new Map<string, HookTransformFn>();
@@ -103,6 +119,7 @@ type HookTransformFn = (
 export function resolveHookMappings(hooks?: HooksConfig): HookMappingResolved[] {
   const presets = hooks?.presets ?? [];
   const gmailAllowUnsafe = hooks?.gmail?.allowUnsafeExternalContent;
+  const githubConfig = hooks?.github;
   const mappings: HookMappingConfig[] = [];
   if (hooks?.mappings) mappings.push(...hooks.mappings);
   for (const preset of presets) {
@@ -113,6 +130,18 @@ export function resolveHookMappings(hooks?: HooksConfig): HookMappingResolved[] 
         ...presetMappings.map((mapping) => ({
           ...mapping,
           allowUnsafeExternalContent: gmailAllowUnsafe,
+        })),
+      );
+      continue;
+    }
+    // Apply GitHub-specific config overrides
+    if (preset === "github" && githubConfig) {
+      mappings.push(
+        ...presetMappings.map((mapping) => ({
+          ...mapping,
+          allowUnsafeExternalContent: githubConfig.allowUnsafeExternalContent,
+          model: githubConfig.model ?? mapping.model,
+          thinking: githubConfig.thinking ?? mapping.thinking,
         })),
       );
       continue;

@@ -1,0 +1,54 @@
+# Progress: Create MCP Server Connections
+
+## Task
+Create MCP server connections if beneficial (TAC Grade 3: Custom Tools)
+
+## Date
+2026-02-01
+
+## Summary
+Evaluated MCP server connections for Gimli and determined that dedicated Gimli-specific
+MCP servers are not immediately beneficial. The codebase already has comprehensive MCP
+integration through existing mechanisms.
+
+## Evaluation
+
+### Existing MCP Infrastructure
+1. **mcporter** - External MCP tool calling (used by `gimli docs` command)
+2. **ACP (Agent Client Protocol)** - IDE integration exposing Gimli as MCP-compatible agent
+3. **Claude Code Plugins** - 30+ MCP servers already enabled (GitHub, Playwright, etc.)
+
+### Why Dedicated Gimli MCP Servers Are Not Needed Now
+- Gateway health, channel status, and config access work via CLI (`gimli doctor`, etc.)
+- Agents can call CLI commands through bash tool
+- Session management already built into Pi agent tools
+- No cross-process or cross-language requirements currently
+
+### When MCP Would Be Beneficial (Future)
+- Cross-process communication with non-Gimli agents
+- Language-agnostic tooling (Python/Go callers)
+- Remote access without shell
+- Type-safe structured schemas
+
+## Files Created
+
+### docs/reference/MCP_INTEGRATION.md
+- Documents current MCP capabilities
+- Evaluation of Gimli-specific MCP needs
+- Guidance for adding MCP servers when beneficial
+- References to existing MCP infrastructure
+
+### .mcp.json
+- Minimal MCP configuration file
+- Documents the existing docs.gimli.bot MCP endpoint
+- Serves as template for future expansion
+
+## Recommendation
+No code changes needed at this time. The task explicitly says "if beneficial" and the
+evaluation shows existing infrastructure is sufficient. Documentation was added to
+guide future MCP integration when/if needs arise.
+
+## References
+- TAC Grade 3: Custom Tools (PRD.md)
+- mcporter skill: /skills/mcporter/SKILL.md
+- ACP documentation: /docs.acp.md

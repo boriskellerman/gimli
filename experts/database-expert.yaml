@@ -1,0 +1,558 @@
+# Database Expert - Gimli Data Layer Mental Model
+#
+# This YAML encodes the comprehensive understanding of Gimli's data layer.
+# Agents load this expertise to make informed decisions about data operations.
+#
+# TAC Pattern: Act -> Learn -> Reuse
+# Last synced: 2026-02-01
+# Source files analyzed: src/infra/sessions-store.ts, src/infra/memory-index.ts,
+#                        src/infra/reminder-store.ts, src/infra/auth-profiles-store.ts,
+#                        src/infra/encrypted-store.ts, src/infra/file-locking.ts
+
+version: "1.0"
+expert: database
+domain: gimli-data-layer
+updated_at: "2026-02-01T00:00:00Z"
+
+# Overview of the data layer architecture
+architecture:
+  description: |
+    Gimli uses a hybrid persistence strategy combining SQLite for structured/queryable data
+    and JSON files for human-editable configuration and state. This design prioritizes:
+    - Simplicity and portability (no external database server)
+    - User editability (JSON/JSON5 can be hand-edited)
+    - Atomic operations via file locking
+    - Performance via strategic caching
+
+  design_principles:
+    - name: hybrid_persistence
+      description: "SQLite for structured queries, JSON for configuration"
+      rationale: "Balances queryability with human editability"
+
+    - name: atomic_operations
+      description: "All state mutations protected by file locking or transactions"
+      rationale: "Ensures data integrity across concurrent access"
+
+    - name: least_privilege
+      description: "Config directories mode 0o700, files mode 0o600"
+      rationale: "Security-first default permissions"
+
+    - name: no_orm
+      description: "Direct SQL via Node.js sqlite module (DatabaseSync)"
+      rationale: "Lightweight, zero runtime overhead, full control"
+
+    - name: best_effort_resilience
+      description: "Gracefully degrade to defaults on parse failures"
+      rationale: "Never crash on corrupted user data"
+
+  technologies:
+    databases:
+      - name: sqlite3
+        module: "node:sqlite (DatabaseSync)"
+        usage: "Structured data, FTS, embeddings"
+        note: "Synchronous API - blocking I/O"
+
+      - name: sqlite-vec
+        type: extension
+        usage: "Vector similarity search for embeddings"
+
+    file_formats:
+      - name: json5
+        usage: "Sessions, config (allows comments, trailing commas)"
+
+      - name: json
+        usage: "Auth profiles, pairing, cron jobs"
+
+      - name: encrypted
+        algorithm: "AES-256-GCM"
+        key_derivation: "PBKDF2 with 600k iterations"
+        usage: "Secrets (bot tokens, OAuth credentials)"
+
+    concurrency:
+      library: "proper-lockfile"
+      pattern: "File-based mutex locking"
+      stale_detection: true
+      retry_strategy: "exponential backoff"
+
+# Data storage locations
+storage_locations:
+  base_directory: "~/.gimli/"
+
+  directories:
+    - path: "~/.gimli/agents/{agentId}/"
+      purpose: "Per-agent data (memory DB, auth profiles, sessions)"
+      permissions: "0o700"
+
+    - path: "~/.gimli/credentials/"
+      purpose: "Encrypted secrets and pairing data"
+      permissions: "0o700"
+
+    - path: "~/.gimli/sessions/"
+      purpose: "Session store JSON files"
+      permissions: "0o700"
+
+    - path: "~/.gimli/media/"
+      purpose: "Temporary media files (auto-cleanup)"
+      ttl: "2 minutes default"
+      max_size: "5MB per file"
+
+    - path: "~/.gimli/cron/"
+      purpose: "Scheduled job definitions"
+
+# Core data entities and their storage
+entities:
+  sessions:
+    storage_type: json5_file
+    location: "~/.gimli/sessions/sessions.json"
+    locking: file_lock
+    caching:
+      type: "in-memory"
+      ttl_seconds: 45
+
+    schema:
+      session_entry:
+        sessionId: string
+        updatedAt: timestamp
+        sessionFile: string
+        delivery_context:
+          channel: string
+          to: string
+          accountId: string
+          threadId: string
+        overrides:
+          model: string
+          authProfile: string
+          thinkingLevel: string
+          executionLevel: string
+        queue_config:
+          mode: string
+          cap: number
+          debounce: number
+        token_usage:
+          input: number
+          output: number
+        memory_metadata:
+          flushPoints: array
+          compactionCount: number
+
+    access_patterns:
+      - name: load_all
+        function: "loadSessionStore()"
+        uses_cache: true
+
+      - name: save_all
+        function: "saveSessionStore()"
+        pattern: "atomic write (temp file + rename)"
+
+      - name: update_single
+        function: "updateSessionStoreEntry()"
+        pattern: "read-modify-write with lock"
+
+  memory:
+    storage_type: sqlite
+    location: "~/.gimli/agents/{agentId}/memory.db"
+
+    tables:
+      - name: meta
+        purpose: "Embedding metadata (model, provider, dimensions)"
+        schema:
+          key: "TEXT PRIMARY KEY"
+          value: "TEXT"
+
+      - name: files
+        purpose: "File tracking for memory sources"
+        schema:
+          hash: "TEXT PRIMARY KEY"
+          path: "TEXT"
+          mtime: "INTEGER"
+          source: "TEXT (memory|sessions)"
+
+      - name: chunks
+        purpose: "Text chunks with line references"
+        schema:
+          id: "INTEGER PRIMARY KEY"
+          file_hash: "TEXT"
+          text: "TEXT"
+          start_line: "INTEGER"
+          end_line: "INTEGER"
+        indices:
+          - "idx_chunks_file_hash ON chunks(file_hash)"
+
+      - name: embedding_cache
+        purpose: "Provider-agnostic embedding deduplication"
+        schema:
+          text_hash: "TEXT PRIMARY KEY"
+          provider: "TEXT"
+          embedding: "BLOB"
+
+      - name: chunks_fts
+        type: "FTS5 virtual table"
+        purpose: "Full-text search over chunk text"
+        content_source: "chunks"
+
+      - name: chunks_vec
+        type: "sqlite-vec virtual table"
+        purpose: "Vector similarity search"
+        dimensions: "varies by embedding model"
+
+    access_class: "MemoryIndexManager"
+    initialization: "Lazy - created on first access"
+
+  reminders:
+    storage_type: sqlite
+    location: "~/.gimli/agents/{agentId}/reminders.db"
+
+    tables:
+      - name: reminders
+        schema:
+          id: "TEXT PRIMARY KEY"
+          agent_id: "TEXT NOT NULL"
+          content: "TEXT NOT NULL"
+          trigger_type: "TEXT (scheduled|recurring|context)"
+          cron_expression: "TEXT"
+          scheduled_at: "INTEGER"
+          context_keywords: "TEXT (JSON array)"
+          status: "TEXT (pending|triggered|completed|snoozed|cancelled)"
+          priority: "TEXT (urgent|normal|low)"
+          snoozed_until: "INTEGER"
+          snooze_count: "INTEGER DEFAULT 0"
+          created_at: "INTEGER"
+          updated_at: "INTEGER"
+        indices:
+          - "idx_reminders_agent_status ON reminders(agent_id, status)"
+          - "idx_reminders_priority ON reminders(priority)"
+          - "idx_reminders_trigger ON reminders(trigger_type, scheduled_at)"
+          - "idx_reminders_snooze ON reminders(snoozed_until)"
+
+      - name: reminder_feedback
+        purpose: "Track reminder effectiveness"
+        schema:
+          id: "TEXT PRIMARY KEY"
+          reminder_id: "TEXT"
+          feedback_type: "TEXT (completed|dismissed|snoozed|helpful|unhelpful)"
+          created_at: "INTEGER"
+
+      - name: reminder_effectiveness
+        purpose: "Computed metrics"
+        schema:
+          reminder_id: "TEXT PRIMARY KEY"
+          completion_rate: "REAL"
+          avg_response_time: "REAL"
+          snooze_frequency: "REAL"
+
+    access_class: "ReminderStore"
+    operations: "Full CRUD + bulk status updates"
+
+  auth_profiles:
+    storage_type: json_file
+    location: "~/.gimli/agents/{agentId}/auth-profiles.json"
+    locking: file_lock
+    versioning: true
+
+    schema:
+      version: number
+      profiles:
+        _type: "Record<string, Credential>"
+        credential_types:
+          - api_key
+          - oauth_with_refresh
+          - bearer_token
+      order:
+        _type: "Record<provider, profileId[]>"
+        purpose: "Per-provider profile precedence"
+      lastGood:
+        _type: "Record<provider, profileId>"
+        purpose: "Last successful profile"
+      usageStats:
+        rotation_state: "Round-robin position"
+        cooldowns: "Map of profile -> cooldown_until"
+        error_tracking: "Map of profile -> error_count"
+
+    access_patterns:
+      - name: rotation
+        description: "Round-robin rotation with cooldowns"
+        failure_handling: "Exponential backoff, failover to next"
+
+      - name: refresh
+        description: "OAuth token refresh before expiry"
+        pre_emptive: true
+
+  pairing:
+    storage_type: json_file
+    location: "~/.gimli/credentials/{channel}-pairing.json"
+    locking: file_lock
+
+    schema:
+      pending_requests:
+        code: string
+        requester: string
+        created_at: timestamp
+        expires_at: timestamp
+        metadata: object
+
+    cleanup: "Automatic expiry pruning on load"
+
+  allowlists:
+    storage_type: json_file
+    location: "~/.gimli/credentials/{channel}-allowFrom.json"
+    locking: file_lock
+
+    schema:
+      allowed_senders: "string[]"
+      allowed_groups: "string[]"
+
+  secrets:
+    storage_type: encrypted_file
+    location: "~/.gimli/credentials/*.enc"
+
+    encryption:
+      algorithm: "AES-256-GCM"
+      key_derivation: "PBKDF2"
+      iterations: 600000
+      salt: "random per encryption"
+      iv: "random per encryption"
+
+    security:
+      defensive_overwrite: "true (before deletion)"
+      permissions: "0o600"
+
+  cron_jobs:
+    storage_type: json_file
+    location: "~/.gimli/cron/jobs.json"
+    locking: none
+
+    schema:
+      version: number
+      jobs:
+        _type: "CronJob[]"
+        fields:
+          - id
+          - name
+          - schedule
+          - command
+          - enabled
+          - lastRun
+          - nextRun
+
+# Database migrations
+migrations:
+  strategy: "Idempotent ensure functions"
+  no_version_tracking: true
+
+  patterns:
+    - name: ensure_schema
+      description: "Creates tables/indices if not exist"
+      example: "ensureMemoryIndexSchema(), ensureReminderSchema()"
+
+    - name: ensure_column
+      description: "Adds missing columns via ALTER TABLE"
+      example: "ensureColumn(db, 'table', 'column', 'TEXT')"
+
+    - name: state_migration
+      description: "Manual config format upgrades"
+      location: "src/infra/state-migrations.ts"
+      examples:
+        - "provider -> channel naming"
+        - "room -> groupChannel field"
+        - "auth profile credential structure"
+
+  best_practices:
+    - "Field detection for migration triggers"
+    - "Best-effort coercion from legacy formats"
+    - "Fallback to defaults on parse failure"
+    - "Never lose user data"
+
+# Access patterns and operations
+access_patterns:
+  file_store_transaction:
+    description: "Atomic read-modify-write with file locking"
+    steps:
+      - "Load current state (JSON5 parse)"
+      - "Acquire lock via proper-lockfile"
+      - "Apply mutation inside lock"
+      - "Write to temp file"
+      - "Atomic rename to target"
+      - "Release lock"
+    error_handling:
+      - "Stale lock detection and recovery"
+      - "Retry with exponential backoff"
+      - "Graceful degradation on parse errors"
+
+  sqlite_direct:
+    description: "Synchronous DatabaseSync operations"
+    characteristics:
+      - "Blocking I/O"
+      - "Manual index management"
+      - "Raw SQL strings (no query builder)"
+      - "No connection pooling"
+    typical_usage:
+      - "db.prepare(sql).run(params)"
+      - "db.exec(ddl)"
+      - "PRAGMA table_info for schema inspection"
+
+# Performance considerations
+performance:
+  caching:
+    session_store:
+      type: "in-memory"
+      ttl: "45 seconds"
+      invalidation: "on write"
+
+    embedding_cache:
+      type: "SQLite table"
+      purpose: "Deduplicate embedding API calls"
+
+  indexing:
+    sqlite:
+      - "Strategic indices on frequently queried columns"
+      - "FTS5 for full-text search"
+      - "sqlite-vec for vector similarity"
+
+    files:
+      - "Hash-based file tracking"
+      - "mtime for change detection"
+
+  bottlenecks:
+    - "Synchronous SQLite I/O (blocking)"
+    - "Single-file session store (JSON5)"
+    - "File locking contention under high concurrency"
+
+# Security considerations
+security:
+  permissions:
+    directories: "0o700 (owner only)"
+    files: "0o600 (owner read/write only)"
+
+  secrets:
+    storage: "AES-256-GCM encrypted files"
+    key_derivation: "PBKDF2 600k iterations (OWASP 2023)"
+    defensive_deletion: "Overwrite before unlink"
+
+  access_control:
+    pairing: "Code-based authorization for DMs"
+    allowlists: "Explicit sender/group whitelists"
+
+  audit_notes:
+    - "No credentials in logs or error messages"
+    - "Session data isolated per agent"
+    - "Encrypted at rest for sensitive data"
+
+# Common operations and how to do them
+operations:
+  create_session:
+    steps:
+      - "Generate unique sessionId"
+      - "Create session entry with defaults"
+      - "Use updateSessionStoreEntry() to persist"
+    code_location: "src/infra/sessions-store.ts"
+
+  query_memory:
+    steps:
+      - "Get MemoryIndexManager for agent"
+      - "Use FTS for keyword search OR"
+      - "Use sqlite-vec for semantic similarity"
+      - "Return ranked chunks"
+    code_location: "src/infra/memory-index.ts"
+
+  create_reminder:
+    steps:
+      - "Construct reminder object with trigger config"
+      - "Insert via ReminderStore.create()"
+      - "Return reminder ID"
+    code_location: "src/infra/reminder-store.ts"
+
+  rotate_auth_profile:
+    steps:
+      - "Load profiles with lock"
+      - "Check cooldowns, skip failed profiles"
+      - "Select next in round-robin"
+      - "Update usage stats"
+      - "Save atomically"
+    code_location: "src/infra/auth-profiles-store.ts"
+
+# Self-improvement prompts
+self_improve:
+  when_to_resync:
+    - "New tables or columns added to SQLite schemas"
+    - "New file-based stores created"
+    - "Migration functions added or modified"
+    - "Access patterns changed"
+    - "Performance optimizations implemented"
+
+  source_files_to_monitor:
+    - "src/infra/sessions-store.ts"
+    - "src/infra/memory-index.ts"
+    - "src/infra/reminder-store.ts"
+    - "src/infra/auth-profiles-store.ts"
+    - "src/infra/encrypted-store.ts"
+    - "src/infra/file-locking.ts"
+    - "src/infra/state-migrations.ts"
+    - "src/infra/state-migrations-*.ts"
+
+  resync_prompt: |
+    Review the following source files for changes to Gimli's data layer:
+    {{source_files}}
+
+    Compare with the current database-expert.yaml mental model.
+    Identify:
+    1. New tables, columns, or indices added
+    2. Changed access patterns or data flows
+    3. New stores or persistence mechanisms
+    4. Modified migration strategies
+    5. Performance or security improvements
+
+    Generate an updated YAML with the changes, preserving existing structure.
+
+# Troubleshooting guide
+troubleshooting:
+  common_issues:
+    - symptom: "Lock timeout errors"
+      cause: "Stale lock files or high contention"
+      fix: "Check for orphaned .lock files, increase retry attempts"
+
+    - symptom: "Session not persisting"
+      cause: "Cache invalidation issue or write failure"
+      fix: "Check file permissions, verify atomic write succeeded"
+
+    - symptom: "Memory search returning stale results"
+      cause: "Files changed but not re-indexed"
+      fix: "Run memory reindex for affected files"
+
+    - symptom: "Auth profile rotation failing"
+      cause: "All profiles in cooldown"
+      fix: "Check cooldown times, add more profiles, or reset cooldowns"
+
+    - symptom: "SQLite BUSY errors"
+      cause: "Concurrent access without proper serialization"
+      fix: "Use file locking for SQLite operations"
+
+# Decision guide for data layer questions
+decision_guide:
+  where_to_store_data:
+    - condition: "Needs SQL queries, joins, or aggregations"
+      recommendation: "SQLite"
+
+    - condition: "User may want to edit directly"
+      recommendation: "JSON/JSON5 file"
+
+    - condition: "Contains secrets or credentials"
+      recommendation: "Encrypted store"
+
+    - condition: "Temporary data with auto-cleanup"
+      recommendation: "Media directory with TTL"
+
+    - condition: "Needs full-text search"
+      recommendation: "SQLite FTS5"
+
+    - condition: "Needs semantic/vector search"
+      recommendation: "SQLite + sqlite-vec"
+
+  concurrency_approach:
+    - condition: "File-based JSON store"
+      recommendation: "proper-lockfile mutex"
+
+    - condition: "SQLite database"
+      recommendation: "Single connection per agent"
+
+    - condition: "Read-heavy, write-rare"
+      recommendation: "In-memory cache with TTL"

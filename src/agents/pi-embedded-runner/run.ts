@@ -5,6 +5,14 @@ import { resolveUserPath } from "../../utils.js";
 import { isMarkdownCapableMessageChannel } from "../../utils/message-channel.js";
 import { resolveGimliAgentDir } from "../agent-paths.js";
 import {
+  buildSelfCorrectionPrompt,
+  createSelfCorrectionState,
+  isEligibleForSelfCorrection,
+  resolveSelfCorrectionConfig,
+  startSelfCorrectionAttempt,
+  type SelfCorrectionState,
+} from "../self-correction.js";
+import {
   isProfileInCooldown,
   markAuthProfileFailure,
   markAuthProfileGood,
@@ -293,13 +301,19 @@ export async function runEmbeddedPiAgent(
       }
 
       let overflowCompactionAttempted = false;
+      const selfCorrectionConfig = resolveSelfCorrectionConfig(params.config);
+      const selfCorrectionState: SelfCorrectionState = createSelfCorrectionState();
+      let effectivePrompt = params.prompt;
+
       try {
         while (true) {
           attemptedThinking.add(thinkLevel);
           await fs.mkdir(resolvedWorkspace, { recursive: true });
 
           const prompt =
-            provider === "anthropic" ? scrubAnthropicRefusalMagic(params.prompt) : params.prompt;
+            provider === "anthropic"
+              ? scrubAnthropicRefusalMagic(effectivePrompt)
+              : effectivePrompt;
 
           const attempt = await runEmbeddedAttempt({
             sessionId: params.sessionId,
@@ -626,6 +640,40 @@ export async function runEmbeddedPiAgent(
             usage,
           };
 
+          // Self-correction: if the attempt ended with a tool error that is eligible
+          // for self-correction, inject a correction prompt and retry.
+          const toolError = attempt.lastToolError;
+          if (
+            toolError &&
+            !aborted &&
+            isEligibleForSelfCorrection({
+              toolName: toolError.toolName,
+              error: toolError.error ?? "Unknown error",
+              config: selfCorrectionConfig,
+              state: selfCorrectionState,
+            })
+          ) {
+            const correctionPrompt = buildSelfCorrectionPrompt({
+              toolName: toolError.toolName,
+              error: toolError.error ?? "Unknown error",
+              config: selfCorrectionConfig,
+            });
+
+            log.debug(
+              `self-correction: tool=${toolError.toolName} attempt=${selfCorrectionState.attempts + 1}/${selfCorrectionConfig.maxAttempts} runId=${params.runId}`,
+            );
+
+            // Apply delay if configured
+            if (selfCorrectionConfig.delayMs > 0) {
+              await new Promise((resolve) => setTimeout(resolve, selfCorrectionConfig.delayMs));
+            }
+
+            // Track the self-correction attempt and retry with the correction prompt
+            startSelfCorrectionAttempt(selfCorrectionState, correctionPrompt);
+            effectivePrompt = correctionPrompt;
+            continue;
+          }
+
           const payloads = buildEmbeddedRunPayloads({
             assistantTexts: attempt.assistantTexts,
             toolMetas: attempt.toolMetas,
@@ -640,7 +688,7 @@ export async function runEmbeddedPiAgent(
           });
 
           log.debug(
-            `embedded run done: runId=${params.runId} sessionId=${params.sessionId} durationMs=${Date.now() - started} aborted=${aborted}`,
+            `embedded run done: runId=${params.runId} sessionId=${params.sessionId} durationMs=${Date.now() - started} aborted=${aborted} selfCorrectionAttempts=${selfCorrectionState.attempts}`,
           );
           if (lastProfileId) {
             await markAuthProfileGood({
@@ -673,6 +721,9 @@ export async function runEmbeddedPiAgent(
                     },
                   ]
                 : undefined,
+              // Include self-correction attempts if any occurred
+              selfCorrectionAttempts:
+                selfCorrectionState.attempts > 0 ? selfCorrectionState.attempts : undefined,
             },
             didSendViaMessagingTool: attempt.didSendViaMessagingTool,
             messagingToolSentTexts: attempt.messagingToolSentTexts,

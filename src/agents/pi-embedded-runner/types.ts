@@ -31,6 +31,8 @@ export type EmbeddedPiRunMeta = {
     name: string;
     arguments: string;
   }>;
+  /** Self-correction attempts made during this run. */
+  selfCorrectionAttempts?: number;
 };
 
 export type EmbeddedPiRunResult = {

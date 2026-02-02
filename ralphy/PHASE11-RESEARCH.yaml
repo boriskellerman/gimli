@@ -1,0 +1,148 @@
+name: Phase 11 - OpenClaw Deep Dive Research
+description: |
+  Comprehensive web research on OpenClaw ecosystem, features, and community.
+  Update and expand the existing OPENCLAW_SKILLS_RESEARCH.md documentation.
+  Focus on recent developments, new features, and community projects.
+
+tasks:
+  # Group 1: Core Platform Research (run in parallel)
+  - title: Research OpenClaw latest release notes and changelog
+    description: |
+      Search the web for OpenClaw's latest releases, changelogs, and announcements.
+      Look for:
+      - GitHub releases page
+      - Official blog posts
+      - Discord announcements
+      - New features added since January 2026
+
+      Document findings in docs/research/openclaw-releases.md with:
+      - Version numbers and dates
+      - Key features per release
+      - Breaking changes
+      - Migration notes
+    parallel_group: 1
+
+  - title: Research OpenClaw new channels and integrations
+    description: |
+      Search for any new messaging channels or integrations added to OpenClaw.
+      Look for:
+      - New channel support (beyond WhatsApp, Telegram, Discord, etc.)
+      - Third-party integrations
+      - API changes for channel development
+      - Community-built channel extensions
+
+      Document findings in docs/research/openclaw-channels.md
+    parallel_group: 1
+
+  - title: Research OpenClaw security updates and advisories
+    description: |
+      Search for OpenClaw security-related content:
+      - Security advisories or CVEs
+      - Security hardening guides
+      - Prompt injection mitigations
+      - Sandboxing improvements
+      - Authentication changes
+
+      Document findings in docs/research/openclaw-security.md
+    parallel_group: 1
+
+  # Group 2: Ecosystem Research (run in parallel after Group 1)
+  - title: Research Clawhub skills registry updates
+    description: |
+      Search for the latest on Clawhub (skills registry):
+      - New popular skills
+      - Skills API changes
+      - Community skill development patterns
+      - Installation and publishing workflows
+      - Featured or trending skills
+
+      Document findings in docs/research/clawhub-updates.md
+    parallel_group: 2
+
+  - title: Research OpenClaw multi-agent patterns
+    description: |
+      Search for multi-agent orchestration patterns in OpenClaw:
+      - How users are running multiple agents
+      - Orchestrator patterns (like "Kev's Dream Team")
+      - Agent delegation strategies
+      - Tool and permission isolation
+      - Session coordination
+
+      Document findings in docs/research/openclaw-multi-agent.md
+    parallel_group: 2
+
+  - title: Research OpenClaw automation and cron features
+    description: |
+      Search for OpenClaw automation capabilities:
+      - Cron job patterns and examples
+      - Webhook integrations
+      - Event-driven automation
+      - Scheduled task patterns
+      - Proactive notification systems
+
+      Document findings in docs/research/openclaw-automation.md
+    parallel_group: 2
+
+  # Group 3: Community & Advanced Features (run in parallel after Group 2)
+  - title: Research OpenClaw community projects and showcase
+    description: |
+      Search for community projects built on OpenClaw:
+      - Reddit discussions (r/openclaw, r/ClaudeAI, etc.)
+      - Hacker News threads
+      - Twitter/X posts about OpenClaw
+      - YouTube tutorials and demos
+      - Blog posts and case studies
+      - Discord community highlights
+
+      Document notable projects in docs/research/openclaw-community.md
+    parallel_group: 3
+
+  - title: Research OpenClaw browser automation capabilities
+    description: |
+      Search for OpenClaw browser control features:
+      - Playwright integration details
+      - Chrome extension mode
+      - Browser profiles and isolation
+      - Screenshot and snapshot capabilities
+      - Form automation patterns
+
+      Document findings in docs/research/openclaw-browser.md
+    parallel_group: 3
+
+  - title: Research OpenClaw voice and phone capabilities
+    description: |
+      Search for voice/phone integration in OpenClaw:
+      - Vapi integration
+      - Text-to-speech options
+      - Voice note processing
+      - Phone bridge capabilities
+      - Wake word detection
+
+      Document findings in docs/research/openclaw-voice.md
+    parallel_group: 3
+
+  # Group 4: Comparison and Integration Planning
+  - title: Research OpenClaw vs competitors comparison
+    description: |
+      Search for comparisons between OpenClaw and other AI agent platforms:
+      - vs Claude Code
+      - vs Cursor
+      - vs GitHub Copilot
+      - vs other autonomous agents
+      - Unique features and differentiators
+
+      Document comparison matrix in docs/research/openclaw-comparison.md
+    parallel_group: 4
+
+  - title: Compile research into updated OPENCLAW_SKILLS_RESEARCH.md
+    description: |
+      After all research is complete, update the main documentation:
+      1. Read all files in docs/research/openclaw-*.md
+      2. Integrate new findings into docs/OPENCLAW_SKILLS_RESEARCH.md
+      3. Update the Phase 11 sections with new information
+      4. Add any new sections for newly discovered features
+      5. Update the "Feature Gap Analysis" section
+      6. Add timestamps to indicate when research was conducted
+
+      Preserve the existing structure but expand with new content.
+    parallel_group: 5

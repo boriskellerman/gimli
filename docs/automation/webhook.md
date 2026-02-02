@@ -101,12 +101,122 @@ Mapping options (summary):
 - `gimli webhooks gmail setup` writes `hooks.gmail` config for `gimli webhooks gmail run`.
 See [Gmail Pub/Sub](/automation/gmail-pubsub) for the full Gmail watch flow.
 
+### `POST /hooks/workflow`
+
+Trigger a multi-step AI Developer Workflow (ADW). Workflows run steps sequentially
+with optional conditions based on previous step results.
+
+Payload:
+```json
+{
+  "id": "plan-build-test",
+  "name": "Plan-Build-Test",
+  "sessionKey": "workflow:my-task",
+  "deliver": false,
+  "model": "anthropic/claude-3-5-sonnet",
+  "thinking": "high",
+  "continueOnError": false,
+  "steps": [
+    {"id": "plan", "name": "Plan", "message": "Create implementation plan"},
+    {"id": "build", "name": "Build", "message": "Implement the plan", "condition": "previous-success"},
+    {"id": "test", "name": "Test", "message": "Run tests", "condition": "previous-success"}
+  ]
+}
+```
+
+Step conditions:
+- `always` (default): Step always runs
+- `previous-success`: Step runs only if previous step succeeded
+- `previous-error`: Step runs only if previous step failed
+
+Effect:
+- Returns a `workflowRunId` immediately (202)
+- Steps execute sequentially in the background
+- Each step runs as an isolated agent turn
+- Results available via `GET /hooks/workflows/:workflowRunId`
+
+### `GET /hooks/runs`
+
+List recent hook agent runs with optional filtering.
+
+Query parameters:
+- `status` (optional): Filter by status (`pending`, `running`, `completed`, `error`)
+- `name` (optional): Filter by hook name (case-insensitive substring match)
+- `limit` (optional): Max results (1-100, default 50)
+- `offset` (optional): Pagination offset (default 0)
+
+```bash
+curl 'http://127.0.0.1:18789/hooks/runs?status=completed&limit=10' \
+  -H 'Authorization: Bearer SECRET'
+```
+
+### `GET /hooks/runs/stats`
+
+Get run statistics showing counts by status.
+
+```bash
+curl http://127.0.0.1:18789/hooks/runs/stats \
+  -H 'Authorization: Bearer SECRET'
+```
+
+Returns:
+```json
+{"ok":true,"stats":{"total":15,"pending":1,"running":2,"completed":10,"error":2}}
+```
+
+### `GET /hooks/runs/:runId`
+
+Get the status and result of a specific agent run.
+
+```bash
+curl http://127.0.0.1:18789/hooks/runs/abc-123 \
+  -H 'Authorization: Bearer SECRET'
+```
+
+Returns:
+```json
+{
+  "ok": true,
+  "run": {
+    "runId": "abc-123",
+    "name": "GitHub",
+    "sessionKey": "hook:github:issue-42",
+    "status": "completed",
+    "createdAt": 1706832000000,
+    "startedAt": 1706832001000,
+    "completedAt": 1706832010000,
+    "summary": "Issue triaged and labeled",
+    "outputText": "I reviewed the issue and..."
+  }
+}
+```
+
+### `GET /hooks/workflows`
+
+List recent workflow runs with optional filtering.
+
+Query parameters:
+- `status` (optional): Filter by status (`pending`, `running`, `completed`, `error`)
+- `workflowId` (optional): Filter by workflow ID
+- `limit` (optional): Max results (1-100, default 50)
+- `offset` (optional): Pagination offset (default 0)
+
+### `GET /hooks/workflows/:workflowRunId`
+
+Get the status and step results of a specific workflow run.
+
+```bash
+curl http://127.0.0.1:18789/hooks/workflows/wf-1706832000-abc123 \
+  -H 'Authorization: Bearer SECRET'
+```
+
 ## Responses
 
-- `200` for `/hooks/wake`
-- `202` for `/hooks/agent` (async run started)
+- `200` for `/hooks/wake`, GET endpoints
+- `202` for `/hooks/agent`, `/hooks/workflow` (async run started)
 - `401` on auth failure
 - `400` on invalid payload
+- `404` for unknown run/workflow IDs
 - `413` on oversized payloads
 
 ## Examples

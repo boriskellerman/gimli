@@ -3683,3 +3683,57 @@ First implementation task complete:
 - [ ] Integrate with cron system for scheduled reminders
 - [ ] Add `/remind` chat command for manual reminder management
 - [ ] Connect to existing learning system for effectiveness tracking
+- [✓] 2026-02-01 22:15 - Research AgentSkills.io platform and skill architecture - https://agentskills.io/home
+
+## Phase 13.2 Grade 1: Prime Commands (Agent-1)
+
+### Task: Create prime commands for common operations
+
+Created comprehensive prime commands documentation for AI agents following TAC principles.
+
+### Files Created
+
+**`.claude/prime-commands.md`** - Prime commands reference (~18 essential commands):
+- **Quick Reference Table** - Fast lookup for all prime commands
+- **Agent Operations** - `gimli agent`, `gimli agents list`, `gimli agents add`
+- **System Status** - `gimli status`, `gimli health`, `gimli doctor`
+- **Configuration** - `gimli config get`, `gimli config set`
+- **Gateway** - `gimli gateway run`, `gimli gateway stop`
+- **Channels** - `gimli channels status`, `gimli channels list`
+- **Messaging** - `gimli message send`
+- **Memory** - `gimli memory search`, `gimli memory status`
+- **Sessions** - `gimli sessions`
+- **Logs** - `gimli logs`
+- **Models** - `gimli models list`, `gimli models set`
+- **Automation** - `gimli cron list`, `gimli cron add`
+- **Browser** - `gimli browser snapshot`, `gimli browser tabs`
+- **Skills** - `gimli skills list`
+- **Upstream** - `gimli upstream check`, `gimli upstream preview`
+- **Command Patterns** - JSON output, verbose/debug, timeout control
+- **Common Workflows** - Setup verification, debugging, development, monitoring
+- **Environment Variables** - Key env vars for CLI behavior
+- **Exit Codes** - Standard exit code documentation
+
+**`src/cli/prime-commands.test.ts`** - Test suite (24 tests):
+- Validates file existence and structure
+- Tests all required sections
+- Validates command documentation coverage
+- Tests pattern documentation (JSON, verbose, timeout)
+- Validates workflow examples
+- Confirms environment variables and exit codes
+
+### Design Decisions
+
+1. **Following TAC "Reduce and Delegate" principle** - ~20 commands vs 170+ total
+2. **Structured for agent consumption** - Quick reference table, detailed examples
+3. **Common workflow patterns** - Chains of commands for typical tasks
+4. **Machine-readable patterns** - JSON output, exit codes for automation
+
+### Test Results
+```
+24/24 tests passing
+```
+
+### Lint Status
+No new lint issues introduced.
+

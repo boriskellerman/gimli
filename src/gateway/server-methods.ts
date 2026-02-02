@@ -1,5 +1,6 @@
 import { ErrorCodes, errorShape } from "./protocol/index.js";
 import { agentHandlers } from "./server-methods/agent.js";
+import { agentActivityHandlers } from "./server-methods/agent-activity.js";
 import { agentsHandlers } from "./server-methods/agents.js";
 import { browserHandlers } from "./server-methods/browser.js";
 import { channelsHandlers } from "./server-methods/channels.js";
@@ -60,6 +61,9 @@ const READ_METHODS = new Set([
   "models.list",
   "agents.list",
   "agent.identity.get",
+  "agents.activity.list",
+  "agents.activity.get",
+  "agents.activity.runs",
   "skills.status",
   "voicewake.get",
   "sessions.list",
@@ -169,6 +173,7 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...sendHandlers,
   ...usageHandlers,
   ...agentHandlers,
+  ...agentActivityHandlers,
   ...agentsHandlers,
   ...browserHandlers,
 };

@@ -1,0 +1,497 @@
+# Channel Expert - Individual Channel Expertise
+#
+# Detailed knowledge about each messaging platform's implementation,
+# quirks, setup requirements, and troubleshooting.
+#
+# TAC Pattern: Act -> Learn -> Reuse
+# Last synced: 2026-02-02
+
+version: "1.0"
+expert: channel
+domain: gimli-channel-implementations
+updated_at: "2026-02-02T00:00:00Z"
+
+# Core Channels (Built-in)
+core_channels:
+  telegram:
+    label: "Telegram"
+    driver: "grammY (Bot API)"
+    auth_method: "Bot token from @BotFather"
+    docs_path: "/channels/telegram"
+
+    setup_steps:
+      - "Message @BotFather on Telegram"
+      - "Send /newbot and follow prompts"
+      - "Copy the bot token"
+      - "Run: gimli channels setup telegram --bot-token <token>"
+      - "Or via onboard: gimli onboard"
+
+    capabilities:
+      chatTypes: [direct, group, channel]
+      media: true
+      reactions: limited
+      threads: false
+      edit: true
+      unsend: true
+      nativeCommands: true
+
+    quirks:
+      - name: streaming_blocked
+        issue: "Telegram API doesn't allow message streaming"
+        solution: "Uses block streaming with coalescing (minChars, idleMs)"
+
+      - name: privacy_mode
+        issue: "Bot only receives @mentions in groups by default"
+        solution: "Disable via @BotFather /setprivacy or set allowUnmentionedGroups"
+
+      - name: ipv6_issues
+        issue: "api.telegram.org IPv6 resolution fails on some hosts"
+        solution: "Force IPv4 DNS or enable IPv6 egress"
+
+    config_fields:
+      - botToken: "Bot API token (required)"
+      - enabled: "Enable/disable account"
+      - dmPolicy: "pairing|allowlist|open"
+      - allowUnmentionedGroups: "Skip @mention requirement"
+
+    troubleshooting:
+      - symptom: "HttpError: Network request for 'sendMessage' failed"
+        cause: "IPv6 DNS resolution issue"
+        fix: "Check IPv6 connectivity or force IPv4"
+
+      - symptom: "setMyCommands failed"
+        cause: "Outbound HTTPS blocked"
+        fix: "Check firewall/proxy for api.telegram.org access"
+
+      - symptom: "Bot doesn't respond in groups"
+        cause: "Privacy mode enabled"
+        fix: "Use @BotFather /setprivacy to disable"
+
+  whatsapp:
+    label: "WhatsApp"
+    driver: "Baileys (WhatsApp Web protocol)"
+    auth_method: "QR code pairing"
+    docs_path: "/channels/whatsapp"
+
+    setup_steps:
+      - "Run: gimli channels setup whatsapp"
+      - "Scan QR code with WhatsApp mobile app"
+      - "Wait for 'linked' status"
+      - "Verify with: gimli channels status whatsapp"
+
+    capabilities:
+      chatTypes: [direct, group]
+      media: true
+      reactions: true
+      threads: limited
+      edit: true
+      unsend: true
+
+    quirks:
+      - name: session_persistence
+        issue: "Session stored in ~/.gimli/credentials/"
+        solution: "Don't delete session files or will need re-pairing"
+
+      - name: multi_device
+        issue: "Uses WhatsApp multi-device protocol"
+        solution: "Can work without phone being online after initial sync"
+
+      - name: rate_limits
+        issue: "WhatsApp has aggressive rate limiting"
+        solution: "Avoid rapid message bursts"
+
+    config_fields:
+      - enabled: "Enable/disable account"
+      - dmPolicy: "pairing|allowlist|open"
+      - authDir: "Custom auth directory (optional)"
+
+    troubleshooting:
+      - symptom: "QR code keeps regenerating"
+        cause: "Session not persisting"
+        fix: "Check write permissions on ~/.gimli/credentials/"
+
+      - symptom: "Logged out unexpectedly"
+        cause: "Session invalidated by WhatsApp"
+        fix: "Delete session files and re-pair"
+
+      - symptom: "Messages not sending"
+        cause: "Rate limited or connection issue"
+        fix: "Check connection status, reduce message frequency"
+
+  discord:
+    label: "Discord"
+    driver: "discord.js + Discord Gateway"
+    auth_method: "Bot token from Developer Portal"
+    docs_path: "/channels/discord"
+
+    setup_steps:
+      - "Go to Discord Developer Portal"
+      - "Create application and bot"
+      - "Enable required intents (Message Content, etc.)"
+      - "Copy bot token"
+      - "Run: gimli channels setup discord --bot-token <token>"
+      - "Invite bot to server with OAuth2 URL"
+
+    capabilities:
+      chatTypes: [direct, group, channel, thread]
+      media: true
+      reactions: true
+      threads: true
+      edit: true
+      unsend: true
+      nativeCommands: true
+
+    intents_required:
+      - GUILDS: "Guild membership info"
+      - GUILD_MESSAGES: "Messages in guild channels"
+      - DIRECT_MESSAGES: "DM messages"
+      - MESSAGE_CONTENT: "Access message text (privileged)"
+      - GUILD_MESSAGE_REACTIONS: "Reaction events (optional)"
+
+    quirks:
+      - name: privileged_intents
+        issue: "MESSAGE_CONTENT requires verification at 100+ servers"
+        solution: "Enable in Developer Portal under 'Privileged Intents'"
+
+      - name: guild_routing
+        issue: "Need to route different servers to different agents"
+        solution: "Use guildId binding in routes config"
+
+      - name: slash_commands
+        issue: "Global commands take up to 1 hour to propagate"
+        solution: "Use guild commands for faster testing"
+
+    config_fields:
+      - botToken: "Bot token (required)"
+      - enabled: "Enable/disable account"
+      - dmPolicy: "pairing|allowlist|open"
+      - allowUnmentionedGroups: "Skip @mention requirement"
+
+    troubleshooting:
+      - symptom: "Bot joins but doesn't see messages"
+        cause: "MESSAGE_CONTENT intent missing"
+        fix: "Enable in Developer Portal and reinvite"
+
+      - symptom: "Error code 50001 Missing Access"
+        cause: "Missing channel permissions"
+        fix: "Check bot role has 'Read Messages' and 'Send Messages'"
+
+      - symptom: "Gateway connection dropping"
+        cause: "Invalid intents or token"
+        fix: "Verify intents enabled and token correct"
+
+  slack:
+    label: "Slack"
+    driver: "Bolt SDK (Socket Mode)"
+    auth_method: "Bot + App tokens"
+    docs_path: "/channels/slack"
+
+    setup_steps:
+      - "Create Slack App at api.slack.com/apps"
+      - "Enable Socket Mode"
+      - "Add required OAuth scopes"
+      - "Install to workspace"
+      - "Run: gimli channels setup slack --bot-token <bot> --app-token <app>"
+
+    capabilities:
+      chatTypes: [direct, group, channel, thread]
+      media: true
+      reactions: true
+      threads: true
+      edit: true
+      unsend: true
+
+    required_scopes:
+      bot:
+        - chat:write: "Send messages"
+        - channels:history: "Read channel messages"
+        - channels:read: "List channels"
+        - groups:read: "Private channel access"
+        - im:history: "DM history"
+        - im:read: "DM access"
+        - users:read: "User info"
+      user:
+        - Optional for user-token features
+
+    quirks:
+      - name: socket_mode
+        issue: "Requires socket mode for event delivery"
+        solution: "Enable in app settings, use xapp-* app token"
+
+      - name: thread_context
+        issue: "Replies can go to channel or thread"
+        solution: "Use threading adapter for reply-to-mode config"
+
+      - name: workspace_install
+        issue: "Must be installed to each workspace"
+        solution: "Use OAuth flow or manual install"
+
+    config_fields:
+      - botToken: "Bot token (xoxb-...)"
+      - appToken: "App token (xapp-...)"
+      - enabled: "Enable/disable account"
+      - dmPolicy: "pairing|allowlist|open"
+
+    troubleshooting:
+      - symptom: "Socket connection fails"
+        cause: "Invalid app token or Socket Mode disabled"
+        fix: "Verify xapp-* token and Socket Mode enabled"
+
+      - symptom: "Messages not received"
+        cause: "Missing event subscriptions"
+        fix: "Add message.im and message.channels events"
+
+      - symptom: "Can't send to channel"
+        cause: "Bot not in channel or missing scope"
+        fix: "Invite bot to channel, check chat:write scope"
+
+  signal:
+    label: "Signal"
+    driver: "signal-cli REST API"
+    auth_method: "Phone number + signal-cli"
+    docs_path: "/channels/signal"
+
+    setup_steps:
+      - "Install signal-cli"
+      - "Register or link phone number"
+      - "Start signal-cli REST server"
+      - "Run: gimli channels setup signal --signal-number <phone>"
+
+    capabilities:
+      chatTypes: [direct, group]
+      media: true
+      reactions: false
+      threads: false
+      edit: false
+      unsend: true
+
+    quirks:
+      - name: phone_required
+        issue: "Requires dedicated phone number"
+        solution: "Use separate SIM or virtual number"
+
+      - name: linked_device
+        issue: "Acts as linked device to primary"
+        solution: "Primary must stay active for sync"
+
+      - name: privacy_focused
+        issue: "No user/group directory"
+        solution: "Manual allowlist management"
+
+    config_fields:
+      - signalNumber: "Phone number with country code"
+      - cliPath: "Path to signal-cli"
+      - enabled: "Enable/disable account"
+      - dmPolicy: "pairing|allowlist|open"
+
+    troubleshooting:
+      - symptom: "CLI not connecting"
+        cause: "signal-cli not running or wrong path"
+        fix: "Start signal-cli REST server, verify cliPath"
+
+      - symptom: "Messages delayed"
+        cause: "Primary device sync lag"
+        fix: "Keep primary device online"
+
+  imessage:
+    label: "iMessage"
+    driver: "BlueBubbles REST API / Native macOS"
+    auth_method: "BlueBubbles server or native imsg"
+    docs_path: "/channels/imessage"
+
+    setup_options:
+      bluebubbles:
+        recommended: true
+        description: "BlueBubbles macOS server with REST API"
+        features: "Full feature support including edit, reactions, effects"
+        note: "Edit currently broken on macOS 26 Tahoe"
+
+      native_imsg:
+        recommended: false
+        description: "Native macOS integration via imsg"
+        features: "Legacy, less feature complete"
+        note: "Consider BlueBubbles for new setups"
+
+    capabilities:
+      chatTypes: [direct, group]
+      media: true
+      reactions: true
+      threads: true
+      edit: true
+      unsend: true
+      effects: true
+      groupManagement: true
+
+    quirks:
+      - name: macos_only
+        issue: "Requires macOS for Messages.app"
+        solution: "Run on Mac mini/MacBook/Mac Studio"
+
+      - name: bluebubbles_server
+        issue: "BlueBubbles needs always-on Mac"
+        solution: "Use Mac mini as server"
+
+    config_fields:
+      - enabled: "Enable/disable account"
+      - httpUrl: "BlueBubbles server URL"
+      - dmPolicy: "pairing|allowlist|open"
+
+  googlechat:
+    label: "Google Chat"
+    driver: "Google Chat API (HTTP webhook)"
+    auth_method: "Service account + webhook"
+    docs_path: "/channels/googlechat"
+
+    capabilities:
+      chatTypes: [direct, group]
+      media: true
+      threads: true
+
+    quirks:
+      - name: workspace_only
+        issue: "Requires Google Workspace organization"
+        solution: "Personal accounts not supported"
+
+# Extension Channels (Plugins)
+extension_channels:
+  msteams:
+    label: "Microsoft Teams"
+    location: "extensions/msteams"
+    driver: "Bot Framework"
+    auth_method: "Azure Bot registration"
+    docs_path: "/channels/msteams"
+    enterprise: true
+
+  matrix:
+    label: "Matrix"
+    location: "extensions/matrix"
+    driver: "Matrix protocol"
+    auth_method: "Homeserver credentials"
+    docs_path: "/channels/matrix"
+    decentralized: true
+
+  line:
+    label: "LINE"
+    location: "extensions/line"
+    driver: "LINE Messaging API"
+    auth_method: "Channel token"
+    docs_path: "/channels/line"
+    region: "Asia (Japan, Taiwan, Thailand)"
+
+  mattermost:
+    label: "Mattermost"
+    location: "extensions/mattermost"
+    driver: "Bot API + WebSocket"
+    auth_method: "Personal access token"
+    docs_path: "/channels/mattermost"
+    selfhosted: true
+
+  nextcloud_talk:
+    label: "Nextcloud Talk"
+    location: "extensions/nextcloud-talk"
+    driver: "Nextcloud Talk API"
+    auth_method: "App password"
+    docs_path: "/channels/nextcloud-talk"
+    selfhosted: true
+
+  nostr:
+    label: "Nostr"
+    location: "extensions/nostr"
+    driver: "NIP-04 protocol"
+    auth_method: "Private key"
+    docs_path: "/channels/nostr"
+    decentralized: true
+
+  tlon:
+    label: "Tlon"
+    location: "extensions/tlon"
+    driver: "Urbit"
+    auth_method: "Ship code"
+    docs_path: "/channels/tlon"
+    decentralized: true
+
+  twitch:
+    label: "Twitch"
+    location: "extensions/twitch"
+    driver: "IRC connection"
+    auth_method: "OAuth token"
+    docs_path: "/channels/twitch"
+
+  zalo:
+    label: "Zalo Bot"
+    location: "extensions/zalo"
+    driver: "Zalo Bot API"
+    auth_method: "Bot token"
+    docs_path: "/channels/zalo"
+    region: "Vietnam"
+
+  zalouser:
+    label: "Zalo Personal"
+    location: "extensions/zalouser"
+    driver: "Zalo Web"
+    auth_method: "QR login"
+    docs_path: "/channels/zalouser"
+    region: "Vietnam"
+
+  bluebubbles:
+    label: "BlueBubbles"
+    location: "extensions/bluebubbles"
+    driver: "BlueBubbles REST API"
+    auth_method: "Server password"
+    docs_path: "/channels/bluebubbles"
+
+  voice_call:
+    label: "Voice Call"
+    location: "extensions/voice-call"
+    driver: "Vapi integration"
+    auth_method: "API key"
+    docs_path: "/channels/voice-call"
+
+# Channel selection guide
+selection_guide:
+  by_priority:
+    fastest_setup:
+      - telegram: "Simple bot token, works in minutes"
+      - discord: "Developer portal, straightforward"
+
+    most_popular:
+      - whatsapp: "Most users worldwide"
+      - discord: "Popular for communities"
+      - telegram: "Popular for tech users"
+
+    enterprise:
+      - slack: "Workplace standard"
+      - msteams: "Microsoft ecosystem"
+      - googlechat: "Google Workspace"
+
+    privacy_focused:
+      - signal: "End-to-end encrypted"
+      - matrix: "Decentralized, self-hosted"
+      - nostr: "Decentralized, censorship-resistant"
+
+    self_hosted:
+      - mattermost: "Slack alternative"
+      - matrix: "Open protocol"
+      - nextcloud_talk: "Nextcloud integration"
+
+  by_feature:
+    threads:
+      - discord
+      - slack
+      - imessage
+      - googlechat
+
+    reactions:
+      - whatsapp
+      - discord
+      - slack
+      - imessage
+
+    native_commands:
+      - telegram
+      - discord
+      - slack
+
+    streaming:
+      all_except:
+        - telegram: "Uses block streaming"

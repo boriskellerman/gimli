@@ -78,3 +78,36 @@ export {
   createPresenter,
   createDefaultHandlers,
 } from "./presenter.js";
+
+export {
+  // Template chain types
+  type TemplateType,
+  type StageType,
+  type StageStatus,
+  type StageResult,
+  type StageArtifact,
+  type StageMetrics,
+  type StageConfig,
+  type ChainContext,
+  type TemplateChain,
+  type ChainExecutionPlan,
+  type ChainExecutionResult,
+  type ChainExecutorDeps,
+  // Pre-defined chains
+  BUG_FIX_CHAIN,
+  FEATURE_DEV_CHAIN,
+  CHORE_CHAIN,
+  TEMPLATE_CHAINS,
+  // Chain building
+  buildChain,
+  createStage,
+  composeChains,
+  // Chain execution
+  createExecutionPlan,
+  executeChain,
+  // Template selection
+  detectTemplateType,
+  selectChain,
+  // Dependencies
+  createDefaultChainDeps,
+} from "./template-chain.js";

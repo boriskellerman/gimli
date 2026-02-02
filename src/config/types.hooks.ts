@@ -110,6 +110,38 @@ export type InternalHooksConfig = {
   installs?: Record<string, HookInstallRecord>;
 };
 
+/** GitHub webhook event types that trigger agent runs */
+export type GitHubEventType =
+  | "issues"
+  | "issue_comment"
+  | "pull_request"
+  | "pull_request_review"
+  | "pull_request_review_comment"
+  | "push"
+  | "create"
+  | "delete"
+  | "release";
+
+/** GitHub webhook configuration for ADW triggers */
+export type HooksGitHubConfig = {
+  /** GitHub webhook secret for signature verification (X-Hub-Signature-256) */
+  webhookSecret?: string;
+  /** Filter by event types (default: all supported events) */
+  events?: GitHubEventType[];
+  /** Filter by repository (owner/repo format, supports wildcards) */
+  repositories?: string[];
+  /** Filter by label prefix for issues/PRs (e.g., "adw:" to only trigger on "adw:*" labels) */
+  labelPrefix?: string;
+  /** Filter by action types (e.g., "opened", "closed", "labeled") */
+  actions?: string[];
+  /** DANGEROUS: Disable external content safety wrapping for GitHub hooks. */
+  allowUnsafeExternalContent?: boolean;
+  /** Optional model override for GitHub hook processing (provider/model or alias). */
+  model?: string;
+  /** Optional thinking level override for GitHub hook processing. */
+  thinking?: "off" | "minimal" | "low" | "medium" | "high";
+};
+
 export type HooksConfig = {
   enabled?: boolean;
   path?: string;
@@ -119,6 +151,8 @@ export type HooksConfig = {
   transformsDir?: string;
   mappings?: HookMappingConfig[];
   gmail?: HooksGmailConfig;
+  /** GitHub webhook configuration for ADW triggers */
+  github?: HooksGitHubConfig;
   /** Internal agent event hooks */
   internal?: InternalHooksConfig;
 };

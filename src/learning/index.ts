@@ -15,3 +15,4 @@ export * from "./journal.js";
 export * from "./ab-testing.js";
 export * from "./velocity.js";
 export * from "./self-evaluation.js";
+export * from "./expertise-store.js";

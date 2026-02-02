@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/.mcp.schema.json",
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": "${PROJECT_ROOT}/.gimli/agent-memory.jsonl"
+      },
+      "description": "Knowledge graph memory for TAC Agent Experts pattern - stores persistent agent expertise and mental models"
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git"],
+      "description": "Enhanced git operations for repository analysis, diff inspection, and commit history exploration"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "description": "Reflective problem-solving for TAC closed-loop prompts and multi-step reasoning"
+    }
+  }
+}

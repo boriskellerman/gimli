@@ -7,6 +7,7 @@ import {
   agentsListCommand,
   agentsSetIdentityCommand,
 } from "../../commands/agents.js";
+import { agentsObserveCommand } from "../../commands/agents-observe.js";
 import { setVerbose } from "../../globals.js";
 import { defaultRuntime } from "../../runtime.js";
 import { formatDocsLink } from "../../terminal/links.js";
@@ -196,6 +197,43 @@ ${formatHelpExamples([
             id: String(id),
             force: Boolean(opts.force),
             json: Boolean(opts.json),
+          },
+          defaultRuntime,
+        );
+      });
+    });
+
+  agents
+    .command("observe")
+    .description("Monitor all agents, their context, and current work")
+    .option("--json", "Output JSON instead of text", false)
+    .option("--active", "Show only active runs", false)
+    .option("--agent <id>", "Filter to a specific agent")
+    .option("--limit <n>", "Maximum runs per agent (default: 10)", parseInt)
+    .option("--window <minutes>", "Observation window in minutes (default: 30)", parseInt)
+    .addHelpText(
+      "after",
+      () =>
+        `
+${theme.heading("Examples:")}
+${formatHelpExamples([
+  ["gimli agents observe", "Show all agents and their recent activity."],
+  ["gimli agents observe --active", "Show only agents with active runs."],
+  ["gimli agents observe --agent main", "Focus on a specific agent."],
+  ["gimli agents observe --window 60 --limit 20", "Extended window with more runs."],
+  ["gimli agents observe --json", "Output as JSON for programmatic use."],
+])}
+`,
+    )
+    .action(async (opts) => {
+      await runCommandWithRuntime(defaultRuntime, async () => {
+        await agentsObserveCommand(
+          {
+            json: Boolean(opts.json),
+            active: Boolean(opts.active),
+            agent: opts.agent as string | undefined,
+            limit: typeof opts.limit === "number" ? opts.limit : undefined,
+            window: typeof opts.window === "number" ? opts.window : undefined,
           },
           defaultRuntime,
         );

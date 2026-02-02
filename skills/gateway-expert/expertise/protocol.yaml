@@ -1,0 +1,240 @@
+# Gateway Protocol Expertise
+# Mental model for WebSocket protocol, frame types, and validation
+
+version: 1
+domain: gateway-protocol
+updated: 2026-02-01
+
+mental_model:
+  name: Gateway WebSocket Protocol
+  description: |
+    The gateway uses a JSON-based protocol over WebSocket for bidirectional
+    communication between clients and the server. The protocol supports
+    request/response patterns and event streaming.
+
+frame_types:
+  request:
+    description: Client-to-gateway RPC request
+    structure:
+      type:
+        value: "req"
+        required: true
+      id:
+        type: string
+        description: UUID for request/response correlation
+        required: true
+      method:
+        type: string
+        description: RPC method name (e.g., "chat.send", "sessions.list")
+        required: true
+      params:
+        type: object
+        description: Method-specific parameters
+        required: false
+    example: |
+      {
+        "type": "req",
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "method": "chat.send",
+        "params": { "message": "Hello", "sessionKey": "main" }
+      }
+
+  response:
+    description: Gateway-to-client RPC response
+    structure:
+      type:
+        value: "res"
+        required: true
+      id:
+        type: string
+        description: Matches the request ID
+        required: true
+      ok:
+        type: boolean
+        description: Success indicator
+        required: true
+      payload:
+        type: object
+        description: Response data on success
+        required: false
+      error:
+        type: object
+        properties:
+          code: number
+          message: string
+        description: Error details on failure
+        required: false
+    example_success: |
+      {
+        "type": "res",
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "ok": true,
+        "payload": { "sessionId": "abc123", "messageId": "msg-001" }
+      }
+    example_error: |
+      {
+        "type": "res",
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "ok": false,
+        "error": { "code": 4001, "message": "Session not found" }
+      }
+
+  event:
+    description: Gateway-to-client broadcast event
+    structure:
+      type:
+        value: "event"
+        required: true
+      event:
+        type: string
+        description: Event name (e.g., "tick", "chat.message", "agent.tool")
+        required: true
+      seq:
+        type: number
+        description: Sequence number for gap detection
+        required: false
+      payload:
+        type: object
+        description: Event-specific data
+        required: false
+    common_events:
+      - name: tick
+        description: Heartbeat event, sent at regular intervals
+        payload: { ts: number }
+      - name: connect.challenge
+        description: Authentication challenge with nonce
+        payload: { nonce: string }
+      - name: chat.message
+        description: New message in conversation
+        payload: { sessionKey: string, role: string, content: string }
+      - name: chat.tool
+        description: Tool invocation event
+        payload: { sessionKey: string, tool: string, input: object }
+      - name: chat.done
+        description: Agent run completed
+        payload: { sessionKey: string, success: boolean }
+      - name: agent.start
+        description: Agent execution started
+        payload: { sessionKey: string, agentId: string }
+      - name: shutdown
+        description: Gateway shutting down
+        payload: { reason: string }
+
+protocol_versions:
+  current: 7
+  min_supported: 1
+  negotiation: |
+    Client sends minProtocol and maxProtocol in connect params.
+    Gateway selects highest mutually supported version.
+
+connection_flow:
+  steps:
+    - name: WebSocket Open
+      description: TCP/TLS connection established
+      client_action: Connect to ws://127.0.0.1:18789 or wss://host:port
+      gateway_action: Accept connection, start timeout for hello
+
+    - name: Challenge (optional)
+      description: Gateway issues nonce for device authentication
+      gateway_action: Send connect.challenge event with nonce
+      client_action: Prepare signed connect request
+
+    - name: Connect Request
+      description: Client sends authentication and capabilities
+      client_action: |
+        Send connect request with:
+        - minProtocol/maxProtocol version range
+        - client identity (id, displayName, version, platform, mode)
+        - auth (token and/or password)
+        - device (id, publicKey, signature if device auth)
+        - caps (capability flags)
+        - scopes (permission scopes)
+      gateway_action: Validate auth, check permissions
+
+    - name: HelloOk Response
+      description: Gateway confirms connection
+      gateway_action: |
+        Send HelloOk with:
+        - negotiated protocol version
+        - session info
+        - policy (tick interval, capabilities)
+        - auth (deviceToken for future connections)
+
+    - name: Event Stream
+      description: Gateway streams events to client
+      events:
+        - tick (heartbeat)
+        - chat.* (message events)
+        - agent.* (agent events)
+
+    - name: RPC Exchange
+      description: Client sends requests, gateway responds
+      pattern: Request -> Response (correlated by ID)
+
+error_codes:
+  ranges:
+    1000-1999: WebSocket standard close codes
+    4000-4099: Protocol errors
+    4100-4199: Authentication errors
+    4200-4299: Session errors
+    4300-4399: Channel errors
+  common:
+    - code: 1000
+      name: NORMAL_CLOSURE
+      description: Clean shutdown
+    - code: 1006
+      name: ABNORMAL_CLOSURE
+      description: Connection lost without close frame
+    - code: 1008
+      name: POLICY_VIOLATION
+      description: Auth failed or policy rejected
+    - code: 4000
+      name: TICK_TIMEOUT
+      description: No tick received within expected interval
+    - code: 4001
+      name: INVALID_FRAME
+      description: Malformed JSON or invalid frame structure
+    - code: 4100
+      name: AUTH_FAILED
+      description: Token/password authentication failed
+    - code: 4101
+      name: DEVICE_NOT_PAIRED
+      description: Device not approved for pairing
+    - code: 4200
+      name: SESSION_NOT_FOUND
+      description: Requested session does not exist
+
+validation:
+  tools:
+    - ajv (JSON Schema validation)
+    - TypeBox (schema generation)
+  location: src/gateway/protocol/schema.ts
+  pattern: |
+    Each frame type and params type has a JSON Schema.
+    Validators are compiled once at module load.
+    All incoming frames are validated before processing.
+
+best_practices:
+  - Always include request ID for correlation
+  - Handle reconnection with exponential backoff
+  - Monitor tick events for connection health
+  - Validate all frames before processing
+  - Use sequence numbers to detect missed events
+  - Store device token for future connections
+
+troubleshooting:
+  connection_refused:
+    cause: Gateway not running or wrong port
+    fix: Check `gimli gateway status`, verify port 18789
+
+  auth_failed:
+    cause: Invalid token or device not paired
+    fix: Check token, run device pairing flow
+
+  tick_timeout:
+    cause: Gateway stalled or network issue
+    fix: Client should reconnect with backoff
+
+  invalid_frame:
+    cause: Malformed JSON or schema violation
+    fix: Check frame structure against schema

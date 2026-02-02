@@ -1,0 +1,35 @@
+# Ralphy Configuration
+# https://github.com/michaelshimeles/ralphy
+
+# Project info (auto-detected, edit if needed)
+project:
+  name: "gimli"
+  language: "TypeScript"
+  framework: "Hono, Express"
+  description: ""  # Add a brief description
+
+# Commands (auto-detected from package.json/pyproject.toml)
+commands:
+  test: "npm test"
+  lint: "npm run lint"
+  build: "npm run build"
+
+# Rules - instructions the AI MUST follow
+# These are injected into every prompt
+rules:
+  - "This is a web research task - use WebSearch and WebFetch tools extensively"
+  - "Document all findings with source URLs"
+  - "Include timestamps (February 2026) on all research documents"
+  - "Create structured markdown documents with clear sections"
+  - "Focus on information from the last 30 days when possible"
+  - "Cross-reference multiple sources for accuracy"
+  - "Note any conflicting information found across sources"
+  - "Save research to docs/research/ directory as specified in task"
+
+# Boundaries - files/folders the AI should not modify
+boundaries:
+  never_touch:
+    # Examples:
+    # - "src/legacy/**"
+    # - "migrations/**"
+    # - "*.lock"

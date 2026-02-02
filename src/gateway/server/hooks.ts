@@ -9,6 +9,7 @@ import { requestHeartbeatNow } from "../../infra/heartbeat-wake.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
 import type { createSubsystemLogger } from "../../logging/subsystem.js";
 import type { HookMessageChannel, HooksConfigResolved } from "../hooks.js";
+import { getHookRunStore } from "../hooks-runs.js";
 import { createHooksRequestHandler } from "../server-http.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
@@ -70,8 +71,15 @@ export function createGatewayHooksRequestHandler(params: {
       state: { nextRunAtMs: now },
     };
 
-    const runId = randomUUID();
+    // Track run in store for observability
+    const runStore = getHookRunStore();
+    const runId = runStore.createRun({
+      name: value.name,
+      sessionKey,
+    });
+
     void (async () => {
+      runStore.startRun(runId);
       try {
         const cfg = loadConfig();
         const result = await runCronIsolatedAgentTurn({
@@ -82,6 +90,10 @@ export function createGatewayHooksRequestHandler(params: {
           sessionKey,
           lane: "cron",
         });
+
+        // Store result for retrieval via GET /hooks/runs/:runId
+        runStore.completeRun(runId, result);
+
         const summary = result.summary?.trim() || result.error?.trim() || result.status;
         const prefix =
           result.status === "ok" ? `Hook ${value.name}` : `Hook ${value.name} (${result.status})`;
@@ -92,6 +104,12 @@ export function createGatewayHooksRequestHandler(params: {
           requestHeartbeatNow({ reason: `hook:${jobId}` });
         }
       } catch (err) {
+        // Store error for retrieval
+        runStore.completeRun(runId, {
+          status: "error",
+          error: String(err),
+        });
+
         logHooks.warn(`hook agent failed: ${String(err)}`);
         enqueueSystemEvent(`Hook ${value.name} (error): ${String(err)}`, {
           sessionKey: mainSessionKey,

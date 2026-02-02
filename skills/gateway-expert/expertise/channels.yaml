@@ -1,0 +1,343 @@
+# Channel Integration Expertise
+# Mental model for multi-channel messaging architecture
+
+version: 1
+domain: channel-integration
+updated: 2026-02-01
+
+mental_model:
+  name: Multi-Channel Messaging Architecture
+  description: |
+    Gimli supports multiple messaging channels (Telegram, Discord, WhatsApp, etc.)
+    through a unified channel plugin system. Each channel has capabilities,
+    configuration, and routing rules.
+
+channel_types:
+  core_channels:
+    - id: telegram
+      name: Telegram
+      description: Telegram Bot API integration
+      supports: [direct, group, channel, thread]
+
+    - id: discord
+      name: Discord
+      description: Discord Bot integration
+      supports: [direct, channel, thread]
+
+    - id: whatsapp
+      name: WhatsApp
+      description: WhatsApp Web/Business API
+      supports: [direct, group]
+
+    - id: slack
+      name: Slack
+      description: Slack Bot/App integration
+      supports: [direct, channel, thread]
+
+    - id: signal
+      name: Signal
+      description: Signal messenger integration
+      supports: [direct, group]
+
+    - id: imessage
+      name: iMessage
+      description: Apple iMessage (macOS only)
+      supports: [direct, group]
+
+    - id: googlechat
+      name: Google Chat
+      description: Google Chat/Workspace integration
+      supports: [direct, group, thread]
+
+  extension_channels:
+    - id: msteams
+      name: Microsoft Teams
+      location: extensions/msteams
+      supports: [direct, channel, thread]
+
+    - id: matrix
+      name: Matrix
+      location: extensions/matrix
+      supports: [direct, group]
+
+    - id: zalo
+      name: Zalo
+      location: extensions/zalo
+      supports: [direct, group]
+
+    - id: voice-call
+      name: Voice Call
+      location: extensions/voice-call
+      supports: [direct]
+
+channel_capabilities:
+  description: Declared capabilities for each channel
+  interface: |
+    type ChannelCapabilities = {
+      chatTypes: ("direct" | "group" | "channel" | "thread")[];
+      nativeCommands?: boolean;    // Supports /commands natively
+      blockStreaming?: boolean;    // Cannot stream responses
+      polls?: boolean;             // Supports poll creation
+      reactions?: boolean;         // Supports emoji reactions
+      media?: boolean;             // Supports media attachments
+      threads?: boolean;           // Supports threaded replies
+    };
+
+  examples:
+    telegram:
+      chatTypes: [direct, group, channel, thread]
+      nativeCommands: true
+      blockStreaming: true
+
+    discord:
+      chatTypes: [direct, channel, thread]
+      nativeCommands: true
+      polls: true
+      reactions: true
+      media: true
+      threads: true
+
+    whatsapp:
+      chatTypes: [direct, group]
+      polls: true
+      reactions: true
+      media: true
+
+channel_dock:
+  description: |
+    Lightweight metadata object for each channel.
+    Used by shared code paths without loading full plugin.
+
+  structure:
+    id: Channel identifier
+    capabilities: ChannelCapabilities
+    outbound:
+      textChunkLimit: Max characters per message
+    streaming:
+      blockStreamingCoalesceDefaults: Coalesce settings for non-streaming
+    commands:
+      enforceOwnerForCommands: Only owner can run commands
+      skipWhenConfigEmpty: Skip if no config
+    config:
+      resolveAllowFrom: Function to get allowlist
+      formatAllowFrom: Function to normalize allowlist entries
+    groups:
+      resolveRequireMention: Check if mention required
+      resolveToolPolicy: Get tool policy for groups
+    mentions:
+      stripPatterns: Regex patterns to strip mentions
+    threading:
+      resolveReplyToMode: Get reply threading mode
+      buildToolContext: Build context for tools
+    elevated:
+      allowFromFallback: Fallback allowlist for elevated
+
+  location: src/channels/dock.ts
+
+routing:
+  message_flow:
+    inbound:
+      - Channel receives message from platform
+      - Router identifies session key
+      - Allowlist check (is sender permitted?)
+      - Mention gating check (for groups)
+      - Command detection and routing
+      - Forward to agent for processing
+
+    outbound:
+      - Agent generates response
+      - Response chunked if exceeds limit
+      - Channel-specific formatting applied
+      - Send to platform via channel adapter
+
+  session_key_resolution:
+    direct:
+      pattern: "agent:{agentId}:{channel}:direct:{senderId}"
+      example: "agent:pi:telegram:direct:123456"
+
+    group:
+      pattern: "agent:{agentId}:{channel}:group:{groupId}"
+      example: "agent:pi:discord:channel:789"
+
+    thread:
+      pattern: "agent:{agentId}:{channel}:thread:{parentId}:{threadId}"
+      example: "agent:pi:slack:thread:C123:1234567890.123456"
+
+allowlist:
+  description: |
+    Each channel has an allowlist controlling who can send messages.
+    Empty allowlist means no one is allowed (security default).
+
+  configuration:
+    location: "gimli.json or gimli.config.yaml"
+    path: "channels.{channel}.allowFrom or channels.{channel}.dm.allowFrom"
+
+  formats:
+    telegram: ["123456789", "@username"]
+    discord: ["user_id", "username#1234"]
+    whatsapp: ["+14155551234"]
+    signal: ["+14155551234"]
+    slack: ["U12345678"]
+
+  special_values:
+    "*": Allow everyone (dangerous, use carefully)
+
+  pattern: |
+    # In config
+    channels:
+      telegram:
+        allowFrom:
+          - "123456789"
+          - "@myusername"
+
+dm_pairing:
+  description: |
+    When dmPolicy is "pairing", new DM senders must be approved.
+    This provides an extra security layer.
+
+  flow:
+    - New sender sends message
+    - Gateway detects unpaired device/sender
+    - Pairing request created
+    - Owner approves/rejects via UI or CLI
+    - Approved senders added to allowlist
+
+  commands:
+    list: gimli pairing list
+    approve: gimli pairing approve <id>
+    reject: gimli pairing reject <id>
+
+mention_gating:
+  description: |
+    In groups, the bot may require being mentioned to respond.
+    This prevents responding to every message.
+
+  configuration:
+    path: "channels.{channel}.group.requireMention"
+    values: [true, false, "always", "optional"]
+
+  behavior:
+    true: Only respond when @mentioned
+    false: Respond to all group messages
+    "always": Always require mention
+    "optional": Respond without mention but prioritize mentioned
+
+group_tool_policy:
+  description: |
+    Tools may be restricted in group contexts.
+    Prevents dangerous operations in shared chats.
+
+  configuration:
+    path: "channels.{channel}.group.toolPolicy"
+    values: [allow, restrict, deny]
+
+  behavior:
+    allow: Full tool access
+    restrict: Limited safe tools only
+    deny: No tool access in groups
+
+streaming:
+  description: |
+    Some channels support streaming responses (tokens as they generate).
+    Others require full response before sending.
+
+  streaming_channels:
+    - discord (with coalescing)
+    - slack (with coalescing)
+
+  non_streaming_channels:
+    - telegram (blockStreaming: true)
+    - whatsapp
+    - signal
+
+  coalescing:
+    description: Buffer tokens and send periodically
+    settings:
+      minChars: Minimum characters before sending
+      idleMs: Idle time before flush
+
+threading:
+  description: |
+    Channels with thread support can maintain threaded conversations.
+
+  reply_to_modes:
+    off: Don't use reply threading
+    first: Reply to first message in thread
+    last: Reply to most recent message
+    auto: Intelligent threading based on context
+
+  configuration:
+    path: "channels.{channel}.replyToMode"
+
+  context_building:
+    description: Threading adapter builds context for tools
+    provides:
+      currentChannelId: Channel/room identifier
+      currentThreadTs: Thread timestamp/ID
+      hasRepliedRef: Whether reply reference exists
+
+plugin_registration:
+  description: |
+    Channels register through the plugin system.
+
+  structure:
+    plugin.json:
+      type: channel
+      id: channel-id
+      name: Human-readable name
+
+    plugin_entry:
+      id: string
+      name: string
+      capabilities: ChannelCapabilities
+      monitor: Function to watch for messages
+      send: Function to send messages
+      meta: Plugin metadata
+
+  location: extensions/{channel}/plugin.json
+
+rpc_methods:
+  channels.status:
+    description: Get status of all channels
+    params:
+      probe: boolean  # Active health check
+      channel: string # Specific channel
+    returns:
+      channels: ChannelStatus[]
+
+  channels.logout:
+    description: Disconnect a channel
+    params:
+      channel: string
+      accountId: string
+    returns:
+      success: boolean
+
+best_practices:
+  - Always configure allowlist before enabling channel
+  - Use DM pairing for additional security
+  - Enable mention gating for busy groups
+  - Test channel configuration with `gimli channels status --probe`
+  - Chunk long messages appropriately for channel limits
+  - Handle non-streaming channels gracefully
+
+troubleshooting:
+  channel_not_connecting:
+    cause: Missing credentials or wrong configuration
+    fix: Check channel config, verify credentials
+
+  messages_not_received:
+    cause: Sender not in allowlist
+    fix: Add sender to allowFrom config
+
+  bot_not_responding_in_group:
+    cause: Mention gating enabled, bot not @mentioned
+    fix: Mention bot or disable requireMention
+
+  messages_truncated:
+    cause: Exceeds channel text limit
+    fix: Check textChunkLimit, enable chunking
+
+  streaming_not_working:
+    cause: Channel has blockStreaming=true
+    fix: Channel doesn't support streaming, response sent on completion

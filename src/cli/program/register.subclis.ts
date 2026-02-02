@@ -235,6 +235,14 @@ const entries: SubCliEntry[] = [
       mod.registerUpstreamCli(program);
     },
   },
+  {
+    name: "prime",
+    description: "Tool access for TAC orchestrator agents",
+    register: async (program) => {
+      const mod = await import("../prime-cli.js");
+      mod.registerPrimeCli(program);
+    },
+  },
 ];
 
 function removeCommand(program: Command, command: Command) {
