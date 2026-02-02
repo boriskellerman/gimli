@@ -266,10 +266,10 @@
 - [x] Create bug template (how Gimli bugs should be investigated and fixed)
 - [x] Create feature template (how new features should be planned and built)
 - [x] Create chore template (maintenance tasks, dependency updates)
-- [ ] Encode Gimli's engineering standards into templates
+- [x] Encode Gimli's engineering standards into templates
 
 #### Grade 6: Prompt Chains / Agentic Workflows
-- [ ] Build plan → build → test → review → document workflow
+- [x] Build plan → build → test → review → document workflow
 - [ ] Create scout agents that research before building
 - [ ] Chain templates together for end-to-end feature development
 
