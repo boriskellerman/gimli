@@ -274,8 +274,8 @@
 - [x] Chain templates together for end-to-end feature development
 
 #### Grade 7: Agent Experts
-- [ ] Create Database Expert (Gimli's data layer mental model)
-- [ ] Create Gateway Expert (WebSocket, sessions, channels)
+- [x] Create Database Expert (Gimli's data layer mental model)
+- [x] Create Gateway Expert (WebSocket, sessions, channels)
 - [ ] Create Security Expert (auth, sandboxing, credential handling)
 - [ ] Create Channel Expert (WhatsApp, Telegram, Discord, etc.)
 - [ ] Implement self-improve prompts to keep expertise synced with code
