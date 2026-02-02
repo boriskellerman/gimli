@@ -286,8 +286,8 @@
 > Build the PETER framework: Prompt → Environment → Trigger → Execute → Result
 
 #### Grade 1: Outloop Foundation
-- [ ] Set up webhook endpoints for external triggers
-- [ ] Create programmatic agent execution via Claude Agent SDK
+- [x] Set up webhook endpoints for external triggers
+- [x] Create programmatic agent execution via Claude Agent SDK
 - [ ] Build basic HTTP trigger → agent execution pipeline
 
 #### Grade 2: AI Developer Workflows (ADWs)
