@@ -365,7 +365,7 @@ function buildVerifyPrompt(input: TestFixInput, context: ADWContext): string {
  * Build prompt for a stage based on context
  */
 function buildPrompt(stage: StageConfig, context: ADWContext): string {
-  const input = context.input as TestFixInput;
+  const input = context.input as unknown as TestFixInput;
 
   switch (stage.id) {
     case "analyze":

@@ -317,7 +317,7 @@ async function handleTriggerRequest(
 
   // Security: scan for prompt injection unless explicitly allowed
   if (!normalized.value.allowUnsafeExternalContent) {
-    const classification = classifyExternalContent("api", normalized.value.message);
+    const classification = classifyExternalContent("web", normalized.value.message);
     if (!classification.processable) {
       logADW.warn(
         `ADW payload rejected: prompt injection detected (risk=${classification.riskLevel})`,

@@ -288,3 +288,294 @@ export interface ADWTriggerResult {
   /** The run record (if await was true and completed) */
   run?: ADWRun;
 }
+
+// ============================================================================
+// Workflow Runner Types
+// ============================================================================
+
+/**
+ * Configuration for retry behavior.
+ */
+export interface StepRetryConfig {
+  /** Maximum number of retry attempts */
+  maxAttempts?: number;
+  /** Initial delay between retries in ms */
+  initialDelayMs?: number;
+  /** Maximum delay between retries in ms */
+  maxDelayMs?: number;
+  /** Jitter factor (0-1) to randomize delays */
+  jitter?: number;
+  /** Function to determine if an error is retryable */
+  isRetryable?: (error: unknown, attempt: number) => boolean;
+}
+
+/**
+ * Configuration for an agent call.
+ */
+export interface AgentCallConfig {
+  /** Model to use */
+  model?: string;
+  /** Provider (anthropic, openai, etc.) */
+  provider?: string;
+  /** Temperature for generation */
+  temperature?: number;
+  /** Maximum tokens to generate */
+  maxTokens?: number;
+  /** Timeout in milliseconds */
+  timeoutMs?: number;
+  /** Additional provider-specific options */
+  [key: string]: unknown;
+}
+
+/**
+ * Input to an agent call.
+ */
+export interface AgentCallInput {
+  /** The prompt to send to the agent */
+  prompt: string;
+  /** Optional configuration */
+  config?: AgentCallConfig;
+  /** Optional context from previous steps */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Output from an agent call.
+ */
+export interface AgentCallOutput {
+  /** The generated text response */
+  text: string;
+  /** Model used for generation */
+  model: string;
+  /** Provider used */
+  provider: string;
+  /** Token usage statistics */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  /** Additional metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Definition of a workflow step.
+ */
+export interface StepDefinition<TInput = unknown, TOutput = unknown, TContext = unknown> {
+  /** Unique step identifier */
+  id: string;
+  /** Human-readable step name */
+  name: string;
+  /** Execute the step */
+  execute: (input: TInput, context: TContext) => Promise<TOutput>;
+  /** Optional input validation */
+  validate?: (input: TInput, context: TContext) => boolean | string | Promise<boolean | string>;
+  /** Optional output validation */
+  validateOutput?: (
+    output: TOutput,
+    context: TContext,
+  ) => boolean | string | Promise<boolean | string>;
+  /** Optional input transformation */
+  transformInput?: (input: unknown, context: TContext) => TInput | Promise<TInput>;
+  /** Check if step should be skipped */
+  shouldSkip?: (context: TContext) => boolean | Promise<boolean>;
+  /** Retry configuration for this step */
+  retry?: StepRetryConfig;
+  /** Step timeout in milliseconds */
+  timeoutMs?: number;
+  /** Continue workflow even if this step fails */
+  continueOnError?: boolean;
+}
+
+/**
+ * Result of executing a step.
+ */
+export type StepResult<TOutput = unknown> =
+  | {
+      status: "success";
+      data: TOutput;
+      durationMs: number;
+      attempts: number;
+    }
+  | {
+      status: "error";
+      error: string;
+      cause?: unknown;
+      durationMs: number;
+      attempts: number;
+    };
+
+/**
+ * Complete workflow definition.
+ */
+export interface WorkflowDefinition<TInput = unknown, TOutput = unknown, TContext = unknown> {
+  /** Unique workflow identifier */
+  id: string;
+  /** Human-readable workflow name */
+  name: string;
+  /** Optional description */
+  description?: string;
+  /** Workflow version */
+  version?: string;
+  /** Steps to execute in order */
+  steps: StepDefinition<unknown, unknown, TContext>[];
+  /** Initialize context from input */
+  initContext?: (input: TInput) => TContext | Promise<TContext>;
+  /** Transform step results to final output */
+  transformOutput?: (
+    stepResults: Map<string, StepResult>,
+    context: TContext,
+  ) => TOutput | Promise<TOutput>;
+  /** Default retry configuration for all steps */
+  defaultRetry?: StepRetryConfig;
+  /** Global workflow timeout in milliseconds */
+  timeoutMs?: number;
+  /** Abort workflow on first step failure (default: true) */
+  abortOnError?: boolean;
+}
+
+/**
+ * Events emitted during workflow execution.
+ */
+export type WorkflowEvent =
+  | {
+      type: "workflow:start";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      data?: unknown;
+    }
+  | {
+      type: "workflow:complete";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      data?: unknown;
+    }
+  | {
+      type: "workflow:error";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      error?: string;
+    }
+  | {
+      type: "workflow:abort";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+    }
+  | {
+      type: "step:start";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      stepId: string;
+      stepName: string;
+      attempt: number;
+      maxAttempts: number;
+    }
+  | {
+      type: "step:complete";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      stepId: string;
+      stepName: string;
+      data?: unknown;
+    }
+  | {
+      type: "step:error";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      stepId: string;
+      stepName: string;
+      error?: string;
+      attempt: number;
+      maxAttempts: number;
+    }
+  | {
+      type: "step:retry";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      stepId: string;
+      stepName: string;
+      error?: string;
+      attempt: number;
+      maxAttempts: number;
+      data?: unknown;
+    }
+  | {
+      type: "step:skip";
+      runId: string;
+      workflowId: string;
+      timestamp: number;
+      stepId: string;
+      stepName: string;
+    };
+
+/**
+ * Listener for workflow events.
+ */
+export type WorkflowEventListener = (event: WorkflowEvent) => void | Promise<void>;
+
+/**
+ * Log entry for a workflow step execution.
+ */
+export interface WorkflowStepLog {
+  /** Step identifier */
+  stepId: string;
+  /** Step name */
+  stepName: string;
+  /** Step execution status */
+  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  /** When step started */
+  startedAt: number;
+  /** When step ended */
+  endedAt?: number;
+  /** Duration in milliseconds */
+  durationMs?: number;
+  /** Number of attempts made */
+  attempts: number;
+  /** Step result */
+  result?: StepResult;
+  /** Error message if failed */
+  error?: string;
+}
+
+/**
+ * A single execution of a workflow.
+ */
+export interface WorkflowRun<TInput = unknown, TOutput = unknown, TContext = unknown> {
+  /** Unique run identifier */
+  runId: string;
+  /** Workflow identifier */
+  workflowId: string;
+  /** Workflow version */
+  workflowVersion?: string;
+  /** Run status */
+  status: "pending" | "running" | "completed" | "failed" | "aborted";
+  /** Input provided to the workflow */
+  input: TInput;
+  /** Output produced by the workflow */
+  output?: TOutput;
+  /** Workflow context */
+  context?: TContext;
+  /** Step execution logs */
+  stepLogs: WorkflowStepLog[];
+  /** Step results by step ID */
+  stepResults: Map<string, StepResult>;
+  /** When run started */
+  startedAt: number;
+  /** When run ended */
+  endedAt?: number;
+  /** Total duration in milliseconds */
+  durationMs?: number;
+  /** Error message if failed */
+  error?: string;
+  /** Additional metadata */
+  metadata?: Record<string, unknown>;
+}

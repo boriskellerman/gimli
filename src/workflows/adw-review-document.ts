@@ -380,7 +380,7 @@ function buildDocumentPrompt(input: ReviewDocumentInput, context: ADWContext): s
  * Build prompt for a stage based on context
  */
 function buildPrompt(stage: StageConfig, context: ADWContext): string {
-  const input = context.input as ReviewDocumentInput;
+  const input = context.input as unknown as ReviewDocumentInput;
 
   switch (stage.id) {
     case "review":

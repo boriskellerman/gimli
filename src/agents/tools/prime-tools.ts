@@ -11,6 +11,7 @@
  */
 
 import fs from "node:fs/promises";
+import path from "node:path";
 
 import { Type } from "@sinclair/typebox";
 
@@ -354,7 +355,7 @@ export function createLogsTool(): AnyAgentTool {
         return jsonResult({
           ok: true,
           logFile,
-          logDir: logSettings.dir,
+          logDir: path.dirname(logFile),
           logLevel: logSettings.level,
         });
       }

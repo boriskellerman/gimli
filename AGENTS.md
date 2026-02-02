@@ -52,8 +52,11 @@
 | `src/media/` | Media processing pipeline | Image/audio handling |
 | `src/infra/` | Infrastructure utilities | Shared helpers |
 | `extensions/` | Plugin workspace packages | Channel plugins |
-| `apps/` | Native apps | `macos/`, `ios/`, `android/` |
+| `apps/` | Native apps | `macos/`, `ios/`, `android/`, `swabble/` |
+| `docker/` | Docker configuration | Dockerfile, docker-compose.yml |
+| `scripts/` | Build and utility scripts | Setup, testing, deployment |
 | `docs/` | Mintlify documentation | Hosted at docs.gimli.bot |
+| `ralphy/` | Development research | TAC principles, PRD, prompts |
 
 ### Built-in Channels
 

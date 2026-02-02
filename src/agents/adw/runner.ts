@@ -476,7 +476,7 @@ async function executeStep(params: ExecuteStepParams): Promise<ADWStepResult> {
       durationMs: retryResult.totalDurationMs,
       attempts: retryResult.attempts,
       retryable: false,
-      validation: lastStepLog?.validation,
+      validation: (lastStepLog as ADWStepLog | null)?.validation,
     };
   }
 
@@ -498,7 +498,8 @@ async function executeStep(params: ExecuteStepParams): Promise<ADWStepResult> {
   });
 
   // If we don't have a final failed log, create one
-  if (!lastStepLog || lastStepLog.status !== "failed") {
+  const finalStepLog = lastStepLog as ADWStepLog | null;
+  if (!finalStepLog || finalStepLog.status !== "failed") {
     if (stepLog) {
       lastStepLog = completeStepLog(stepLog, "failed", undefined, errorMessage, errorCode);
       workflowLog.steps.push(lastStepLog);

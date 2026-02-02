@@ -1,54 +1,65 @@
-# Progress: Create MCP Server Connections
-
-## Task
-Create MCP server connections if beneficial (TAC Grade 3: Custom Tools)
-
-## Date
-2026-02-01
+# Progress: Test sub-agent delegation patterns
 
 ## Summary
-Evaluated MCP server connections for Gimli and determined that dedicated Gimli-specific
-MCP servers are not immediately beneficial. The codebase already has comprehensive MCP
-integration through existing mechanisms.
+Created comprehensive test suite for sub-agent delegation patterns in the Gimli codebase.
 
-## Evaluation
+## Completed Work
 
-### Existing MCP Infrastructure
-1. **mcporter** - External MCP tool calling (used by `gimli docs` command)
-2. **ACP (Agent Client Protocol)** - IDE integration exposing Gimli as MCP-compatible agent
-3. **Claude Code Plugins** - 30+ MCP servers already enabled (GitHub, Playwright, etc.)
+### New Test File Created
+- **File**: `src/agents/subagent-delegation-patterns.test.ts`
+- **Tests**: 23 tests covering the full sub-agent delegation system
 
-### Why Dedicated Gimli MCP Servers Are Not Needed Now
-- Gateway health, channel status, and config access work via CLI (`gimli doctor`, etc.)
-- Agents can call CLI commands through bash tool
-- Session management already built into Pi agent tools
-- No cross-process or cross-language requirements currently
+### Test Coverage Areas
 
-### When MCP Would Be Beneficial (Future)
-- Cross-process communication with non-Gimli agents
-- Language-agnostic tooling (Python/Go callers)
-- Remote access without shell
-- Type-safe structured schemas
+1. **Delegation Chain Prevention** (3 tests)
+   - Prevents sub-agents from spawning further sub-agents (infinite chain prevention)
+   - Allows delegation from main agent sessions
+   - Allows delegation from channel-based sessions
 
-## Files Created
+2. **Run Lifecycle Management** (4 tests)
+   - Registration and tracking in the registry
+   - Lifecycle start event handling
+   - Lifecycle end event and cleanup triggering
+   - Lifecycle error event handling with outcome tracking
 
-### docs/reference/MCP_INTEGRATION.md
-- Documents current MCP capabilities
-- Evaluation of Gimli-specific MCP needs
-- Guidance for adding MCP servers when beneficial
-- References to existing MCP infrastructure
+3. **Cleanup Strategies** (2 tests)
+   - Session deletion when cleanup mode is "delete"
+   - Session preservation when cleanup mode is "keep"
 
-### .mcp.json
-- Minimal MCP configuration file
-- Documents the existing docs.gimli.bot MCP endpoint
-- Serves as template for future expansion
+4. **Timeout Handling** (3 tests)
+   - Passes runTimeoutSeconds to agent calls
+   - Supports legacy timeoutSeconds parameter
+   - Prefers runTimeoutSeconds over legacy parameter
 
-## Recommendation
-No code changes needed at this time. The task explicitly says "if beneficial" and the
-evaluation shows existing infrastructure is sufficient. Documentation was added to
-guide future MCP integration when/if needs arise.
+5. **Registry Operations** (3 tests)
+   - Lists runs filtered by requester session
+   - Releases runs from registry
+   - Graceful handling of non-existent run releases
 
-## References
-- TAC Grade 3: Custom Tools (PRD.md)
-- mcporter skill: /skills/mcporter/SKILL.md
-- ACP documentation: /docs.acp.md
+6. **Requester Origin Propagation** (2 tests)
+   - Captures requester origin from agent context
+   - Normalizes whitespace in origin fields
+
+7. **System Prompt Generation** (2 tests)
+   - Includes task description in subagent system prompt
+   - Includes requester session context in prompt
+
+8. **Lane Assignment** (1 test)
+   - Verifies sub-agents spawn on the dedicated "subagent" lane
+
+9. **Deliver Flag** (1 test)
+   - Confirms deliver=false for sub-agent runs (prevents external delivery)
+
+10. **Group Context Propagation** (1 test)
+    - Forwards groupId, groupChannel, groupSpace to sub-agents
+
+11. **Registry Persistence** (1 test)
+    - Generates unique child session keys per spawn (UUID-based)
+
+## Verification
+- All 23 tests passing
+- Linting clean (0 errors, 0 warnings)
+- Formatting applied
+
+## Files Changed
+- Created: `src/agents/subagent-delegation-patterns.test.ts`

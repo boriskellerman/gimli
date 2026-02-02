@@ -18,6 +18,9 @@ import {
   formatNewCommitsMessage,
   loadState,
   createInitialState,
+  DEFAULT_STATE_PATH,
+  UPSTREAM_DEFAULT_BRANCH,
+  UPSTREAM_REPO_URL,
   type CommitInfo,
 } from "../upstream/commit-monitor.js";
 import {
@@ -113,14 +116,16 @@ function formatPriority(priority: string): string {
  * Check for new upstream commits
  */
 export async function upstreamCheckCommand(opts: UpstreamCheckOptions): Promise<void> {
-  const state = await loadState().catch(() => createInitialState());
+  const state =
+    (await loadState(DEFAULT_STATE_PATH).catch(() => null)) ??
+    createInitialState(UPSTREAM_DEFAULT_BRANCH);
 
   if (opts.verbose && !opts.json) {
-    defaultRuntime.log(theme.muted(`Last checked commit: ${state.lastCheckedCommitSha ?? "none"}`));
+    defaultRuntime.log(theme.muted(`Last checked commit: ${state.lastCommitSha ?? "none"}`));
   }
 
   try {
-    const result = await checkForNewCommits({ state });
+    const result = await checkForNewCommits();
 
     if (opts.json) {
       defaultRuntime.log(JSON.stringify(result, null, 2));
@@ -265,6 +270,7 @@ export async function upstreamApplyCommand(
           message: entry.commitMessage,
           author: entry.author,
           date: entry.commitDate,
+          url: `${UPSTREAM_REPO_URL}/commit/${entry.commitSha}`,
         },
         defaultAllowlistConfig,
       );
@@ -294,6 +300,7 @@ export async function upstreamApplyCommand(
       message: entry.commitMessage,
       author: entry.author,
       date: entry.commitDate,
+      url: `${UPSTREAM_REPO_URL}/commit/${entry.commitSha}`,
     };
 
     const stageResult = await stageUpstreamChanges(commit, entry.analysis ?? ({} as DiffAnalysis));

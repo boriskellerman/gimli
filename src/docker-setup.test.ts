@@ -47,7 +47,7 @@ describe("docker-setup.sh", () => {
     const binDir = join(rootDir, "bin");
     const logPath = join(rootDir, "docker-stub.log");
 
-    const script = await readFile(join(repoRoot, "docker-setup.sh"), "utf8");
+    const script = await readFile(join(repoRoot, "docker", "docker-setup.sh"), "utf8");
     await writeFile(scriptPath, script, { mode: 0o755 });
     await writeFile(dockerfilePath, "FROM scratch\n");
     await writeFile(
@@ -97,7 +97,7 @@ describe("docker-setup.sh", () => {
     const binDir = join(rootDir, "bin");
     const logPath = join(rootDir, "docker-stub.log");
 
-    const script = await readFile(join(repoRoot, "docker-setup.sh"), "utf8");
+    const script = await readFile(join(repoRoot, "docker", "docker-setup.sh"), "utf8");
     await writeFile(scriptPath, script, { mode: 0o755 });
     await writeFile(dockerfilePath, "FROM scratch\n");
     await writeFile(
@@ -134,7 +134,7 @@ describe("docker-setup.sh", () => {
   });
 
   it("keeps docker-compose gateway command in sync", async () => {
-    const compose = await readFile(join(repoRoot, "docker-compose.yml"), "utf8");
+    const compose = await readFile(join(repoRoot, "docker", "docker-compose.yml"), "utf8");
     expect(compose).not.toContain("gateway-daemon");
     expect(compose).toContain('"gateway"');
   });

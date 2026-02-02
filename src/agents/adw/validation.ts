@@ -32,7 +32,10 @@ export async function validateStepOutput(
   if (config.validator) {
     try {
       const timeoutMs = config.timeoutMs ?? 30000;
-      const validatorResult = await withTimeout(config.validator(output), timeoutMs);
+      const validatorResult = await withTimeout(
+        Promise.resolve(config.validator(output)),
+        timeoutMs,
+      );
 
       if (!validatorResult.valid) {
         errors.push(...(validatorResult.errors ?? []));

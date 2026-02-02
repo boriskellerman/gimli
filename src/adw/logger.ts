@@ -211,8 +211,8 @@ export class AdwLogger {
       const baseEntry = {
         workflowId: event.workflowId,
         runId: event.runId,
-        stepId: event.stepId,
-        stepName: event.stepName,
+        stepId: "stepId" in event ? event.stepId : undefined,
+        stepName: "stepName" in event ? event.stepName : undefined,
       };
 
       switch (event.type) {

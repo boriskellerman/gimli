@@ -338,9 +338,9 @@ export function attemptAutoCorrection<T extends PromptRequest>(
     if (path in corrected) {
       if (suggestion.suggestedValue === undefined) {
         // Remove the field
-        delete (corrected as Record<string, unknown>)[path];
+        delete (corrected as unknown as Record<string, unknown>)[path];
       } else {
-        (corrected as Record<string, unknown>)[path] = suggestion.suggestedValue;
+        (corrected as unknown as Record<string, unknown>)[path] = suggestion.suggestedValue;
       }
       applied.push(suggestion);
     }

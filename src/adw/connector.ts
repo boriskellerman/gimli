@@ -104,7 +104,7 @@ async function executeAgentStep(
         label: `ADW Step: ${stepDef.name}`,
         spawnedBy: context.sessionKey,
       },
-      timeoutMs: Math.max(15_000, (stepDef.config?.timeoutSeconds ?? 300) * 1000 + 5000),
+      timeoutMs: Math.max(15_000, Number(stepDef.config?.timeoutSeconds ?? 300) * 1000 + 5000),
     })) as { runId?: string; response?: string; usage?: { input?: number; output?: number } };
 
     const responseText =
@@ -141,8 +141,8 @@ async function executeTestStep(
   stepDef: ADWDefinition["steps"][number],
   context: WorkflowContext,
 ): Promise<StepExecutionResult> {
-  const command = stepDef.config?.command ?? "pnpm test --run";
-  const timeoutSeconds = stepDef.config?.timeoutSeconds ?? 300;
+  const command = String(stepDef.config?.command ?? "pnpm test --run");
+  const timeoutSeconds = Number(stepDef.config?.timeoutSeconds ?? 300);
   const cwd = context.workspaceDir ?? process.cwd();
 
   try {
@@ -152,13 +152,13 @@ async function executeTestStep(
     });
 
     const output = `${result.stdout}\n${result.stderr}`.trim();
-    const success = result.exitCode === 0;
+    const success = result.code === 0;
 
     return {
       success,
       output,
       outputType: "text",
-      error: success ? undefined : `Tests failed with exit code ${result.exitCode}`,
+      error: success ? undefined : `Tests failed with exit code ${result.code}`,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -178,11 +178,12 @@ async function executeValidationStep(
 ): Promise<StepExecutionResult> {
   // For now, validation steps just pass through
   // In a full implementation, this would run specific validation checks
-  const checks = stepDef.config?.checks ?? [];
+  const rawChecks = stepDef.config?.checks;
+  const checks = Array.isArray(rawChecks) ? rawChecks : [];
   const checkResults: string[] = [];
 
   for (const check of checks) {
-    checkResults.push(`✓ ${check}: passed`);
+    checkResults.push(`✓ ${String(check)}: passed`);
   }
 
   return {
@@ -217,8 +218,8 @@ async function executeGitStep(
   stepDef: ADWDefinition["steps"][number],
   context: WorkflowContext,
 ): Promise<StepExecutionResult> {
-  const command = stepDef.config?.command ?? "git status";
-  const timeoutSeconds = stepDef.config?.timeoutSeconds ?? 60;
+  const command = String(stepDef.config?.command ?? "git status");
+  const timeoutSeconds = Number(stepDef.config?.timeoutSeconds ?? 60);
   const cwd = context.workspaceDir ?? process.cwd();
 
   try {
@@ -228,11 +229,10 @@ async function executeGitStep(
     });
 
     return {
-      success: result.exitCode === 0,
+      success: result.code === 0,
       output: `${result.stdout}\n${result.stderr}`.trim(),
       outputType: "text",
-      error:
-        result.exitCode !== 0 ? `Git command failed with exit code ${result.exitCode}` : undefined,
+      error: result.code !== 0 ? `Git command failed with exit code ${result.code}` : undefined,
     };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);

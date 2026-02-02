@@ -78,7 +78,7 @@ function extractErrorInfo(error: unknown): ErrorInfo {
     };
 
     // Check for common error properties
-    const errObj = error as Record<string, unknown>;
+    const errObj = error as unknown as Record<string, unknown>;
     if (typeof errObj.code === "string") info.code = errObj.code;
     if (typeof errObj.status === "number") info.status = errObj.status;
     if (typeof errObj.statusCode === "number") info.status = errObj.statusCode;

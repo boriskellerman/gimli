@@ -261,7 +261,7 @@ function buildImplementationPrompt(input: PlanBuildInput, context: ADWContext): 
  * Build prompt for a stage based on context
  */
 function buildPrompt(stage: StageConfig, context: ADWContext): string {
-  const input = context.input as PlanBuildInput;
+  const input = context.input as unknown as PlanBuildInput;
 
   switch (stage.id) {
     case "plan":

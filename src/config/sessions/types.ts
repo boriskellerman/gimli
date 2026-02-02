@@ -33,6 +33,12 @@ export type SessionEntry = {
   lastHeartbeatSentAt?: number;
   sessionId: string;
   updatedAt: number;
+  /** Agent ID associated with this session */
+  agentId?: string;
+  /** Timestamp (ms) when session was created */
+  createdAt?: number;
+  /** Last user message in the session (for context/preview) */
+  lastUserMessage?: string;
   sessionFile?: string;
   /** Parent session key that spawned this session (used for sandbox session-tool scoping). */
   spawnedBy?: string;

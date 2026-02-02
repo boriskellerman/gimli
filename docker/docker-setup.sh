@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
+# Interactive Docker setup for Gimli.
+# Builds the main Docker image, runs onboarding, and starts the gateway.
+# Supports custom mounts, home volumes, and additional APT packages.
+#
+# Environment variables:
+#   GIMLI_IMAGE           - Docker image name (default: gimli:local)
+#   GIMLI_CONFIG_DIR      - Config directory to mount (default: ~/.gimli)
+#   GIMLI_WORKSPACE_DIR   - Workspace directory to mount (default: ~/gimli)
+#   GIMLI_GATEWAY_PORT    - Gateway port (default: 18789)
+#   GIMLI_DOCKER_APT_PACKAGES - Extra APT packages to install in image
+#   GIMLI_EXTRA_MOUNTS    - Comma-separated extra volume mounts
+#   GIMLI_HOME_VOLUME     - Named volume for /home/node
+#
+# Usage: ./docker/docker-setup.sh
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
-EXTRA_COMPOSE_FILE="$ROOT_DIR/docker-compose.extra.yml"
+# Script directory (docker/) and repo root
+DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$DOCKER_DIR/.." && pwd)"
+COMPOSE_FILE="$DOCKER_DIR/docker-compose.yml"
+EXTRA_COMPOSE_FILE="$DOCKER_DIR/docker-compose.extra.yml"
 IMAGE_NAME="${GIMLI_IMAGE:-gimli:local}"
 EXTRA_MOUNTS="${GIMLI_EXTRA_MOUNTS:-}"
 HOME_VOLUME_NAME="${GIMLI_HOME_VOLUME:-}"
@@ -117,7 +133,7 @@ for compose_file in "${COMPOSE_FILES[@]}"; do
   COMPOSE_HINT+=" -f ${compose_file}"
 done
 
-ENV_FILE="$ROOT_DIR/.env"
+ENV_FILE="$DOCKER_DIR/.env"
 upsert_env() {
   local file="$1"
   shift
@@ -169,7 +185,7 @@ echo "==> Building Docker image: $IMAGE_NAME"
 docker build \
   --build-arg "GIMLI_DOCKER_APT_PACKAGES=${GIMLI_DOCKER_APT_PACKAGES}" \
   -t "$IMAGE_NAME" \
-  -f "$ROOT_DIR/Dockerfile" \
+  -f "$DOCKER_DIR/Dockerfile" \
   "$ROOT_DIR"
 
 echo ""
