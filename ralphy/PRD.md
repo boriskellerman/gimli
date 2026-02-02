@@ -254,8 +254,8 @@
 
 #### Grade 3: Custom Tools [COMPLETE]
 - [x] Build skills for Gimli-specific operations (channel testing, gateway health, etc.)
-- [ ] Create MCP server connections if beneficial
-- [ ] Write prime commands with tool access (database, config, logs)
+- [x] Create MCP server connections if beneficial
+- [x] Write prime commands with tool access (database, config, logs)
 
 #### Grade 4: Closed-Loop Prompts
 - [ ] Implement Request → Validate → Resolve pattern for all prompts
