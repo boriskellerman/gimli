@@ -278,8 +278,8 @@
 - [x] Create Gateway Expert (WebSocket, sessions, channels)
 - [x] Create Security Expert (auth, sandboxing, credential handling)
 - [x] Create Channel Expert (WhatsApp, Telegram, Discord, etc.)
-- [ ] Implement self-improve prompts to keep expertise synced with code
-- [ ] Store expertise in YAML files that agents maintain automatically
+- [x] Implement self-improve prompts to keep expertise synced with code
+- [x] Store expertise in YAML files that agents maintain automatically
 
 ### Phase 9.3: Class 2 Agentic Layer (Out-of-Loop)
 
