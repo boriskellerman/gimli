@@ -276,8 +276,8 @@
 #### Grade 7: Agent Experts
 - [x] Create Database Expert (Gimli's data layer mental model)
 - [x] Create Gateway Expert (WebSocket, sessions, channels)
-- [ ] Create Security Expert (auth, sandboxing, credential handling)
-- [ ] Create Channel Expert (WhatsApp, Telegram, Discord, etc.)
+- [x] Create Security Expert (auth, sandboxing, credential handling)
+- [x] Create Channel Expert (WhatsApp, Telegram, Discord, etc.)
 - [ ] Implement self-improve prompts to keep expertise synced with code
 - [ ] Store expertise in YAML files that agents maintain automatically
 
