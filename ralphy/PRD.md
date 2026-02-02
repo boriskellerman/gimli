@@ -292,9 +292,9 @@
 
 #### Grade 2: AI Developer Workflows (ADWs)
 - [x] Build deterministic code wrapper around agent calls
-- [ ] Implement ADW for: plan-build, test-fix, review-document
-- [ ] Add logging, validation, retries between agent steps
-- [ ] Create ADW triggers from GitHub issues/PRs
+- [x] Implement ADW for: plan-build, test-fix, review-document
+- [x] Add logging, validation, retries between agent steps
+- [x] Create ADW triggers from GitHub issues/PRs
 - [ ] Store ADW results in structured format
 
 ### Phase 9.4: Class 3 Agentic Layer (Orchestrator)
