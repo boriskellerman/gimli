@@ -264,8 +264,8 @@
 
 #### Grade 5: Templates
 - [x] Create bug template (how Gimli bugs should be investigated and fixed)
-- [ ] Create feature template (how new features should be planned and built)
-- [ ] Create chore template (maintenance tasks, dependency updates)
+- [x] Create feature template (how new features should be planned and built)
+- [x] Create chore template (maintenance tasks, dependency updates)
 - [ ] Encode Gimli's engineering standards into templates
 
 #### Grade 6: Prompt Chains / Agentic Workflows
