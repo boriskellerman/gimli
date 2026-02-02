@@ -258,8 +258,8 @@
 - [x] Write prime commands with tool access (database, config, logs)
 
 #### Grade 4: Closed-Loop Prompts
-- [ ] Implement Request → Validate → Resolve pattern for all prompts
-- [ ] Add self-correction capabilities to agents
+- [x] Implement Request → Validate → Resolve pattern for all prompts
+- [x] Add self-correction capabilities to agents
 - [ ] Create specialized closed-loop prompts for: testing, reviewing, documenting
 
 #### Grade 5: Templates
