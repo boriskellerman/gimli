@@ -260,10 +260,10 @@
 #### Grade 4: Closed-Loop Prompts
 - [x] Implement Request → Validate → Resolve pattern for all prompts
 - [x] Add self-correction capabilities to agents
-- [ ] Create specialized closed-loop prompts for: testing, reviewing, documenting
+- [x] Create specialized closed-loop prompts for: testing, reviewing, documenting
 
 #### Grade 5: Templates
-- [ ] Create bug template (how Gimli bugs should be investigated and fixed)
+- [x] Create bug template (how Gimli bugs should be investigated and fixed)
 - [ ] Create feature template (how new features should be planned and built)
 - [ ] Create chore template (maintenance tasks, dependency updates)
 - [ ] Encode Gimli's engineering standards into templates
