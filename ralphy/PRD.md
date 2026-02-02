@@ -288,10 +288,10 @@
 #### Grade 1: Outloop Foundation
 - [x] Set up webhook endpoints for external triggers
 - [x] Create programmatic agent execution via Claude Agent SDK
-- [ ] Build basic HTTP trigger → agent execution pipeline
+- [x] Build basic HTTP trigger → agent execution pipeline
 
 #### Grade 2: AI Developer Workflows (ADWs)
-- [ ] Build deterministic code wrapper around agent calls
+- [x] Build deterministic code wrapper around agent calls
 - [ ] Implement ADW for: plan-build, test-fix, review-document
 - [ ] Add logging, validation, retries between agent steps
 - [ ] Create ADW triggers from GitHub issues/PRs
