@@ -1,0 +1,28 @@
+{
+  "name": "@gimli/tac-orchestrator",
+  "version": "0.1.0",
+  "description": "TAC Orchestrator - Autonomous wrapper for Gimli self-maintenance",
+  "main": "dist/gimli-wrapper.js",
+  "bin": {
+    "orchestrator": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "loop": "node dist/cli.js loop",
+    "health": "node dist/cli.js health",
+    "dev": "ts-node src/cli.ts"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "ts-node": "^10.9.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
