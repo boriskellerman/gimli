@@ -1,0 +1,180 @@
+# Channel Expert - Mental Model for Gimli Messaging Channels
+# Use this expertise when working on Telegram, Discord, WhatsApp, or other channel integrations
+
+name: channel-expert
+version: "1.0"
+domain: "Messaging Channel Integrations"
+description: |
+  Deep expertise in Gimli's messaging channel system, including setup,
+  configuration, troubleshooting, and security for all supported platforms.
+
+mental_model:
+  core_concepts:
+    channels:
+      description: "External messaging platforms that connect to Gimli"
+      categories:
+        built_in:
+          - telegram: "Bot API, long-polling or webhooks"
+          - discord: "Bot token, gateway events"
+          - whatsapp: "WhatsApp Business API or Baileys"
+          - slack: "App/Bot tokens, events API"
+          - signal: "Signal CLI or linked device"
+          - webchat: "Built-in web interface"
+        extensions:
+          - imessage: "Via BlueBubbles"
+          - googlechat: "Google Chat API"
+          - matrix: "Matrix protocol"
+      
+    policies:
+      dm_policy:
+        description: "How to handle direct messages"
+        options:
+          allow: "Accept all DMs"
+          pairing: "Require pairing code (secure default)"
+          allowlist: "Only from allowed users"
+          deny: "Reject all DMs"
+      group_policy:
+        description: "How to handle group messages"
+        options:
+          allow: "Respond in all groups"
+          allowlist: "Only allowed groups"
+          mention: "Only when mentioned"
+          deny: "Ignore group messages"
+      
+    routing:
+      description: "How messages flow between channels and sessions"
+      flow: |
+        Channel → Gateway → Session Router → Agent
+                                ↓
+        Channel ← Gateway ← Session ← Agent Response
+      session_mapping:
+        dm: "One session per user"
+        group: "One session per group"
+        thread: "One session per thread (if supported)"
+
+  channel_configs:
+    telegram:
+      config_keys:
+        - botToken: "Bot API token from @BotFather"
+        - allowFrom: "Array of allowed user IDs"
+        - dmPolicy: "pairing|allowlist|allow"
+        - groupPolicy: "allowlist|mention|allow"
+        - streamMode: "partial|full|off"
+      setup_steps:
+        1: "Create bot via @BotFather"
+        2: "Get bot token"
+        3: "Add token to gimli config"
+        4: "Set appropriate policies"
+        5: "Test with /start command"
+      common_issues:
+        - "Bot not responding: Check token validity"
+        - "Messages not received: Verify long-polling active"
+        - "Can't send media: Check bot permissions"
+    
+    discord:
+      config_keys:
+        - botToken: "Discord bot token"
+        - applicationId: "Discord app ID"
+        - allowedGuilds: "Server IDs to operate in"
+        - dmPolicy: "pairing|allowlist|allow"
+      setup_steps:
+        1: "Create application at discord.dev"
+        2: "Create bot, get token"
+        3: "Enable required intents"
+        4: "Invite bot to server"
+        5: "Configure Gimli"
+      intents_needed:
+        - GUILDS
+        - GUILD_MESSAGES
+        - DIRECT_MESSAGES
+        - MESSAGE_CONTENT
+    
+    whatsapp:
+      config_keys:
+        - implementation: "baileys|business_api"
+        - sessionPath: "Path to session data"
+        - allowFrom: "Allowed phone numbers"
+      setup_steps:
+        1: "Choose implementation"
+        2: "Scan QR code (Baileys) or configure API"
+        3: "Set allowed contacts"
+        4: "Test messaging"
+      notes:
+        - "Baileys requires periodic re-auth"
+        - "Business API needs approved template messages"
+    
+    slack:
+      config_keys:
+        - botToken: "xoxb-* token"
+        - appToken: "xapp-* token (for socket mode)"
+        - signingSecret: "For webhook verification"
+      setup_steps:
+        1: "Create Slack app"
+        2: "Configure OAuth scopes"
+        3: "Install to workspace"
+        4: "Enable socket mode"
+        5: "Add event subscriptions"
+
+  troubleshooting:
+    message_not_received:
+      telegram:
+        - "Check bot token is valid: curl https://api.telegram.org/bot<TOKEN>/getMe"
+        - "Verify long-polling is active in logs"
+        - "Ensure user is in allowFrom list"
+      discord:
+        - "Verify bot is in server"
+        - "Check MESSAGE_CONTENT intent is enabled"
+        - "Verify guild is in allowedGuilds"
+      general:
+        - "Check gateway is running"
+        - "Verify channel is enabled in config"
+        - "Look for errors in gateway logs"
+    
+    message_not_sent:
+      causes:
+        - "Rate limiting by platform"
+        - "Invalid recipient ID"
+        - "Bot lacks permissions"
+        - "Network issues"
+      debugging:
+        - "Check gateway logs for send errors"
+        - "Verify recipient ID format"
+        - "Test with simpler message"
+    
+    auth_failures:
+      telegram: "Regenerate bot token with @BotFather"
+      discord: "Reset bot token in developer portal"
+      whatsapp: "Re-scan QR code for Baileys"
+
+  security_considerations:
+    - "Always use pairing policy for DMs in production"
+    - "Restrict groups to allowlist"
+    - "Store tokens in credentials directory, not config"
+    - "Validate incoming webhook signatures"
+    - "Rate limit message processing"
+    - "Log all channel auth events"
+    - "Don't expose internal errors to users"
+
+  best_practices:
+    - "Start with restrictive policies, loosen as needed"
+    - "Test channel separately before enabling"
+    - "Monitor for unusual message patterns"
+    - "Implement graceful degradation"
+    - "Log channel events for debugging"
+    - "Keep credentials rotated"
+
+  debugging_commands:
+    check_telegram: "curl -s 'https://api.telegram.org/bot<TOKEN>/getMe' | jq"
+    test_send_telegram: "curl -X POST 'https://api.telegram.org/bot<TOKEN>/sendMessage' -d 'chat_id=<ID>&text=test'"
+    check_discord_guilds: "Check gateway logs for guild join events"
+    view_channel_logs: "grep -i 'telegram\\|discord\\|whatsapp' /tmp/gimli/gimli-*.log"
+
+learnings:
+  - date: "2026-02-03"
+    context: "Telegram debugging"
+    learning: "Telegram Desktop can stop receiving updates - reload the app to fix"
+  - date: "2026-02-02"
+    context: "Initial setup"
+    learning: "dmPolicy=pairing is the secure default, always use for production"
+
+# Add new learnings here as channel issues are encountered and resolved

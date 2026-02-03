@@ -1,0 +1,226 @@
+# ADW: Security Audit Workflow
+# Purpose: Systematic security analysis of Gimli codebase
+
+name: security-audit
+version: "1.0"
+description: |
+  Comprehensive security audit: scan for vulnerabilities, check configurations,
+  review authentication/authorization, analyze dependencies, and generate report.
+
+triggers:
+  - type: scheduled
+    cron: "0 3 * * 0"  # Weekly at 3am Sunday
+  - type: manual
+    command: "/adw security-audit"
+  - type: pr
+    paths: ["src/auth/**", "src/gateway/**", "src/config/**"]
+
+inputs:
+  scope:
+    type: enum
+    values: [full, auth, dependencies, config, quick]
+    default: full
+    description: "Scope of the audit"
+  focus_paths:
+    type: array
+    items: string
+    description: "Specific paths to focus on"
+
+environment:
+  branch_strategy: current
+  isolation: sandbox
+  timeout_minutes: 60
+  max_retries: 1
+
+steps:
+  - name: dependency_scan
+    agent: backend
+    condition: "scope in ['full', 'dependencies']"
+    prompt: |
+      Scan dependencies for known vulnerabilities.
+      
+      Execute:
+      ```bash
+      pnpm audit --json 2>&1
+      npm audit --json 2>&1 || true
+      ```
+      
+      Also check:
+      1. Outdated packages with security implications
+      2. Packages with known CVEs
+      3. Typosquatting risks in package names
+      4. Suspicious postinstall scripts
+    outputs:
+      - vulnerabilities: array  # [{package, severity, cve, description}]
+      - outdated_critical: array
+      - risk_packages: array
+    load_expert: security-expert.yaml
+
+  - name: auth_review
+    agent: backend
+    condition: "scope in ['full', 'auth']"
+    load_expert: security-expert.yaml
+    prompt: |
+      Review authentication and authorization mechanisms.
+      
+      Check these files:
+      - src/auth/**
+      - src/gateway/auth*.ts
+      - src/config/security*.ts
+      
+      Verify:
+      1. Password hashing uses secure algorithms (bcrypt, argon2)
+      2. Tokens have appropriate expiration
+      3. Session management is secure
+      4. No hardcoded credentials
+      5. API key handling is safe
+      6. Rate limiting is in place
+    outputs:
+      - issues: array
+      - hardcoded_secrets: array
+      - weak_patterns: array
+      - recommendations: array
+
+  - name: config_audit
+    agent: backend
+    condition: "scope in ['full', 'config']"
+    prompt: |
+      Audit configuration security.
+      
+      Check:
+      - Default configurations in src/config/
+      - Example configs in docs/
+      - Environment variable handling
+      
+      Verify:
+      1. Secure defaults (restrictive, not permissive)
+      2. No secrets in example configs
+      3. Proper environment variable validation
+      4. Gateway binds to localhost by default
+      5. Sandbox mode defaults to enabled
+      6. DM pairing policy is restrictive
+    outputs:
+      - insecure_defaults: array
+      - exposed_secrets: array
+      - missing_validations: array
+
+  - name: code_patterns
+    agent: backend
+    condition: "scope in ['full', 'quick']"
+    prompt: |
+      Scan for dangerous code patterns.
+      
+      Search for:
+      1. eval(), Function(), new Function()
+      2. SQL injection vectors (string concatenation in queries)
+      3. Command injection (unsanitized shell commands)
+      4. Path traversal (user input in file paths)
+      5. XSS vectors (unsanitized output)
+      6. Insecure deserialization
+      7. Missing input validation
+      
+      Use grep/ripgrep to find patterns:
+      ```bash
+      rg -n "eval\(|Function\(|exec\(|spawn\(" src/
+      rg -n "\.query\s*\(" src/ | grep -v "prepared"
+      ```
+    outputs:
+      - dangerous_patterns: array  # [{file, line, pattern, severity}]
+      - injection_risks: array
+      - validation_gaps: array
+
+  - name: permissions_review
+    agent: backend
+    load_expert: security-expert.yaml
+    prompt: |
+      Review permission and sandbox systems.
+      
+      Check:
+      - Tool execution permissions
+      - File access controls
+      - Sandbox isolation
+      - Session separation
+      
+      Verify:
+      1. Non-main sessions are sandboxed
+      2. File operations respect boundaries
+      3. Sensitive operations require approval
+      4. Credential access is controlled
+    outputs:
+      - permission_issues: array
+      - sandbox_gaps: array
+      - isolation_concerns: array
+
+  - name: synthesize_report
+    agent: orchestrator
+    depends_on: [dependency_scan, auth_review, config_audit, code_patterns, permissions_review]
+    prompt: |
+      Synthesize all findings into a security report.
+      
+      Findings:
+      - Dependencies: {{dependency_scan}}
+      - Auth: {{auth_review}}
+      - Config: {{config_audit}}
+      - Code Patterns: {{code_patterns}}
+      - Permissions: {{permissions_review}}
+      
+      Create a prioritized report:
+      1. Critical issues (must fix immediately)
+      2. High issues (fix soon)
+      3. Medium issues (plan to fix)
+      4. Low issues (nice to fix)
+      5. Recommendations (improvements)
+      
+      For each issue, include:
+      - Description
+      - Location (file:line)
+      - Severity
+      - Remediation steps
+      - References (CWE, CVE if applicable)
+    outputs:
+      - critical_count: integer
+      - high_count: integer
+      - medium_count: integer
+      - low_count: integer
+      - report: object
+      - action_items: array
+
+  - name: create_issues
+    agent: orchestrator
+    depends_on: [synthesize_report]
+    condition: "synthesize_report.critical_count > 0 or synthesize_report.high_count > 0"
+    prompt: |
+      Create tasks for critical and high severity issues.
+      
+      Action Items: {{synthesize_report.action_items}}
+      
+      For each critical/high issue:
+      1. Add to TASKS.md with appropriate priority
+      2. Include remediation steps
+      3. Link to security report
+    outputs:
+      - tasks_created: array
+
+result:
+  format: yaml
+  include:
+    - workflow_id
+    - scope
+    - critical_count
+    - high_count
+    - medium_count
+    - low_count
+    - tasks_created
+    - duration_ms
+  artifacts:
+    - name: security-report
+      path: "ralphy/reports/security-audit-{{date}}.md"
+      content: "{{synthesize_report.report}}"
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      section: "## Security Audit"
+    - type: alert
+      condition: "critical_count > 0"
+      message: "🚨 Security audit found {{critical_count}} critical issues"
+      channel: telegram

@@ -1,0 +1,247 @@
+# ADW: Bug Investigation Workflow
+# Purpose: Systematic bug investigation, root cause analysis, fix, and verification
+
+name: bug-investigate
+version: "1.0"
+description: |
+  Complete bug lifecycle: reproduce, investigate root cause, implement fix,
+  write regression test, verify, and document. Based on BUG_TEMPLATE.md.
+
+triggers:
+  - type: github_issue
+    labels: ["bug"]
+  - type: manual
+    command: "/adw bug-investigate"
+  - type: kanban
+    column: "Bugs"
+
+inputs:
+  bug_description:
+    type: string
+    required: true
+    description: "Bug report or GitHub issue reference"
+  severity:
+    type: enum
+    values: [low, medium, high, critical]
+    default: medium
+  reproduction_steps:
+    type: string
+    description: "Steps to reproduce if known"
+
+environment:
+  branch_strategy: worktree
+  branch_prefix: "fix/"
+  isolation: sandbox
+  timeout_minutes: 45
+  max_retries: 2
+
+steps:
+  - name: understand
+    agent: orchestrator
+    template: BUG_TEMPLATE.md
+    prompt: |
+      Understand and categorize this bug report.
+      
+      Bug Description: {{bug_description}}
+      Severity: {{severity}}
+      Reproduction Steps: {{reproduction_steps}}
+      
+      Determine:
+      1. Bug category (crash, incorrect behavior, performance, security)
+      2. Affected components
+      3. User impact
+      4. Priority for fixing
+    outputs:
+      - category: string
+      - components: array
+      - user_impact: string
+      - priority: string
+      - initial_hypothesis: string
+
+  - name: reproduce
+    agent: backend|gateway|channels  # Based on components
+    depends_on: [understand]
+    prompt: |
+      Attempt to reproduce this bug.
+      
+      Bug: {{bug_description}}
+      Category: {{understand.category}}
+      Components: {{understand.components}}
+      Steps: {{reproduction_steps}}
+      
+      1. Set up the necessary environment
+      2. Follow reproduction steps
+      3. Capture the actual behavior
+      4. Document any variations
+      
+      If reproduction fails, try alternative approaches.
+    outputs:
+      - reproduced: boolean
+      - actual_behavior: string
+      - environment_notes: string
+      - reproduction_code: string
+    on_failure:
+      log: true
+      prompt_append: "Try a different reproduction approach"
+
+  - name: investigate
+    agent: backend
+    depends_on: [reproduce]
+    condition: "reproduce.reproduced == true"
+    load_expert_if:
+      - condition: "'database' in understand.components"
+        expert: database-expert.yaml
+      - condition: "'security' in understand.category"
+        expert: security-expert.yaml
+    prompt: |
+      Investigate the root cause of this bug.
+      
+      Bug: {{bug_description}}
+      Reproduction: {{reproduce.actual_behavior}}
+      Initial Hypothesis: {{understand.initial_hypothesis}}
+      
+      Use these techniques:
+      1. Add logging/debugging to trace execution
+      2. Check recent commits that might have introduced the bug
+      3. Examine related test coverage
+      4. Review similar past bugs
+      
+      Find the exact file(s) and line(s) causing the issue.
+    outputs:
+      - root_cause: string
+      - source_files: array
+      - source_lines: array
+      - introduced_by: string  # Commit or change that introduced it
+      - confidence: enum [low, medium, high]
+
+  - name: plan_fix
+    agent: orchestrator
+    depends_on: [investigate]
+    prompt: |
+      Plan the fix for this bug.
+      
+      Root Cause: {{investigate.root_cause}}
+      Source Files: {{investigate.source_files}}
+      Confidence: {{investigate.confidence}}
+      
+      Create a fix plan:
+      1. What code changes are needed
+      2. What tests need to be added
+      3. Any documentation updates
+      4. Risk assessment (could fix break other things?)
+    outputs:
+      - fix_approach: string
+      - code_changes: array
+      - tests_to_add: array
+      - risk_assessment: string
+
+  - name: implement_fix
+    agent: backend|frontend|gateway
+    depends_on: [plan_fix]
+    prompt: |
+      Implement the bug fix.
+      
+      Fix Approach: {{plan_fix.fix_approach}}
+      Code Changes: {{plan_fix.code_changes}}
+      
+      1. Make the necessary code changes
+      2. Keep changes minimal and focused
+      3. Add inline comments if the fix is non-obvious
+      4. Follow Gimli code style
+    outputs:
+      - files_modified: array
+      - diff_summary: string
+    validation:
+      - files_modified.length > 0
+
+  - name: write_regression_test
+    agent: backend
+    depends_on: [implement_fix]
+    prompt: |
+      Write a regression test to prevent this bug from recurring.
+      
+      Bug: {{bug_description}}
+      Reproduction: {{reproduce.reproduction_code}}
+      Fix: {{plan_fix.fix_approach}}
+      
+      The test should:
+      1. Reproduce the original bug scenario
+      2. Verify the fix works
+      3. Be named clearly (e.g., "should not crash when X")
+      4. Include comments referencing this bug
+    outputs:
+      - test_file: string
+      - test_name: string
+      - test_code: string
+
+  - name: verify
+    agent: backend
+    depends_on: [write_regression_test]
+    prompt: |
+      Verify the fix is complete and doesn't break anything.
+      
+      1. Run the new regression test
+      2. Run the full test suite
+      3. Manually verify the original bug is fixed
+      4. Check for any new warnings or errors
+      
+      Report results.
+    outputs:
+      - regression_test_passes: boolean
+      - all_tests_pass: boolean
+      - manual_verification: boolean
+      - new_issues: array
+    validation:
+      - regression_test_passes == true
+      - all_tests_pass == true
+    on_failure:
+      trigger: test-fix
+      pass_context: true
+
+  - name: document
+    agent: orchestrator
+    depends_on: [verify]
+    prompt: |
+      Document the bug fix.
+      
+      Bug: {{bug_description}}
+      Root Cause: {{investigate.root_cause}}
+      Fix: {{plan_fix.fix_approach}}
+      
+      1. Update CHANGELOG with bug fix entry
+      2. Close/update GitHub issue if applicable
+      3. Add to memory/learnings for future reference
+    outputs:
+      - changelog_updated: boolean
+      - issue_closed: boolean
+      - learnings_captured: string
+
+result:
+  format: yaml
+  include:
+    - workflow_id
+    - bug_description
+    - root_cause
+    - files_modified
+    - regression_test
+    - duration_ms
+    - confidence
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      section: "## Bug Fixes"
+    - type: commit
+      message: "fix: {{bug_description | truncate(50)}} [ADW: bug-investigate]"
+    - type: pr
+      title: "Fix: {{bug_description | truncate(50)}}"
+      body: |
+        ## Bug Fix
+        
+        **Root Cause:** {{investigate.root_cause}}
+        
+        **Fix:** {{plan_fix.fix_approach}}
+        
+        **Regression Test:** {{write_regression_test.test_name}}
+        
+        ---
+        *Generated by ADW: bug-investigate*

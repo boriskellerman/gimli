@@ -1,0 +1,270 @@
+# ADW: Self-Improvement Loop
+# Purpose: Continuous autonomous improvement of the Gimli codebase
+
+name: self-improve
+version: "1.0"
+description: |
+  The self-improvement loop: detect issues, create tasks, fix problems,
+  verify fixes, and update agent expertise. The path to codebase singularity.
+
+triggers:
+  - type: scheduled
+    cron: "0 23 * * *"  # Nightly at 11pm
+  - type: manual
+    command: "/adw self-improve"
+  - type: test_failure
+    threshold: 1  # Any test failure
+
+inputs:
+  focus:
+    type: enum
+    values: [bugs, tests, performance, all]
+    default: all
+  max_issues:
+    type: integer
+    default: 5
+    description: "Maximum issues to address per run"
+  learning_mode:
+    type: boolean
+    default: true
+    description: "Update agent experts after fixes"
+
+environment:
+  branch_strategy: worktree
+  isolation: sandbox
+  timeout_minutes: 120  # 2 hours for nightly run
+  max_retries: 1
+
+steps:
+  - name: detect_bugs
+    agent: backend
+    condition: "focus in ['bugs', 'all']"
+    prompt: |
+      Scan for bugs and issues in the codebase.
+      
+      Check:
+      1. Run test suite and capture failures
+      2. Analyze log files for errors
+      3. Check for TODO/FIXME/HACK comments
+      4. Look for deprecated API usage
+      5. Identify code smells
+      
+      Commands:
+      ```bash
+      pnpm test 2>&1 | tail -100
+      grep -rn "TODO\|FIXME\|HACK\|XXX" src/ --include="*.ts" | head -50
+      grep -rn "console.error\|throw new Error" src/ --include="*.ts" | head -30
+      ```
+    outputs:
+      - test_failures: array
+      - log_errors: array
+      - code_issues: array
+      - total_detected: integer
+
+  - name: detect_test_gaps
+    agent: backend
+    condition: "focus in ['tests', 'all']"
+    prompt: |
+      Identify gaps in test coverage.
+      
+      1. Find files with low or no test coverage
+      2. Identify critical paths without tests
+      3. Find tests that don't actually assert anything
+      4. Locate flaky tests
+      
+      Commands:
+      ```bash
+      # Find source files without corresponding test files
+      for f in $(find src -name "*.ts" ! -name "*.test.ts" ! -name "*.d.ts"); do
+        testfile="${f%.ts}.test.ts"
+        if [ ! -f "$testfile" ]; then echo "No test: $f"; fi
+      done | head -20
+      ```
+    outputs:
+      - untested_files: array
+      - weak_tests: array
+      - flaky_tests: array
+
+  - name: detect_performance
+    agent: backend
+    condition: "focus in ['performance', 'all']"
+    prompt: |
+      Identify performance issues.
+      
+      Look for:
+      1. Synchronous file operations in async code
+      2. N+1 query patterns
+      3. Missing caching opportunities
+      4. Memory leaks (event listeners not cleaned up)
+      5. Inefficient loops
+      
+      Search patterns:
+      ```bash
+      rg -n "readFileSync|writeFileSync" src/
+      rg -n "for.*await" src/
+      rg -n "\.forEach.*async" src/
+      ```
+    outputs:
+      - sync_io: array
+      - inefficient_patterns: array
+      - memory_risks: array
+
+  - name: prioritize_issues
+    agent: orchestrator
+    depends_on: [detect_bugs, detect_test_gaps, detect_performance]
+    prompt: |
+      Prioritize detected issues for fixing.
+      
+      All Issues:
+      - Bugs: {{detect_bugs}}
+      - Test Gaps: {{detect_test_gaps}}
+      - Performance: {{detect_performance}}
+      
+      Max to address: {{max_issues}}
+      
+      Prioritize by:
+      1. Severity (critical > high > medium > low)
+      2. Fix complexity (prefer quick wins)
+      3. Impact (user-facing > internal)
+      4. Dependencies (fix blockers first)
+      
+      Select the top {{max_issues}} issues to fix this run.
+    outputs:
+      - selected_issues: array
+      - deferred_issues: array
+      - reasoning: string
+
+  - name: fix_issues
+    agent: backend|gateway|channels
+    depends_on: [prioritize_issues]
+    parallel: false
+    for_each: "prioritize_issues.selected_issues"
+    prompt: |
+      Fix this issue:
+      
+      Issue: {{item}}
+      
+      1. Understand the issue fully
+      2. Implement the minimal fix
+      3. Write a test if one doesn't exist
+      4. Verify the fix works
+      
+      If fix fails after 2 attempts, skip and log.
+    outputs:
+      - fixed: boolean
+      - files_modified: array
+      - test_added: boolean
+      - notes: string
+    on_failure:
+      log: true
+      continue: true
+    triggers_on_failure:
+      - workflow: test-fix
+        condition: "test failures"
+
+  - name: run_full_tests
+    agent: backend
+    depends_on: [fix_issues]
+    prompt: |
+      Run the full test suite to verify all fixes.
+      
+      ```bash
+      pnpm test 2>&1
+      ```
+      
+      Report:
+      1. Total tests run
+      2. Tests passed
+      3. Tests failed (if any)
+      4. Any new failures introduced
+    outputs:
+      - total_tests: integer
+      - passed: integer
+      - failed: integer
+      - new_failures: array
+    validation:
+      - new_failures.length == 0
+
+  - name: update_experts
+    agent: orchestrator
+    depends_on: [fix_issues]
+    condition: "learning_mode == true"
+    prompt: |
+      Update agent expertise based on what was learned.
+      
+      Fixes Applied: {{fix_issues}}
+      
+      Extract learnings:
+      1. New patterns discovered
+      2. Anti-patterns identified
+      3. Code conventions to enforce
+      4. Debugging techniques that worked
+      
+      Update relevant expert YAML files:
+      - ralphy/experts/database-expert.yaml
+      - ralphy/experts/security-expert.yaml
+      - (create new experts if needed)
+    outputs:
+      - experts_updated: array
+      - learnings_captured: array
+
+  - name: update_tasks
+    agent: orchestrator
+    depends_on: [prioritize_issues, fix_issues]
+    prompt: |
+      Update the task board with results.
+      
+      Fixed: {{fix_issues}}
+      Deferred: {{prioritize_issues.deferred_issues}}
+      
+      1. Mark fixed issues as done in TASKS.md
+      2. Add deferred issues if not already tracked
+      3. Update any blocked tasks
+      4. Log to daily memory file
+    outputs:
+      - tasks_completed: array
+      - tasks_added: array
+
+  - name: generate_metrics
+    agent: orchestrator
+    depends_on: [run_full_tests, update_tasks]
+    prompt: |
+      Generate improvement metrics.
+      
+      Calculate:
+      1. Issues fixed this run
+      2. Test coverage change
+      3. Code quality trend
+      4. Time to fix average
+      5. Success rate
+      
+      Compare to previous runs if metrics exist.
+    outputs:
+      - issues_fixed: integer
+      - success_rate: number
+      - trend: enum [improving, stable, declining]
+      - recommendations: array
+
+result:
+  format: yaml
+  include:
+    - workflow_id
+    - focus
+    - issues_detected
+    - issues_fixed
+    - issues_deferred
+    - tests_status
+    - experts_updated
+    - success_rate
+    - trend
+    - duration_ms
+  artifacts:
+    - name: improvement-report
+      path: "ralphy/reports/self-improve-{{date}}.md"
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      section: "## Self-Improvement Run"
+    - type: commit
+      message: "chore: self-improvement run - {{issues_fixed}} fixes [ADW: self-improve]"
+      condition: "issues_fixed > 0"

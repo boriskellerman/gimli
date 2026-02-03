@@ -1,0 +1,200 @@
+# Gimli Integration Configuration
+# Connects the TAC Orchestrator to Gimli's existing systems
+
+name: gimli-integration
+version: "1.0"
+description: |
+  Integration layer between TAC Orchestrator and Gimli's built-in systems:
+  memory, learning, cron, sessions, and kanban.
+
+integrations:
+  memory_system:
+    description: "Connect to Gimli's existing memory for context persistence"
+    enabled: true
+    config:
+      memory_file: "/home/gimli/gimli/MEMORY.md"
+      daily_logs: "/home/gimli/gimli/memory/"
+      heartbeat_state: "/home/gimli/gimli/memory/heartbeat-state.json"
+    
+    hooks:
+      on_workflow_start:
+        action: "read_relevant_memory"
+        description: "Load relevant context before starting workflow"
+        implementation: |
+          # Read recent daily logs for context
+          # Load MEMORY.md for long-term context
+          # Prime agent with relevant memories
+      
+      on_workflow_complete:
+        action: "write_to_memory"
+        description: "Record workflow results in daily log"
+        implementation: |
+          # Append to memory/YYYY-MM-DD.md
+          # Update MEMORY.md if significant learning
+          # Update heartbeat-state if relevant
+      
+      on_learning_captured:
+        action: "update_memory"
+        description: "Persist new learnings"
+        implementation: |
+          # Add to MEMORY.md under appropriate section
+          # Update agent expert files if domain-specific
+
+  learning_system:
+    description: "Connect to Gimli's learning capabilities"
+    enabled: true
+    config:
+      learnings_path: "/home/gimli/gimli/.learnings/"
+      self_improving_skill: "/home/gimli/gimli/skills/self-improving-agent/"
+    
+    hooks:
+      on_error_corrected:
+        action: "capture_correction"
+        description: "Learn from mistakes"
+        implementation: |
+          # Record what went wrong
+          # Document the correct approach
+          # Update relevant templates/experts
+      
+      on_pattern_detected:
+        action: "encode_pattern"
+        description: "Turn repeated successes into templates"
+        implementation: |
+          # Identify the pattern
+          # Create or update template
+          # Add to agent expertise
+
+  cron_system:
+    description: "Use Gimli's cron for scheduled orchestrator runs"
+    enabled: true
+    config:
+      cron_api: "gimli cron tool"
+    
+    scheduled_workflows:
+      nightly_self_improve:
+        workflow: "self-improve"
+        schedule: "0 23 * * *"  # 11pm daily
+        timezone: "America/Detroit"
+        session_target: "isolated"
+        timeout_seconds: 7200
+      
+      weekly_security_audit:
+        workflow: "security-audit"
+        schedule: "0 3 * * 0"  # 3am Sunday
+        timezone: "America/Detroit"
+        session_target: "isolated"
+        scope: "full"
+      
+      compound_review:
+        workflow: "compound-review"
+        schedule: "30 22 * * *"  # 10:30pm daily
+        timezone: "America/Detroit"
+        session_target: "isolated"
+        description: "Extract learnings before nightly work"
+
+  sessions_system:
+    description: "Use Gimli's sessions for multi-agent coordination"
+    enabled: true
+    config:
+      spawn_tool: "sessions_spawn"
+      send_tool: "sessions_send"
+      history_tool: "sessions_history"
+      list_tool: "sessions_list"
+    
+    patterns:
+      parallel_agents:
+        description: "Run multiple sub-agents in parallel"
+        implementation: |
+          # Use sessions_spawn with different labels
+          # Each agent works in isolated session
+          # Collect results via sessions_history
+      
+      agent_communication:
+        description: "Agents can communicate via sessions_send"
+        implementation: |
+          # Orchestrator spawns worker agents
+          # Workers report back via sessions_send
+          # Orchestrator synthesizes results
+      
+      context_isolation:
+        description: "Each agent has isolated context"
+        implementation: |
+          # Isolated sessions don't share state
+          # Explicitly pass needed context
+          # Keep context focused (R&D framework)
+
+  kanban_system:
+    description: "Leverage Gimli's Kanban integration"
+    enabled: true
+    config:
+      tasks_file: "/home/gimli/gimli/TASKS.md"
+      kanban_skill: "/home/gimli/gimli/skills/kanban-agent/"
+    
+    hooks:
+      on_bug_detected:
+        action: "create_task"
+        priority: "high"
+        labels: ["bug", "auto-detected"]
+      
+      on_task_complete:
+        action: "update_task"
+        move_to: "Done"
+        add_notes: true
+      
+      on_blocker_found:
+        action: "flag_task"
+        move_to: "Blocked"
+        notify: true
+
+orchestrator_config:
+  session_label: "orchestrator"
+  default_model: "claude-opus-4-5"
+  thinking_level: "high"
+  timeout_seconds: 3600
+  
+  context_priming:
+    always_include:
+      - "/home/gimli/gimli/AGENTS.md"
+      - "/home/gimli/gimli/SOUL.md"
+    include_if_available:
+      - "/home/gimli/gimli/memory/{{yesterday}}.md"
+      - "/home/gimli/gimli/memory/{{today}}.md"
+  
+  expert_loading:
+    strategy: "on_demand"  # Load experts only when relevant
+    default_experts:
+      - "security-expert"  # Always security-aware
+    
+  metrics_tracking:
+    enabled: true
+    store_path: "/home/gimli/gimli/ralphy/metrics/"
+    track:
+      - workflow_duration
+      - token_usage
+      - success_rate
+      - issues_fixed
+      - tests_passing
+
+api_endpoints:
+  trigger_workflow:
+    description: "Manually trigger a workflow"
+    method: "POST"
+    path: "/orchestrator/workflow"
+    params:
+      workflow: "string (required)"
+      inputs: "object (optional)"
+  
+  get_status:
+    description: "Get orchestrator status"
+    method: "GET"
+    path: "/orchestrator/status"
+  
+  list_workflows:
+    description: "List available workflows"
+    method: "GET"
+    path: "/orchestrator/workflows"
+  
+  get_metrics:
+    description: "Get orchestrator metrics"
+    method: "GET"
+    path: "/orchestrator/metrics"

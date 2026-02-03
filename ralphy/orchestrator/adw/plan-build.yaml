@@ -1,0 +1,170 @@
+# ADW: Plan-Build Workflow
+# Purpose: End-to-end feature development from planning to implementation
+
+name: plan-build
+version: "1.0"
+description: |
+  Complete feature development workflow: analyze requirements, 
+  create implementation plan, build the feature, test, and document.
+
+triggers:
+  - type: manual
+    command: "/adw plan-build"
+  - type: github_issue
+    labels: ["feature", "enhancement"]
+  - type: kanban
+    column: "Ready"
+
+inputs:
+  feature:
+    type: string
+    required: true
+    description: "Feature description or GitHub issue reference"
+  priority:
+    type: enum
+    values: [low, medium, high, critical]
+    default: medium
+  context_files:
+    type: array
+    items: string
+    description: "Additional files to include in context"
+
+environment:
+  branch_strategy: worktree  # Use git worktrees for isolation
+  isolation: sandbox         # Run in sandboxed environment
+  timeout_minutes: 60
+  max_retries: 2
+
+steps:
+  - name: analyze
+    agent: orchestrator
+    prompt: |
+      Analyze this feature request and determine:
+      1. Which components are affected (gateway, channels, skills, etc.)
+      2. What existing patterns to follow
+      3. Potential risks or blockers
+      4. Estimated complexity (S/M/L/XL)
+      
+      Feature: {{feature}}
+    outputs:
+      - components: array
+      - patterns: array
+      - risks: array
+      - complexity: string
+    validation:
+      - components.length > 0
+      - complexity in ['S', 'M', 'L', 'XL']
+
+  - name: plan
+    agent: orchestrator
+    depends_on: [analyze]
+    prompt: |
+      Create a detailed implementation plan for this feature.
+      
+      Feature: {{feature}}
+      Affected Components: {{analyze.components}}
+      Patterns to Follow: {{analyze.patterns}}
+      
+      Output a step-by-step plan with:
+      1. Files to create/modify
+      2. Tests to write
+      3. Documentation updates
+      4. Order of operations
+    outputs:
+      - plan: object
+      - files_to_modify: array
+      - tests_to_write: array
+      - docs_to_update: array
+    template: FEATURE-TEMPLATE.md
+
+  - name: build
+    agent: backend|frontend|gateway|channels  # Selected based on components
+    depends_on: [plan]
+    parallel: true  # Can spawn multiple sub-agents
+    prompt: |
+      Implement the following from the plan:
+      {{plan.current_step}}
+      
+      Follow these patterns: {{analyze.patterns}}
+      Modify these files: {{plan.files_to_modify}}
+    outputs:
+      - files_modified: array
+      - code_changes: object
+    validation:
+      - files_modified.length > 0
+    on_failure:
+      retry: true
+      max_attempts: 2
+
+  - name: test
+    agent: backend
+    depends_on: [build]
+    prompt: |
+      Write and run tests for the implemented feature.
+      
+      Files modified: {{build.files_modified}}
+      Tests to write: {{plan.tests_to_write}}
+      
+      1. Write unit tests
+      2. Write integration tests if needed
+      3. Run all tests
+      4. Report results
+    outputs:
+      - tests_written: array
+      - tests_passed: integer
+      - tests_failed: integer
+      - coverage: number
+    validation:
+      - tests_failed == 0
+    on_failure:
+      trigger: test-fix
+      pass_context: true
+
+  - name: document
+    agent: orchestrator
+    depends_on: [test]
+    prompt: |
+      Update documentation for the new feature.
+      
+      Feature: {{feature}}
+      Files modified: {{build.files_modified}}
+      Docs to update: {{plan.docs_to_update}}
+      
+      1. Update relevant README files
+      2. Add JSDoc comments if missing
+      3. Update CHANGELOG
+    outputs:
+      - docs_updated: array
+
+  - name: review
+    agent: orchestrator
+    depends_on: [document]
+    prompt: |
+      Final review of the implementation:
+      
+      1. Check code follows Gimli patterns
+      2. Verify security considerations
+      3. Confirm tests are comprehensive
+      4. Validate documentation is complete
+      
+      Provide a summary and any concerns.
+    outputs:
+      - approved: boolean
+      - concerns: array
+      - summary: string
+
+result:
+  format: yaml
+  include:
+    - workflow_id
+    - duration_ms
+    - total_tokens
+    - steps_completed
+    - files_modified
+    - tests_passed
+    - concerns
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+    - type: commit
+      message: "feat: {{feature}} [ADW: plan-build]"

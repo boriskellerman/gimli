@@ -1,0 +1,174 @@
+# ADW: Test-Fix Workflow
+# Purpose: Automatically detect and fix failing tests
+
+name: test-fix
+version: "1.0"
+description: |
+  Run tests, identify failures, analyze root cause, implement fix,
+  and verify the fix works. Loops until all tests pass or max retries.
+
+triggers:
+  - type: ci_failure
+    event: "test-failed"
+  - type: manual
+    command: "/adw test-fix"
+  - type: workflow
+    from: plan-build
+    on: test_failure
+
+inputs:
+  test_pattern:
+    type: string
+    default: "**/*.test.ts"
+    description: "Glob pattern for test files"
+  focus_files:
+    type: array
+    items: string
+    description: "Specific test files to focus on"
+  max_fix_attempts:
+    type: integer
+    default: 3
+
+environment:
+  branch_strategy: current  # Fix in current branch
+  isolation: sandbox
+  timeout_minutes: 30
+  max_retries: 3
+
+steps:
+  - name: run_tests
+    agent: backend
+    prompt: |
+      Run the test suite and capture all failures.
+      
+      Test pattern: {{test_pattern}}
+      Focus files: {{focus_files}}
+      
+      Execute:
+      ```bash
+      pnpm test {{test_pattern}} 2>&1
+      ```
+      
+      Capture:
+      1. Which tests failed
+      2. Error messages
+      3. Stack traces
+      4. Expected vs actual values
+    outputs:
+      - total_tests: integer
+      - passed: integer
+      - failed: integer
+      - failures: array  # [{test, error, stack, file, line}]
+    validation:
+      - total_tests > 0
+
+  - name: analyze_failures
+    agent: backend
+    depends_on: [run_tests]
+    condition: "run_tests.failed > 0"
+    prompt: |
+      Analyze these test failures and determine root causes.
+      
+      Failures:
+      {{run_tests.failures}}
+      
+      For each failure:
+      1. Identify the root cause (code bug, test bug, environment)
+      2. Locate the source file and line causing the issue
+      3. Determine the fix approach
+      4. Estimate fix complexity
+    outputs:
+      - analyses: array  # [{failure, root_cause, source_file, fix_approach, complexity}]
+    load_expert: database-expert.yaml  # If DB-related failures
+
+  - name: implement_fixes
+    agent: backend
+    depends_on: [analyze_failures]
+    parallel: false  # Fix one at a time to avoid conflicts
+    for_each: "analyze_failures.analyses"
+    prompt: |
+      Implement a fix for this test failure.
+      
+      Failure: {{item.failure}}
+      Root Cause: {{item.root_cause}}
+      Source File: {{item.source_file}}
+      Fix Approach: {{item.fix_approach}}
+      
+      1. Read the source file
+      2. Implement the minimal fix
+      3. Ensure you don't break other tests
+      4. Add comments explaining the fix if non-obvious
+    outputs:
+      - files_modified: array
+      - changes_made: string
+    validation:
+      - files_modified.length > 0
+    on_failure:
+      log: true
+      continue: true  # Try other fixes even if one fails
+
+  - name: verify_fixes
+    agent: backend
+    depends_on: [implement_fixes]
+    prompt: |
+      Re-run the previously failing tests to verify fixes.
+      
+      Original failures: {{run_tests.failures}}
+      
+      Execute:
+      ```bash
+      pnpm test {{focus_files}} 2>&1
+      ```
+      
+      Report which tests now pass and which still fail.
+    outputs:
+      - still_failing: array
+      - now_passing: array
+      - new_failures: array  # Tests that broke due to fixes
+    validation:
+      - new_failures.length == 0
+
+  - name: iterate_or_complete
+    agent: orchestrator
+    depends_on: [verify_fixes]
+    prompt: |
+      Evaluate the fix results and decide next action.
+      
+      Still failing: {{verify_fixes.still_failing}}
+      Now passing: {{verify_fixes.now_passing}}
+      New failures: {{verify_fixes.new_failures}}
+      Attempt: {{_attempt}} of {{max_fix_attempts}}
+      
+      Decide:
+      1. If all tests pass → complete successfully
+      2. If new failures → rollback and try different approach
+      3. If still failing and attempts remain → iterate
+      4. If max attempts reached → flag for human review
+    outputs:
+      - action: enum [complete, rollback, iterate, escalate]
+      - reason: string
+    branching:
+      - condition: "action == 'iterate'"
+        goto: analyze_failures
+      - condition: "action == 'rollback'"
+        rollback: true
+        goto: analyze_failures
+      - condition: "action == 'escalate'"
+        escalate: true
+
+result:
+  format: yaml
+  include:
+    - workflow_id
+    - duration_ms
+    - attempts_made
+    - tests_fixed
+    - tests_still_failing
+    - files_modified
+    - escalated
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+    - type: commit
+      message: "fix: resolve {{tests_fixed.length}} failing tests [ADW: test-fix]"
+      condition: "tests_fixed.length > 0"

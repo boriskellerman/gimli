@@ -1,0 +1,145 @@
+# Gateway Expert - Mental Model for Gimli Gateway Operations
+# Use this expertise when working on WebSocket, sessions, or connection issues
+
+name: gateway-expert
+version: "1.0"
+domain: "Gateway & WebSocket Operations"
+description: |
+  Deep expertise in Gimli's Gateway architecture, WebSocket handling,
+  session management, and connection protocols.
+
+mental_model:
+  core_concepts:
+    gateway:
+      description: "Long-running Node.js service that bridges chat platforms to AI agents"
+      location: "src/gateway/"
+      responsibilities:
+        - WebSocket server management
+        - Session creation and routing
+        - Channel message handling
+        - Tool execution coordination
+        - Health monitoring
+      
+    sessions:
+      description: "Isolated conversation contexts with their own state"
+      types:
+        main: "Primary user session, has elevated permissions"
+        group: "Multi-user session, sandboxed"
+        isolated: "Sub-agent sessions, fully sandboxed"
+        cron: "Scheduled task sessions"
+      key_files:
+        - "src/gateway/sessions.ts"
+        - "src/gateway/session-manager.ts"
+      patterns:
+        - "Session keys are canonicalized: agent:kind:identifier"
+        - "Each session has its own context window"
+        - "Sessions persist across gateway restarts"
+    
+    websocket:
+      description: "Real-time bidirectional communication"
+      protocol: "ws:// or wss://"
+      default_port: 18789
+      binds_to: "127.0.0.1 (localhost only for security)"
+      message_types:
+        - "agent.turn" - AI response
+        - "tool.call" - Tool execution
+        - "tool.result" - Tool output
+        - "heartbeat" - Keep-alive
+      
+    channels:
+      description: "External messaging platform integrations"
+      supported:
+        - telegram
+        - discord
+        - whatsapp
+        - slack
+        - signal
+        - webchat
+      routing: "Messages route through gateway to appropriate session"
+      
+  architecture:
+    data_flow: |
+      User Message → Channel Plugin → Gateway → Session Router → Agent Runtime
+                                                                      ↓
+      User Response ← Channel Plugin ← Gateway ← Session ← Agent Response
+    
+    key_components:
+      gateway_server:
+        file: "src/gateway/server.ts"
+        role: "Main entry point, WebSocket handling"
+      session_manager:
+        file: "src/gateway/session-manager.ts"
+        role: "Session lifecycle management"
+      channel_router:
+        file: "src/gateway/channel-router.ts"
+        role: "Route messages to correct channel"
+      tool_executor:
+        file: "src/gateway/tools.ts"
+        role: "Execute tools on behalf of agents"
+
+  common_issues:
+    connection_drops:
+      symptoms: "WebSocket disconnects, messages not delivered"
+      causes:
+        - "Network timeout (default 30s)"
+        - "Server restart"
+        - "Memory pressure"
+      debugging:
+        - "Check gateway logs for disconnect events"
+        - "Verify heartbeat is working"
+        - "Check process memory usage"
+      
+    session_confusion:
+      symptoms: "Messages go to wrong session, context leaks"
+      causes:
+        - "Session key collision"
+        - "Race condition in session creation"
+        - "Incorrect channel routing"
+      debugging:
+        - "Log session keys on message receipt"
+        - "Verify session isolation"
+        - "Check channel config for dmPolicy"
+    
+    tool_timeouts:
+      symptoms: "Tool calls hang, agent appears stuck"
+      causes:
+        - "Long-running command"
+        - "Tool process crashed"
+        - "Sandbox restrictions"
+      debugging:
+        - "Check tool execution logs"
+        - "Verify sandbox permissions"
+        - "Look for zombie processes"
+
+  best_practices:
+    - "Always bind to localhost unless explicitly needed otherwise"
+    - "Use session isolation for untrusted inputs"
+    - "Implement proper cleanup on session end"
+    - "Log all connection state changes"
+    - "Handle reconnection gracefully"
+    - "Rate limit incoming connections"
+    - "Validate message format before processing"
+
+  debugging_commands:
+    check_gateway_status: "curl http://localhost:18789/health"
+    list_active_sessions: "curl http://localhost:18789/sessions"
+    view_gateway_logs: "tail -f /tmp/gimli/gimli-$(date +%Y-%m-%d).log | grep gateway"
+    check_websocket: "websocat ws://localhost:18789/ws"
+    monitor_connections: "ss -tlnp | grep 18789"
+
+  security_considerations:
+    - "Gateway should never bind to 0.0.0.0 in production"
+    - "All external access must go through reverse proxy with auth"
+    - "Session tokens must be cryptographically secure"
+    - "Tool execution must respect sandbox boundaries"
+    - "Channel credentials must be stored securely"
+
+learnings:
+  - date: "2026-02-02"
+    context: "Initial setup"
+    learning: "Gateway binds to localhost by default - this is correct and should not be changed"
+  - date: "2026-02-02"
+    context: "Session testing"
+    learning: "Session keys use format agent:kind:identifier for easy debugging"
+
+# Add new learnings here as the system encounters issues and fixes them
