@@ -156,7 +156,7 @@ ${theme.muted("Docs:")} ${formatDocsLink("/cli/agent", "docs.gimli.bot/cli/agent
         `
 ${theme.heading("Examples:")}
 ${formatHelpExamples([
-  ['gimli agents set-identity --agent main --name "Gimli" --emoji "🦞"', "Set name + emoji."],
+  ['gimli agents set-identity --agent main --name "Gimli" --emoji "🪓"', "Set name + emoji."],
   ["gimli agents set-identity --agent main --avatar avatars/gimli.png", "Set avatar path."],
   ["gimli agents set-identity --workspace ~/gimli --from-identity", "Load from IDENTITY.md."],
   [

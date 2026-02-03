@@ -3,6 +3,7 @@ import lockfile from "proper-lockfile";
 
 import type { GimliConfig } from "../../config/config.js";
 import { refreshChutesTokens } from "../chutes-oauth.js";
+import { writeClaudeCliCredentials } from "../cli-credentials.js";
 import { refreshQwenPortalCredentials } from "../../providers/qwen-portal-oauth.js";
 import { AUTH_STORE_LOCK_OPTIONS, log } from "./constants.js";
 import { formatAuthDoctorHint } from "./doctor.js";
@@ -70,6 +71,22 @@ async function refreshOAuthTokenWithLock(params: {
       type: "oauth",
     };
     saveAuthProfileStore(store, params.agentDir);
+
+    // Write refreshed Anthropic credentials back to Claude Code CLI
+    if (String(cred.provider) === "anthropic") {
+      try {
+        const didWrite = writeClaudeCliCredentials(result.newCredentials);
+        if (didWrite) {
+          log.info("synced refreshed anthropic credentials back to claude cli", {
+            expires: new Date(result.newCredentials.expires).toISOString(),
+          });
+        }
+      } catch (err) {
+        log.warn("failed to sync refreshed credentials to claude cli", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     return result;
   } finally {
