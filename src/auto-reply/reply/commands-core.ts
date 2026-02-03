@@ -27,6 +27,7 @@ import {
   handleUsageCommand,
 } from "./commands-session.js";
 import { handlePluginCommand } from "./commands-plugin.js";
+import { handleKanbanCommand } from "./commands-kanban.js";
 import type {
   CommandHandler,
   CommandHandlerResult,
@@ -55,6 +56,7 @@ const HANDLERS: CommandHandler[] = [
   handleModelsCommand,
   handleStopCommand,
   handleCompactCommand,
+  handleKanbanCommand,
   handleAbortTrigger,
 ];
 
