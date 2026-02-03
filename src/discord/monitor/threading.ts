@@ -35,6 +35,38 @@ export function __resetDiscordThreadStarterCacheForTest() {
   DISCORD_THREAD_STARTER_CACHE.clear();
 }
 
+// Get cached entry with TTL check, refresh LRU position on hit
+function getCachedThreadStarter(key: string, now: number): DiscordThreadStarter | undefined {
+  const entry = DISCORD_THREAD_STARTER_CACHE.get(key);
+  if (!entry) {
+    return undefined;
+  }
+  // Check TTL expiry
+  if (now - entry.updatedAt > DISCORD_THREAD_STARTER_CACHE_TTL_MS) {
+    DISCORD_THREAD_STARTER_CACHE.delete(key);
+    return undefined;
+  }
+  // Refresh LRU position by re-inserting (Map maintains insertion order)
+  DISCORD_THREAD_STARTER_CACHE.delete(key);
+  DISCORD_THREAD_STARTER_CACHE.set(key, { ...entry, updatedAt: now });
+  return entry.value;
+}
+
+// Set cached entry with LRU eviction when max size exceeded
+function setCachedThreadStarter(key: string, value: DiscordThreadStarter, now: number): void {
+  // Remove existing entry first (to update LRU position)
+  DISCORD_THREAD_STARTER_CACHE.delete(key);
+  DISCORD_THREAD_STARTER_CACHE.set(key, { value, updatedAt: now });
+  // Evict oldest entries (first in Map) when over max size
+  while (DISCORD_THREAD_STARTER_CACHE.size > DISCORD_THREAD_STARTER_CACHE_MAX) {
+    const iter = DISCORD_THREAD_STARTER_CACHE.keys().next();
+    if (iter.done) {
+      break;
+    }
+    DISCORD_THREAD_STARTER_CACHE.delete(iter.value);
+  }
+}
+
 function isDiscordThreadType(type: ChannelType | undefined): boolean {
   return (
     type === ChannelType.PublicThread ||
