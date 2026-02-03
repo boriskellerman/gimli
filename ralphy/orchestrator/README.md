@@ -274,6 +274,82 @@ ralphy/orchestrator/
 └── metrics/            # Cumulative metrics
 ```
 
+## 🔀 Git Worktree Parallel Execution
+
+The orchestrator uses git worktrees to run multiple agents in parallel:
+
+```typescript
+import { WorktreeManager } from './worktree-manager';
+
+const manager = new WorktreeManager({ repoPath: '/home/gimli/github/gimli' });
+
+// Create isolated worktrees for parallel work
+const worktrees = await manager.createParallelWorktrees({
+  prefix: 'fix-bugs',
+  count: 3,
+});
+
+// Each agent works in its own worktree
+// No conflicts, parallel execution
+// Merge winners back to main
+```
+
+This enables:
+- **Parallel bug fixing** - Multiple bugs at once
+- **A/B testing** - Different approaches to same problem
+- **Feature branches** - Without switching contexts
+
+## 🧪 A/B Testing for Fixes
+
+Test multiple approaches and pick the best one:
+
+```typescript
+import { ABTestRunner } from './ab-testing';
+
+const runner = new ABTestRunner({ repoPath, orchestratorPath });
+
+const result = await runner.runTest({
+  taskId: 'fix-session-crash',
+  taskDescription: 'Fix gateway crash on reconnect',
+  variants: 3,
+  approaches: ['minimal', 'comprehensive', 'test-first'],
+  evaluationCriteria: {
+    weights: { testsPass: 50, codeQuality: 30, performance: 10, tokenEfficiency: 10 },
+    mustPassTests: true,
+    maxFilesModified: 5,
+  },
+  autoMerge: true,
+  autoMergeThreshold: 80,
+});
+
+// Winner is auto-merged if score > 80
+// Otherwise flagged for human review
+```
+
+## 🖥️ Dashboard
+
+Start the visual dashboard:
+
+```bash
+pnpm dashboard
+# Opens at http://localhost:3888
+```
+
+Features:
+- Real-time workflow status
+- Agent fleet overview
+- TAC KPIs tracking
+- Cost monitoring
+- Activity logs
+- Manual workflow triggers
+
+API endpoints:
+- `GET /api/dashboard` - Full state
+- `GET /api/health` - Gimli health
+- `GET /api/metrics` - Metrics
+- `POST /api/workflow` - Trigger workflow
+- `POST /api/loop` - Run autonomous loop
+
 ## 🛠️ Development
 
 ```bash
@@ -283,11 +359,38 @@ pnpm install
 # Build
 pnpm build
 
-# Run in development
+# Run CLI
 pnpm dev loop
 
-# Run tests
-pnpm test
+# Run dashboard
+pnpm dev:dashboard
+```
+
+## 📁 Full Directory Structure
+
+```
+ralphy/orchestrator/
+├── README.md
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── adw-executor.ts      # Workflow runtime
+│   ├── gimli-wrapper.ts     # Main orchestrator
+│   ├── worktree-manager.ts  # Git worktree handling
+│   ├── ab-testing.ts        # A/B test runner
+│   ├── dashboard-server.ts  # Dashboard API
+│   └── cli.ts               # CLI interface
+├── adw/
+│   ├── plan-build.yaml
+│   ├── test-fix.yaml
+│   ├── bug-investigate.yaml
+│   ├── security-audit.yaml
+│   └── self-improve.yaml
+├── dashboard/
+│   └── index.html           # Dashboard UI
+├── runs/                    # Workflow logs
+├── metrics/                 # Cumulative metrics
+└── ab-results/              # A/B test results
 ```
 
 ---
