@@ -151,22 +151,40 @@ export class ADWExecutor {
     this.activeRuns.set(runId, run);
     this.logRun(run, 'started');
 
+    const skippedSteps = new Set<string>();
+
     try {
       // Execute steps in dependency order
       for (const step of this.topologicalSort(workflow.steps)) {
         // Check if step should run (condition)
         if (step.condition && !this.evaluateCondition(step.condition, run)) {
           console.log(`[${runId}] Skipping step ${step.name} (condition not met)`);
+          skippedSteps.add(step.name);
+          run.stepResults[step.name] = { skipped: true, reason: 'condition not met' };
           continue;
         }
 
-        // Check dependencies are complete
+        // Check dependencies are complete (skipped deps count as complete)
+        let skipDueToDependent = false;
         if (step.depends_on) {
           for (const dep of step.depends_on) {
             if (!run.stepResults[dep]) {
               throw new Error(`Dependency ${dep} not completed for step ${step.name}`);
             }
+            // If dependency was skipped, this step should also be skipped
+            if (run.stepResults[dep]?.skipped) {
+              console.log(`[${runId}] Skipping step ${step.name} (dependency ${dep} was skipped)`);
+              skippedSteps.add(step.name);
+              run.stepResults[step.name] = { skipped: true, reason: `dependency ${dep} skipped` };
+              skipDueToDependent = true;
+              break;
+            }
           }
+        }
+        
+        // Skip if dependency was skipped
+        if (skipDueToDependent) {
+          continue;
         }
 
         run.currentStep = step.name;

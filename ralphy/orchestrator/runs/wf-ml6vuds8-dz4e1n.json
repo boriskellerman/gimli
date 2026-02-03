@@ -1,0 +1,57 @@
+{
+  "id": "wf-ml6vuds8-dz4e1n",
+  "workflow": "self-improve",
+  "status": "success",
+  "startedAt": 1770140321864,
+  "inputs": {
+    "focus": "bugs",
+    "max_issues": 1
+  },
+  "stepResults": {
+    "detect_bugs": {
+      "skipped": true,
+      "reason": "condition not met"
+    },
+    "detect_test_gaps": {
+      "skipped": true,
+      "reason": "condition not met"
+    },
+    "detect_performance": {
+      "skipped": true,
+      "reason": "condition not met"
+    },
+    "prioritize_issues": {
+      "skipped": true,
+      "reason": "dependency detect_bugs skipped"
+    },
+    "fix_issues": {
+      "skipped": true,
+      "reason": "dependency prioritize_issues skipped"
+    },
+    "run_full_tests": {
+      "skipped": true,
+      "reason": "dependency fix_issues skipped"
+    },
+    "update_experts": {
+      "skipped": true,
+      "reason": "dependency fix_issues skipped"
+    },
+    "update_tasks": {
+      "skipped": true,
+      "reason": "dependency prioritize_issues skipped"
+    },
+    "generate_metrics": {
+      "skipped": true,
+      "reason": "dependency run_full_tests skipped"
+    }
+  },
+  "metrics": {
+    "totalTokens": 0,
+    "durationMs": 1,
+    "stepsCompleted": 0,
+    "stepsTotal": 9
+  },
+  "completedAt": 1770140321865,
+  "event": "completed",
+  "timestamp": "2026-02-03T17:38:41.865Z"
+}
