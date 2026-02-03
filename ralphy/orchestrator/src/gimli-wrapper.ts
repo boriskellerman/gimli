@@ -106,9 +106,9 @@ export class GimliWrapper {
       lastCheck: Date.now(),
     };
 
-    // Run tests
+    // Run tests (use bun with vitest)
     try {
-      const testResult = execSync('pnpm test 2>&1', {
+      const testResult = execSync('bun x vitest run 2>&1', {
         cwd: this.gimliPath,
         encoding: 'utf-8',
         timeout: 300000, // 5 min timeout

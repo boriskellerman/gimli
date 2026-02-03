@@ -1,0 +1,21 @@
+{
+  "id": "wf-ml6vh5q3-laer5l",
+  "workflow": "self-improve",
+  "status": "failed",
+  "startedAt": 1770139704891,
+  "inputs": {
+    "focus": "bugs",
+    "max_issues": 1
+  },
+  "stepResults": {},
+  "metrics": {
+    "totalTokens": 0,
+    "durationMs": 0,
+    "stepsCompleted": 0,
+    "stepsTotal": 9
+  },
+  "error": "Dependency detect_bugs not completed for step prioritize_issues",
+  "completedAt": 1770139704891,
+  "event": "completed",
+  "timestamp": "2026-02-03T17:28:24.891Z"
+}
