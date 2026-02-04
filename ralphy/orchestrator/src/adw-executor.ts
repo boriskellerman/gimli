@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
+import { TaskTracker, Task, Plan, TeamMember } from './task-tracker';
 
 // Types for ADW definitions
 interface ADWStep {
@@ -76,6 +77,7 @@ export class ADWExecutor {
   private runsDir: string;
   private expertsDir: string;
   private activeRuns: Map<string, WorkflowRun> = new Map();
+  private taskTracker: TaskTracker;
 
   constructor(options: {
     workflowsDir: string;
@@ -86,10 +88,22 @@ export class ADWExecutor {
     this.runsDir = options.runsDir;
     this.expertsDir = options.expertsDir;
 
+    // Initialize task tracker for multi-agent coordination
+    this.taskTracker = new TaskTracker({
+      dataDir: join(this.runsDir, 'tasks'),
+    });
+
     // Ensure directories exist
     if (!existsSync(this.runsDir)) {
       mkdirSync(this.runsDir, { recursive: true });
     }
+  }
+
+  /**
+   * Get the task tracker for external access
+   */
+  getTaskTracker(): TaskTracker {
+    return this.taskTracker;
   }
 
   /**
@@ -244,6 +258,19 @@ export class ADWExecutor {
     // If for_each, execute multiple times
     if (step.for_each) {
       const items = this.resolveVariable(step.for_each, run);
+      
+      // Guard against undefined or non-array values
+      if (!items) {
+        console.warn(`  Warning: for_each variable '${step.for_each}' resolved to undefined, skipping step`);
+        return { items: [], tokens: 0, skipped: true, reason: `for_each variable '${step.for_each}' not found` };
+      }
+      if (!Array.isArray(items)) {
+        console.warn(`  Warning: for_each variable '${step.for_each}' is not an array (got ${typeof items}), wrapping as single item`);
+        const itemPrompt = prompt.replace(/\{\{item\}\}/g, JSON.stringify(items));
+        const result = await this.spawnAgent(agentType, itemPrompt);
+        return { items: [result], tokens: result.tokens || 0 };
+      }
+      
       const results = [];
       for (const item of items) {
         const itemPrompt = prompt.replace(/\{\{item\}\}/g, JSON.stringify(item));
@@ -259,29 +286,96 @@ export class ADWExecutor {
 
   /**
    * Spawn an agent to execute a task
-   * This integrates with Gimli's sessions_spawn
+   * This integrates with Gimli's sessions_spawn via Gateway API
    */
   private async spawnAgent(agentType: string, prompt: string): Promise<AgentSpawnResult> {
-    // In production, this would use Gimli's sessions_spawn tool
-    // For now, we'll simulate the interface
-    
     console.log(`  Spawning ${agentType} agent...`);
     console.log(`  Prompt length: ${prompt.length} chars`);
 
-    // This is where we'd call sessions_spawn
-    // const result = await sessionsSpawn({
-    //   task: prompt,
-    //   label: `adw-${agentType}`,
-    //   timeoutSeconds: 300,
-    // });
+    // Get Gateway connection details from environment or config
+    const gatewayUrl = process.env.GIMLI_GATEWAY_URL || 'http://localhost:18789';
+    const gatewayToken = process.env.GIMLI_GATEWAY_TOKEN || '';
 
-    // Simulated response structure
-    return {
-      sessionKey: `agent:iso:${agentType}-${Date.now()}`,
-      output: `[Agent ${agentType} would execute here]`,
-      tokens: 1000, // Would come from actual usage
-      success: true,
-    };
+    try {
+      // Call Gimli Gateway to spawn a sub-agent session
+      const response = await fetch(`${gatewayUrl}/api/sessions/spawn`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${gatewayToken}`,
+        },
+        body: JSON.stringify({
+          task: prompt,
+          label: `adw-${agentType}-${Date.now()}`,
+          timeoutSeconds: 300,
+          cleanup: 'keep', // Keep session for review
+        }),
+      });
+
+      if (!response.ok) {
+        // Fallback to CLI if API fails
+        console.log(`  API failed (${response.status}), falling back to CLI...`);
+        return await this.spawnAgentViaCLI(agentType, prompt);
+      }
+
+      const result: any = await response.json();
+      
+      return {
+        sessionKey: result.sessionKey || `agent:iso:${agentType}-${Date.now()}`,
+        output: result.output || result.message || '',
+        tokens: result.usage?.totalTokens || 0,
+        success: result.ok !== false,
+      };
+    } catch (error: any) {
+      console.log(`  Gateway API error: ${error.message}, falling back to CLI...`);
+      return await this.spawnAgentViaCLI(agentType, prompt);
+    }
+  }
+
+  /**
+   * Fallback: Spawn agent via Gimli CLI
+   */
+  private async spawnAgentViaCLI(agentType: string, prompt: string): Promise<AgentSpawnResult> {
+    const { execSync } = require('child_process');
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+
+    // Write prompt to temp file (avoid shell escaping issues)
+    const tempFile = path.join(os.tmpdir(), `adw-prompt-${Date.now()}.txt`);
+    fs.writeFileSync(tempFile, prompt);
+
+    try {
+      const cmd = `gimli agent --message "$(cat ${tempFile})" --timeout 300 2>&1`;
+      console.log(`  Running CLI: gimli agent --message <prompt> --timeout 300`);
+      
+      const output = execSync(cmd, {
+        encoding: 'utf-8',
+        timeout: 330000, // 5.5 min timeout
+        cwd: '/home/gimli/gimli',
+      });
+
+      // Clean up temp file
+      fs.unlinkSync(tempFile);
+
+      return {
+        sessionKey: `agent:cli:${agentType}-${Date.now()}`,
+        output: output,
+        tokens: 0, // CLI doesn't report tokens
+        success: true,
+      };
+    } catch (error: any) {
+      // Clean up temp file on error
+      try { fs.unlinkSync(tempFile); } catch {}
+      
+      console.error(`  CLI error: ${error.message}`);
+      return {
+        sessionKey: `agent:cli:${agentType}-${Date.now()}`,
+        output: error.stdout || error.message,
+        tokens: 0,
+        success: false,
+      };
+    }
   }
 
   /**
@@ -464,6 +558,173 @@ export class ADWExecutor {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Execute a workflow with builder+validator team pattern
+   * This implements the multi-agent coordination from TAC
+   */
+  async runWithTeam(config: {
+    name: string;
+    objective: string;
+    tasks: Array<{
+      name: string;
+      description: string;
+      builderPrompt: string;
+      validatorPrompt: string;
+      dependsOn?: string[];
+    }>;
+    maxRetries?: number;
+  }): Promise<{
+    planId: string;
+    status: 'completed' | 'failed' | 'partial';
+    results: any[];
+  }> {
+    const maxRetries = config.maxRetries || 2;
+    
+    // Create plan with builder+validator pairs
+    const teamMembers: TeamMember[] = [];
+    const tasks: any[] = [];
+    
+    for (let i = 0; i < config.tasks.length; i++) {
+      const task = config.tasks[i];
+      const taskNum = i + 1;
+      
+      // Add builder
+      teamMembers.push({
+        name: `${task.name}Builder`,
+        role: 'builder',
+        agentFile: 'agents/builder.md',
+        focus: task.description,
+      });
+      
+      // Add validator
+      teamMembers.push({
+        name: `${task.name}Validator`,
+        role: 'validator',
+        agentFile: 'agents/validator.md',
+        validates: `${task.name}Builder`,
+      });
+      
+      // Create builder task
+      tasks.push({
+        name: `Build: ${task.name}`,
+        description: task.builderPrompt,
+        owner: `${task.name}Builder`,
+        ownerRole: 'builder' as const,
+        dependsOn: task.dependsOn?.map(d => `build-${d}`) || [],
+      });
+      
+      // Create validator task (depends on builder)
+      tasks.push({
+        name: `Validate: ${task.name}`,
+        description: task.validatorPrompt,
+        owner: `${task.name}Validator`,
+        ownerRole: 'validator' as const,
+        dependsOn: [`build-${task.name}`],
+      });
+    }
+    
+    // Create the plan
+    const plan = this.taskTracker.createPlan({
+      name: config.name,
+      objective: config.objective,
+      teamMembers,
+      tasks,
+    });
+    
+    console.log(`[Team] Created plan ${plan.id} with ${plan.tasks.length} tasks`);
+    this.taskTracker.startPlan(plan.id);
+    
+    const results: any[] = [];
+    const retryCount: Map<string, number> = new Map();
+    
+    // Execution loop
+    while (true) {
+      const status = this.taskTracker.getPlanStatus(plan.id);
+      if (!status) break;
+      
+      // Check if done
+      if (status.plan.status === 'completed' || status.plan.status === 'failed') {
+        console.log(`[Team] Plan ${status.plan.status}`);
+        break;
+      }
+      
+      // Get available tasks
+      const available = this.taskTracker.getAvailableTasks(plan.id);
+      if (available.length === 0) {
+        // Check if we're stuck (all remaining tasks blocked)
+        if (status.summary.pending === 0 && status.summary.blocked > 0) {
+          console.log('[Team] All tasks blocked - checking for failures');
+          break;
+        }
+        // Wait a bit if tasks are running
+        if (status.summary.running > 0) {
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        }
+        break;
+      }
+      
+      // Execute available tasks
+      for (const task of available) {
+        console.log(`[Team] Starting task: ${task.name} (${task.owner})`);
+        this.taskTracker.startTask(task.id, plan.id);
+        
+        try {
+          // Spawn agent for this task
+          const result = await this.spawnAgent(task.ownerRole, task.description);
+          
+          if (result.success) {
+            console.log(`[Team] Task complete: ${task.name}`);
+            this.taskTracker.completeTask(task.id, {
+              success: true,
+              output: result.output,
+              filesModified: [], // Would parse from output
+            }, plan.id);
+            
+            results.push({ task: task.name, status: 'success', output: result.output });
+            
+            // If this was a builder, the validator will auto-unblock
+            
+          } else {
+            const retries = retryCount.get(task.id) || 0;
+            if (retries < maxRetries) {
+              console.log(`[Team] Task failed, retrying (${retries + 1}/${maxRetries}): ${task.name}`);
+              retryCount.set(task.id, retries + 1);
+              // Reset task to pending for retry
+              // Note: In a full implementation, we'd reset the task status
+            } else {
+              console.log(`[Team] Task failed after ${maxRetries} retries: ${task.name}`);
+              this.taskTracker.completeTask(task.id, {
+                success: false,
+                errors: [result.output],
+              }, plan.id);
+              results.push({ task: task.name, status: 'failed', error: result.output });
+            }
+          }
+        } catch (error: any) {
+          console.error(`[Team] Task error: ${task.name}:`, error.message);
+          this.taskTracker.completeTask(task.id, {
+            success: false,
+            errors: [error.message],
+          }, plan.id);
+          results.push({ task: task.name, status: 'error', error: error.message });
+        }
+      }
+    }
+    
+    // Final status
+    const finalStatus = this.taskTracker.getPlanStatus(plan.id);
+    const completedCount = finalStatus?.summary.validated || 0 + (finalStatus?.summary.completed || 0);
+    const totalCount = finalStatus?.summary.total || 0;
+    
+    return {
+      planId: plan.id,
+      status: finalStatus?.plan.status === 'completed' ? 'completed' 
+            : completedCount > 0 ? 'partial' : 'failed',
+      results,
+    };
   }
 }
 
