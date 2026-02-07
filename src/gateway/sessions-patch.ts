@@ -110,6 +110,7 @@ export async function applySessionsPatchToStore(params: {
   if ("thinkingLevel" in patch) {
     const raw = patch.thinkingLevel;
     if (raw === null) {
+      // Clear the override and fall back to model default
       delete next.thinkingLevel;
     } else if (raw !== undefined) {
       const normalized = normalizeThinkLevel(String(raw));
