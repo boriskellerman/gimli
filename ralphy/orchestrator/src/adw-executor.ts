@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { TaskTracker, Task, Plan, TeamMember } from './task-tracker';
+import { TrajectoryLogger, Trajectory, TrajectoryChapter } from './trajectory';
 
 // Types for ADW definitions
 interface ADWStep {
@@ -76,22 +77,29 @@ export class ADWExecutor {
   private workflowsDir: string;
   private runsDir: string;
   private expertsDir: string;
+  private trajectoriesDir: string;
   private activeRuns: Map<string, WorkflowRun> = new Map();
   private taskTracker: TaskTracker;
+  private trajectoryLogger: TrajectoryLogger;
 
   constructor(options: {
     workflowsDir: string;
     runsDir: string;
     expertsDir: string;
+    trajectoriesDir?: string;
   }) {
     this.workflowsDir = options.workflowsDir;
     this.runsDir = options.runsDir;
     this.expertsDir = options.expertsDir;
+    this.trajectoriesDir = options.trajectoriesDir || join(this.runsDir, 'trajectories');
 
     // Initialize task tracker for multi-agent coordination
     this.taskTracker = new TaskTracker({
       dataDir: join(this.runsDir, 'tasks'),
     });
+
+    // Initialize trajectory logger for train-of-thought capture
+    this.trajectoryLogger = new TrajectoryLogger(this.trajectoriesDir);
 
     // Ensure directories exist
     if (!existsSync(this.runsDir)) {
@@ -126,6 +134,33 @@ export class ADWExecutor {
     return fs.readdirSync(this.workflowsDir)
       .filter((f: string) => f.endsWith('.yaml'))
       .map((f: string) => f.replace('.yaml', ''));
+  }
+
+  /**
+   * Get the trajectory logger for external access
+   */
+  getTrajectoryLogger(): TrajectoryLogger {
+    return this.trajectoryLogger;
+  }
+
+  /**
+   * Infer chapter type from step name
+   */
+  private inferChapterType(stepName: string): 'investigation' | 'planning' | 'implementation' | 'validation' | 'retrospective' {
+    const name = stepName.toLowerCase();
+    if (name.includes('investigate') || name.includes('analyze') || name.includes('review') || name.includes('gather')) {
+      return 'investigation';
+    }
+    if (name.includes('plan') || name.includes('design') || name.includes('architect')) {
+      return 'planning';
+    }
+    if (name.includes('test') || name.includes('validate') || name.includes('verify') || name.includes('check')) {
+      return 'validation';
+    }
+    if (name.includes('retro') || name.includes('learn') || name.includes('summary')) {
+      return 'retrospective';
+    }
+    return 'implementation';
   }
 
   /**
@@ -164,6 +199,14 @@ export class ADWExecutor {
 
     this.activeRuns.set(runId, run);
     this.logRun(run, 'started');
+
+    // Start trajectory logging for this workflow
+    this.trajectoryLogger.startTrajectory({
+      title: `${workflow.name}: ${runId}`,
+      description: workflow.description,
+      inputs,
+      workflowName,
+    });
 
     const skippedSteps = new Set<string>();
 
@@ -204,14 +247,30 @@ export class ADWExecutor {
         run.currentStep = step.name;
         console.log(`[${runId}] Running step: ${step.name}`);
 
+        // Start a new chapter for this step
+        const chapterType = this.inferChapterType(step.name);
+        this.trajectoryLogger.startChapter(step.name, chapterType);
+
         // Load expert if specified
         let expertContext = '';
         if (step.load_expert) {
           expertContext = this.loadExpert(step.load_expert);
+          this.trajectoryLogger.logObservation(
+            `Loaded expert: ${step.load_expert}`,
+            `Expert context loaded (${expertContext.length} chars)`,
+            { agent: step.agent }
+          );
         }
 
         // Build the prompt with variable substitution
         const prompt = this.interpolatePrompt(step.prompt, run, expertContext);
+
+        // Log the action being taken
+        this.trajectoryLogger.logAction(
+          `Executing step: ${step.name}`,
+          `Agent: ${step.agent}\nPrompt length: ${prompt.length} chars`,
+          { agent: step.agent }
+        );
 
         // Execute the step
         const result = await this.executeStep(step, prompt, run);
@@ -219,10 +278,30 @@ export class ADWExecutor {
         run.metrics.stepsCompleted++;
         run.metrics.totalTokens += result.tokens || 0;
 
+        // Log the result
+        this.trajectoryLogger.logObservation(
+          `Step completed: ${step.name}`,
+          result.success !== false 
+            ? `Output: ${(result.output || '').substring(0, 500)}${(result.output?.length || 0) > 500 ? '...' : ''}`
+            : `Failed: ${result.error || 'Unknown error'}`,
+          { agent: step.agent, confidence: result.success !== false ? 0.8 : 0.2 }
+        );
+
+        // End chapter with outcome
+        this.trajectoryLogger.endChapter(
+          result.success !== false ? 'success' : 'failed',
+          `${step.name} ${result.success !== false ? 'completed' : 'failed'}`
+        );
+
         // Validate outputs
         if (step.validation) {
           for (const validation of step.validation) {
             if (!this.evaluateCondition(validation, run)) {
+              this.trajectoryLogger.logError(
+                `Validation failed: ${validation}`,
+                `Step ${step.name} failed validation check`,
+                { agent: step.agent }
+              );
               throw new Error(`Validation failed for step ${step.name}: ${validation}`);
             }
           }
@@ -230,10 +309,24 @@ export class ADWExecutor {
       }
 
       run.status = 'success';
+      
+      // Complete trajectory with retrospective
+      this.trajectoryLogger.completeTrajectory({
+        summary: `Workflow ${workflowName} completed successfully`,
+        successes: Object.entries(run.stepResults)
+          .filter(([_, r]) => !r.skipped && r.success !== false)
+          .map(([name]) => name),
+        improvements: [],
+        lessons: [],
+        confidence: 0.9,
+      });
     } catch (error: any) {
       run.status = 'failed';
       run.error = error.message;
       console.error(`[${runId}] Workflow failed:`, error.message);
+      
+      // Fail trajectory
+      this.trajectoryLogger.failTrajectory(error.message);
     } finally {
       run.completedAt = Date.now();
       run.metrics.durationMs = run.completedAt - run.startedAt;

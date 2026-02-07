@@ -1,0 +1,55 @@
+{
+  "id": "wf-ml7ayiv8-9nc2il",
+  "workflow": "plan-build",
+  "status": "success",
+  "startedAt": 1770165709316,
+  "inputs": {},
+  "stepResults": {
+    "analyze": {
+      "sessionKey": "agent:iso:orchestrator-1770165709316",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "plan": {
+      "sessionKey": "agent:iso:orchestrator-1770165709317",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "build": {
+      "sessionKey": "agent:iso:backend-1770165709317",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "test": {
+      "sessionKey": "agent:iso:backend-1770165709317",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "document": {
+      "sessionKey": "agent:iso:orchestrator-1770165709317",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "review": {
+      "sessionKey": "agent:iso:orchestrator-1770165709317",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    }
+  },
+  "metrics": {
+    "totalTokens": 6000,
+    "durationMs": 1,
+    "stepsCompleted": 6,
+    "stepsTotal": 6
+  },
+  "currentStep": "review",
+  "completedAt": 1770165709317,
+  "event": "completed",
+  "timestamp": "2026-02-04T00:41:49.317Z"
+}

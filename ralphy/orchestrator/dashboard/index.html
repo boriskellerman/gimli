@@ -81,6 +81,32 @@
       border-radius: 12px;
       padding: 20px;
       border: 1px solid var(--bg-tertiary);
+      transition: all 0.2s ease;
+    }
+
+    /* Clickable card styles */
+    .card.clickable {
+      cursor: pointer;
+    }
+
+    .card.clickable:hover {
+      border-color: var(--accent-blue);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+    }
+
+    .card.clickable::after {
+      content: "Click for details →";
+      display: block;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .card.clickable:hover::after {
+      opacity: 1;
     }
 
     .card h2 {
@@ -278,6 +304,12 @@
       padding: 15px;
       background: var(--bg-tertiary);
       border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .kpi-item:hover {
+      border: 1px solid var(--accent-blue);
     }
 
     .kpi-value {
@@ -359,6 +391,151 @@
       color: var(--text-secondary);
       font-size: 12px;
     }
+
+    /* Modal styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 24px;
+      min-width: 400px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 1px solid var(--bg-tertiary);
+      animation: modalSlide 0.2s ease;
+    }
+
+    @keyframes modalSlide {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--bg-tertiary);
+    }
+
+    .modal-header h3 {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 5px;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .detail-list {
+      list-style: none;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--bg-tertiary);
+    }
+
+    .detail-item:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .detail-value {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .detail-value.success { color: var(--accent-green); }
+    .detail-value.warning { color: var(--accent-yellow); }
+    .detail-value.error { color: var(--accent-red); }
+
+    .detail-section {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid var(--bg-tertiary);
+    }
+
+    .detail-section h4 {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .run-history {
+      list-style: none;
+    }
+
+    .run-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .run-item .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .run-item .status-dot.success { background: var(--accent-green); }
+    .run-item .status-dot.failed { background: var(--accent-red); }
+
+    .run-item .run-date {
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
   </style>
 </head>
 <body>
@@ -375,60 +552,60 @@
       </div>
     </header>
 
-    <!-- Overview Stats -->
+    <!-- Overview Stats - Now Clickable -->
     <div class="grid">
-      <div class="card">
+      <div class="card clickable" onclick="showDetail('overview')">
         <h2><span class="icon">📊</span> Overview</h2>
-        <div class="stat-value" id="totalRuns">47</div>
+        <div class="stat-value" id="totalRuns">--</div>
         <div class="stat-label">Total Workflow Runs</div>
         <div class="progress-bar">
-          <div class="fill" style="width: 89%"></div>
+          <div class="fill" id="successFill" style="width: 0%"></div>
         </div>
         <div class="stat-row">
           <span>Success Rate</span>
-          <span style="color: var(--accent-green)">89%</span>
+          <span id="successRate" style="color: var(--accent-green)">--%</span>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card clickable" onclick="showDetail('issues')">
         <h2><span class="icon">🐛</span> Issues Fixed</h2>
-        <div class="stat-value" id="bugsFixed">23</div>
+        <div class="stat-value" id="bugsFixed">--</div>
         <div class="stat-label">Bugs Automatically Fixed</div>
         <div class="stat-row">
           <span>Tests Fixed</span>
-          <span>15</span>
+          <span id="testsFixed">--</span>
         </div>
         <div class="stat-row">
           <span>Security Issues</span>
-          <span>3</span>
+          <span id="securityFixed">--</span>
         </div>
       </div>
 
-      <div class="card">
-        <h2><span class="icon">💰</span> Cost</h2>
-        <div class="stat-value">$28.45</div>
-        <div class="stat-label">This Week</div>
+      <div class="card clickable" onclick="showDetail('usage')">
+        <h2><span class="icon">⚡</span> Usage</h2>
+        <div class="stat-value" id="tokenCount">--</div>
+        <div class="stat-label">Est. Tokens Used</div>
         <div class="stat-row">
-          <span>Avg per Workflow</span>
-          <span>$0.61</span>
+          <span>Uptime</span>
+          <span id="uptime">--</span>
         </div>
         <div class="stat-row">
-          <span>Tokens Used</span>
-          <span>1.2M</span>
+          <span>Plan</span>
+          <span>Claude Code</span>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card clickable" onclick="showDetail('upstream')">
         <h2><span class="icon">📥</span> Upstream</h2>
-        <div class="stat-value" id="upstreamBehind">0</div>
+        <div class="stat-value" id="upstreamBehind">--</div>
         <div class="stat-label">Commits Behind</div>
         <div class="stat-row">
-          <span>Last Sync</span>
-          <span>2h ago</span>
+          <span>Status</span>
+          <span id="upstreamStatus" style="color: var(--accent-green)">In Sync</span>
         </div>
         <div class="stat-row">
-          <span>Syncs This Week</span>
-          <span>7</span>
+          <span>Total Syncs</span>
+          <span id="upstreamSyncs">--</span>
         </div>
       </div>
     </div>
@@ -438,92 +615,42 @@
       <div class="card">
         <h2><span class="icon">🔄</span> Active Workflows</h2>
         <ul class="workflow-list" id="workflowList">
-          <li class="workflow-item">
-            <span class="workflow-status running"></span>
-            <div class="workflow-info">
-              <div class="workflow-name">self-improve</div>
-              <div class="workflow-meta">Step 3/5: fix_issues</div>
-            </div>
-            <span class="workflow-duration">12m 34s</span>
-          </li>
-          <li class="workflow-item">
-            <span class="workflow-status pending"></span>
-            <div class="workflow-info">
-              <div class="workflow-name">security-audit</div>
-              <div class="workflow-meta">Queued</div>
-            </div>
-            <span class="workflow-duration">-</span>
-          </li>
+          <li class="workflow-item" style="justify-content:center;color:var(--text-secondary);">Loading...</li>
         </ul>
       </div>
 
       <div class="card">
         <h2><span class="icon">🤖</span> Agent Fleet</h2>
-        <div class="agent-grid">
-          <div class="agent-card">
-            <div class="agent-icon">🎭</div>
-            <div class="agent-name">Orchestrator</div>
-            <div class="agent-status">Active</div>
-            <div class="context-bar">
-              <div class="bar"><div class="fill" style="width: 23%"></div></div>
-              <span class="percent">23%</span>
-            </div>
-          </div>
-          <div class="agent-card">
-            <div class="agent-icon">⚙️</div>
-            <div class="agent-name">Backend</div>
-            <div class="agent-status">Fixing bug</div>
-            <div class="context-bar">
-              <div class="bar"><div class="fill" style="width: 45%"></div></div>
-              <span class="percent">45%</span>
-            </div>
-          </div>
-          <div class="agent-card">
-            <div class="agent-icon">🌐</div>
-            <div class="agent-name">Gateway</div>
-            <div class="agent-status">Idle</div>
-            <div class="context-bar">
-              <div class="bar"><div class="fill" style="width: 0%"></div></div>
-              <span class="percent">0%</span>
-            </div>
-          </div>
-          <div class="agent-card">
-            <div class="agent-icon">🔒</div>
-            <div class="agent-name">Security</div>
-            <div class="agent-status">Scanning</div>
-            <div class="context-bar">
-              <div class="bar"><div class="fill" style="width: 67%"></div></div>
-              <span class="percent">67%</span>
-            </div>
-          </div>
+        <div class="agent-grid" id="agentGrid">
+          <div class="agent-card" style="color:var(--text-secondary);">Loading...</div>
         </div>
       </div>
     </div>
 
     <!-- TAC KPIs & Logs -->
     <div class="grid">
-      <div class="card">
+      <div class="card clickable" onclick="showDetail('kpis')">
         <h2><span class="icon">🎯</span> TAC KPIs</h2>
         <div class="kpi-grid">
           <div class="kpi-item">
-            <div class="kpi-value">12m</div>
+            <div class="kpi-value" id="kpiPresence">--</div>
             <div class="kpi-label">Presence (daily)</div>
-            <div class="kpi-trend down">↓ 3m from last week</div>
+            <div class="kpi-trend" id="kpiPresenceTrend"></div>
           </div>
           <div class="kpi-item">
-            <div class="kpi-value">L</div>
+            <div class="kpi-value" id="kpiTaskSize">--</div>
             <div class="kpi-label">Task Size (avg)</div>
-            <div class="kpi-trend up">↑ from M</div>
+            <div class="kpi-trend" id="kpiTaskSizeTrend"></div>
           </div>
           <div class="kpi-item">
-            <div class="kpi-value">23</div>
+            <div class="kpi-value" id="kpiStreak">--</div>
             <div class="kpi-label">Success Streak</div>
-            <div class="kpi-trend up">↑ 5 from last week</div>
+            <div class="kpi-trend" id="kpiStreakTrend"></div>
           </div>
           <div class="kpi-item">
-            <div class="kpi-value">1.2</div>
+            <div class="kpi-value" id="kpiAttempts">--</div>
             <div class="kpi-label">Attempts (avg)</div>
-            <div class="kpi-trend down">↓ 0.3 from last week</div>
+            <div class="kpi-trend" id="kpiAttemptsTrend"></div>
           </div>
         </div>
       </div>
@@ -531,31 +658,7 @@
       <div class="card">
         <h2><span class="icon">📜</span> Recent Activity</h2>
         <div class="log-container" id="logContainer">
-          <div class="log-entry">
-            <span class="log-time">10:45:23</span>
-            <span class="log-level-success">[SUCCESS]</span>
-            Workflow self-improve step fix_issues completed
-          </div>
-          <div class="log-entry">
-            <span class="log-time">10:43:12</span>
-            <span class="log-level-info">[INFO]</span>
-            Agent backend spawned for bug fix
-          </div>
-          <div class="log-entry">
-            <span class="log-time">10:42:01</span>
-            <span class="log-level-info">[INFO]</span>
-            Detected 3 failing tests in src/gateway/
-          </div>
-          <div class="log-entry">
-            <span class="log-time">10:40:00</span>
-            <span class="log-level-info">[INFO]</span>
-            Starting nightly self-improve workflow
-          </div>
-          <div class="log-entry">
-            <span class="log-time">09:00:05</span>
-            <span class="log-level-success">[SUCCESS]</span>
-            Token health check: all tokens healthy
-          </div>
+          <div class="log-entry" style="color:var(--text-secondary);">Loading...</div>
         </div>
       </div>
     </div>
@@ -563,21 +666,57 @@
     <!-- Weekly Trend -->
     <div class="card">
       <h2><span class="icon">📈</span> Weekly Trend (Issues Fixed)</h2>
-      <div class="metrics-chart">
-        <div class="chart-bar" style="height: 40%" data-value="Mon"></div>
-        <div class="chart-bar" style="height: 60%" data-value="Tue"></div>
-        <div class="chart-bar" style="height: 80%" data-value="Wed"></div>
-        <div class="chart-bar" style="height: 45%" data-value="Thu"></div>
-        <div class="chart-bar" style="height: 90%" data-value="Fri"></div>
-        <div class="chart-bar" style="height: 30%" data-value="Sat"></div>
-        <div class="chart-bar" style="height: 100%" data-value="Sun"></div>
+      <div class="metrics-chart" id="weeklyChart">
+        <div class="chart-bar" style="height: 5%" data-value="Mon"></div>
+        <div class="chart-bar" style="height: 5%" data-value="Tue"></div>
+        <div class="chart-bar" style="height: 5%" data-value="Wed"></div>
+        <div class="chart-bar" style="height: 5%" data-value="Thu"></div>
+        <div class="chart-bar" style="height: 5%" data-value="Fri"></div>
+        <div class="chart-bar" style="height: 5%" data-value="Sat"></div>
+        <div class="chart-bar" style="height: 5%" data-value="Sun"></div>
       </div>
+      <div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-top:10px;">Data will populate as workflows run</div>
     </div>
 
     <footer>
-      TAC Orchestrator v0.1.0 • Goal: Zero Touch Engineering • 
+      TAC Orchestrator v0.2.0 • Goal: Zero Touch Engineering • 
       <a href="https://github.com/gimli/gimli" style="color: var(--accent-blue)">Gimli</a>
     </footer>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">📊 Details</h3>
+        <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+      </div>
+      <div id="modalBody">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow Modal -->
+  <div id="workflowModal" class="modal-overlay">
+    <div class="modal-content" style="min-width:320px;">
+      <div class="modal-header">
+        <h3>🔄 Run Workflow</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <select id="workflowSelect" style="width:100%; padding:12px; border-radius:8px; background:var(--bg-tertiary); color:var(--text-primary); border:1px solid var(--bg-primary); font-size:14px; margin-bottom:16px;">
+        <option value="">Select a workflow...</option>
+        <option value="self-improve">🔧 Self-Improve (nightly maintenance)</option>
+        <option value="test-fix">🧪 Test-Fix (fix failing tests)</option>
+        <option value="bug-investigate">🐛 Bug-Investigate (find & fix bugs)</option>
+        <option value="security-audit">🔒 Security-Audit (security scan)</option>
+        <option value="plan-build">📋 Plan-Build (feature development)</option>
+      </select>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="runSelectedWorkflow()">▶️ Run</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -587,19 +726,28 @@
       workflows: [],
       agents: [],
       metrics: {},
+      kpis: {},
+      runHistory: [],
     };
 
     // Refresh data from API
     async function refreshData() {
+      const btn = document.querySelector('button[onclick="refreshData()"]');
+      if (btn) {
+        btn.textContent = '⏳ Loading...';
+        btn.disabled = true;
+      }
       try {
-        // In production, fetch from orchestrator API
-        // const response = await fetch('/orchestrator/dashboard');
-        // state = await response.json();
-        
-        console.log('Refreshing data...');
+        const response = await fetch('/api/dashboard');
+        state = await response.json();
+        console.log('Data refreshed:', state);
         updateUI();
+        if (btn) btn.textContent = '✅ Refreshed!';
+        setTimeout(() => { if (btn) { btn.textContent = '🔄 Refresh'; btn.disabled = false; } }, 1500);
       } catch (error) {
         console.error('Failed to refresh:', error);
+        if (btn) { btn.textContent = '❌ Error'; btn.disabled = false; }
+        setTimeout(() => { if (btn) btn.textContent = '🔄 Refresh'; }, 2000);
       }
     }
 
@@ -609,28 +757,427 @@
       const indicator = document.getElementById('statusIndicator');
       indicator.className = `status-indicator ${state.status}`;
       
-      // Would update all the dynamic elements here
-      console.log('UI updated');
+      // Update metrics
+      const m = state.metrics || {};
+      const totalRunsEl = document.getElementById('totalRuns');
+      const bugsFixedEl = document.getElementById('bugsFixed');
+      if (totalRunsEl) totalRunsEl.textContent = m.totalRuns || 0;
+      if (bugsFixedEl) bugsFixedEl.textContent = m.bugsFixed || 0;
+      
+      // Update success rate
+      const successRate = m.totalRuns > 0 
+        ? Math.round((m.successfulRuns / m.totalRuns) * 100) 
+        : 0;
+      const progressFill = document.getElementById('successFill');
+      if (progressFill) progressFill.style.width = successRate + '%';
+      
+      // Update success rate text
+      const successRateEl = document.getElementById('successRate');
+      if (successRateEl) successRateEl.textContent = successRate + '%';
+      
+      // Update tokens (for Claude Code)
+      const tokenEl = document.getElementById('tokenCount');
+      if (tokenEl) tokenEl.textContent = (m.tokensEstimate || 0).toLocaleString();
+      
+      // Update KPIs
+      const k = state.kpis || {};
+      const kpiPresence = document.getElementById('kpiPresence');
+      const kpiTaskSize = document.getElementById('kpiTaskSize');
+      const kpiStreak = document.getElementById('kpiStreak');
+      const kpiAttempts = document.getElementById('kpiAttempts');
+      if (kpiPresence) kpiPresence.textContent = (k.presence || 0) + 'm';
+      if (kpiTaskSize) kpiTaskSize.textContent = k.taskSize || 'M';
+      if (kpiStreak) kpiStreak.textContent = k.streak || 0;
+      if (kpiAttempts) kpiAttempts.textContent = k.attempts || 1.0;
+      
+      // Update tests fixed & security
+      const testsFixedEl = document.getElementById('testsFixed');
+      const securityFixedEl = document.getElementById('securityFixed');
+      if (testsFixedEl) testsFixedEl.textContent = m.testsFixed || 0;
+      if (securityFixedEl) securityFixedEl.textContent = m.securityIssuesResolved || 0;
+      
+      // Update upstream
+      const upstreamBehindEl = document.getElementById('upstreamBehind');
+      const upstreamSyncsEl = document.getElementById('upstreamSyncs');
+      if (upstreamBehindEl) upstreamBehindEl.textContent = m.commitsBehind || 0;
+      if (upstreamSyncsEl) upstreamSyncsEl.textContent = m.upstreamSyncs || 0;
+      
+      // Update upstream status
+      const upstreamStatusEl = document.getElementById('upstreamStatus');
+      if (upstreamStatusEl) {
+        const behind = m.commitsBehind || 0;
+        if (behind === 0) {
+          upstreamStatusEl.textContent = 'In Sync';
+          upstreamStatusEl.style.color = 'var(--accent-green)';
+        } else {
+          upstreamStatusEl.textContent = `${behind} behind`;
+          upstreamStatusEl.style.color = 'var(--accent-yellow)';
+        }
+      }
+      
+      // Update Active Workflows
+      const workflowList = document.getElementById('workflowList');
+      const workflows = state.activeWorkflows || [];
+      if (workflows.length === 0) {
+        workflowList.innerHTML = '<li class="workflow-item" style="justify-content:center;color:var(--text-secondary);">No active workflows</li>';
+      } else {
+        workflowList.innerHTML = workflows.map(w => `
+          <li class="workflow-item">
+            <span class="workflow-status ${w.status || 'pending'}"></span>
+            <div class="workflow-info">
+              <div class="workflow-name">${w.name || 'Unknown'}</div>
+              <div class="workflow-meta">${w.step || 'Running...'}</div>
+            </div>
+            <span class="workflow-duration">${w.duration || '-'}</span>
+          </li>
+        `).join('');
+      }
+      
+      // Update Agents
+      const agentGrid = document.getElementById('agentGrid');
+      const agents = state.agents || [];
+      if (agents.length === 0) {
+        agentGrid.innerHTML = '<div class="agent-card" style="color:var(--text-secondary);">No active agents</div>';
+      } else {
+        agentGrid.innerHTML = agents.map(a => `
+          <div class="agent-card">
+            <div class="agent-avatar">${a.id?.[0]?.toUpperCase() || '?'}</div>
+            <div class="agent-name">${a.id || 'Agent'}</div>
+            <div class="agent-status ${a.status || 'idle'}">${a.status || 'idle'}</div>
+          </div>
+        `).join('');
+      }
+      
+      // Update Recent Activity logs
+      const logContainer = document.getElementById('logContainer');
+      const logs = (state.recentLogs || []).slice().reverse(); // Newest first
+      if (!logContainer) return;
+      if (logs.length === 0) {
+        logContainer.innerHTML = '<div class="log-entry" style="color:var(--text-secondary);">No recent activity</div>';
+      } else {
+        logContainer.innerHTML = logs.map(log => {
+          const time = new Date(log.time).toLocaleTimeString('en-US', {hour12: false});
+          const levelClass = 'log-level-' + (log.level || 'info');
+          return `
+            <div class="log-entry">
+              <span class="log-time">${time}</span>
+              <span class="${levelClass}">[${(log.level || 'INFO').toUpperCase()}]</span>
+              ${log.message}
+            </div>
+          `;
+        }).join('');
+      }
+      
+      // Update uptime
+      const uptimeEl = document.getElementById('uptime');
+      if (uptimeEl && state.uptime) {
+        const mins = Math.floor(state.uptime / 60000);
+        const hrs = Math.floor(mins / 60);
+        uptimeEl.textContent = hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m`;
+      }
+      
+      console.log('UI updated with real data');
     }
 
-    // Trigger a workflow
-    async function triggerWorkflow() {
-      const workflow = prompt('Enter workflow name:', 'self-improve');
-      if (!workflow) return;
+    // Show detail modal for a specific card
+    function showDetail(cardType) {
+      const modal = document.getElementById('detailModal');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
+      const m = state.metrics || {};
+      const k = state.kpis || {};
 
+      let content = '';
+
+      switch(cardType) {
+        case 'overview':
+          title.innerHTML = '📊 Workflow Overview';
+          const successRate = m.totalRuns > 0 ? Math.round((m.successfulRuns / m.totalRuns) * 100) : 0;
+          const failRate = m.totalRuns > 0 ? Math.round((m.failedRuns / m.totalRuns) * 100) : 0;
+          content = `
+            <ul class="detail-list">
+              <li class="detail-item">
+                <span class="detail-label">Total Workflow Runs</span>
+                <span class="detail-value">${m.totalRuns || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Successful Runs</span>
+                <span class="detail-value success">${m.successfulRuns || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Failed Runs</span>
+                <span class="detail-value error">${m.failedRuns || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Success Rate</span>
+                <span class="detail-value ${successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error'}">${successRate}%</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Failure Rate</span>
+                <span class="detail-value ${failRate <= 20 ? 'success' : failRate <= 50 ? 'warning' : 'error'}">${failRate}%</span>
+              </li>
+            </ul>
+            <div class="detail-section">
+              <h4>Recent Runs</h4>
+              <ul class="run-history">
+                ${(state.runHistory || []).slice(0, 5).map(run => `
+                  <li class="run-item">
+                    <span class="status-dot ${run.success ? 'success' : 'failed'}"></span>
+                    <span>${run.workflow || 'Unknown'}</span>
+                    <span class="run-date">${run.date ? new Date(run.date).toLocaleDateString() : '-'}</span>
+                  </li>
+                `).join('') || '<li class="run-item" style="color:var(--text-secondary)">No run history yet</li>'}
+              </ul>
+            </div>
+          `;
+          break;
+
+        case 'issues':
+          title.innerHTML = '🐛 Issues Fixed Details';
+          content = `
+            <ul class="detail-list">
+              <li class="detail-item">
+                <span class="detail-label">Bugs Fixed</span>
+                <span class="detail-value success">${m.bugsFixed || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Tests Fixed</span>
+                <span class="detail-value success">${m.testsFixed || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Security Issues Resolved</span>
+                <span class="detail-value success">${m.securityIssuesResolved || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Total Issues Resolved</span>
+                <span class="detail-value">${(m.bugsFixed || 0) + (m.testsFixed || 0) + (m.securityIssuesResolved || 0)}</span>
+              </li>
+            </ul>
+            <div class="detail-section">
+              <h4>Fix Rate Analysis</h4>
+              <ul class="detail-list">
+                <li class="detail-item">
+                  <span class="detail-label">Avg Bugs per Run</span>
+                  <span class="detail-value">${m.totalRuns > 0 ? ((m.bugsFixed || 0) / m.totalRuns).toFixed(2) : '0.00'}</span>
+                </li>
+                <li class="detail-item">
+                  <span class="detail-label">Auto-fix Success Rate</span>
+                  <span class="detail-value success">${m.totalRuns > 0 ? Math.round(((m.bugsFixed || 0) / Math.max(1, m.totalRuns)) * 100) : 0}%</span>
+                </li>
+              </ul>
+            </div>
+          `;
+          break;
+
+        case 'usage':
+          title.innerHTML = '⚡ Usage & Resources';
+          const uptimeMins = Math.floor((state.uptime || 0) / 60000);
+          const uptimeHrs = Math.floor(uptimeMins / 60);
+          content = `
+            <ul class="detail-list">
+              <li class="detail-item">
+                <span class="detail-label">Estimated Tokens Used</span>
+                <span class="detail-value">${(m.tokensEstimate || 0).toLocaleString()}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Token Cost (est.)</span>
+                <span class="detail-value">$${((m.tokensEstimate || 0) * 0.000015).toFixed(2)}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Uptime</span>
+                <span class="detail-value">${uptimeHrs > 0 ? uptimeHrs + 'h ' + (uptimeMins % 60) + 'm' : uptimeMins + 'm'}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Plan</span>
+                <span class="detail-value">Claude Code</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Tokens per Run (avg)</span>
+                <span class="detail-value">${m.totalRuns > 0 ? Math.round((m.tokensEstimate || 0) / m.totalRuns).toLocaleString() : '~50,000'}</span>
+              </li>
+            </ul>
+            <div class="detail-section">
+              <h4>Resource Efficiency</h4>
+              <ul class="detail-list">
+                <li class="detail-item">
+                  <span class="detail-label">Tokens per Bug Fixed</span>
+                  <span class="detail-value">${m.bugsFixed > 0 ? Math.round((m.tokensEstimate || 0) / m.bugsFixed).toLocaleString() : 'N/A'}</span>
+                </li>
+                <li class="detail-item">
+                  <span class="detail-label">Cost per Bug Fixed</span>
+                  <span class="detail-value">${m.bugsFixed > 0 ? '$' + (((m.tokensEstimate || 0) * 0.000015) / m.bugsFixed).toFixed(2) : 'N/A'}</span>
+                </li>
+              </ul>
+            </div>
+          `;
+          break;
+
+        case 'upstream':
+          title.innerHTML = '📥 Upstream Sync Status';
+          const behind = m.commitsBehind || 0;
+          content = `
+            <ul class="detail-list">
+              <li class="detail-item">
+                <span class="detail-label">Commits Behind</span>
+                <span class="detail-value ${behind === 0 ? 'success' : 'warning'}">${behind}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Sync Status</span>
+                <span class="detail-value ${behind === 0 ? 'success' : 'warning'}">${behind === 0 ? 'In Sync ✓' : 'Behind'}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Total Syncs Performed</span>
+                <span class="detail-value">${m.upstreamSyncs || 0}</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Remote</span>
+                <span class="detail-value" style="font-size:12px;">github.com/gimli/gimli</span>
+              </li>
+            </ul>
+            <div class="detail-section">
+              <h4>Sync Actions</h4>
+              <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">
+                ${behind > 0 
+                  ? 'There are upstream changes available. Consider running a sync workflow.' 
+                  : 'Your fork is up to date with upstream.'}
+              </p>
+              ${behind > 0 ? `
+                <button class="btn btn-primary" onclick="runSyncWorkflow()" style="width:100%;">
+                  🔄 Sync Now
+                </button>
+              ` : ''}
+            </div>
+          `;
+          break;
+
+        case 'kpis':
+          title.innerHTML = '🎯 KPI Breakdown';
+          content = `
+            <ul class="detail-list">
+              <li class="detail-item">
+                <span class="detail-label">Daily Presence</span>
+                <span class="detail-value">${k.presence || 0} minutes</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Average Task Size</span>
+                <span class="detail-value">${k.taskSize || 'M'} (S/M/L/XL)</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Current Success Streak</span>
+                <span class="detail-value success">${k.streak || 0} runs</span>
+              </li>
+              <li class="detail-item">
+                <span class="detail-label">Avg Attempts per Fix</span>
+                <span class="detail-value">${k.attempts || 1.0}</span>
+              </li>
+            </ul>
+            <div class="detail-section">
+              <h4>KPI Definitions</h4>
+              <ul class="detail-list">
+                <li class="detail-item">
+                  <span class="detail-label">Presence</span>
+                  <span class="detail-value" style="font-size:12px;color:var(--text-secondary)">Active workflow time today</span>
+                </li>
+                <li class="detail-item">
+                  <span class="detail-label">Task Size</span>
+                  <span class="detail-value" style="font-size:12px;color:var(--text-secondary)">Complexity of completed tasks</span>
+                </li>
+                <li class="detail-item">
+                  <span class="detail-label">Streak</span>
+                  <span class="detail-value" style="font-size:12px;color:var(--text-secondary)">Consecutive successful runs</span>
+                </li>
+                <li class="detail-item">
+                  <span class="detail-label">Attempts</span>
+                  <span class="detail-value" style="font-size:12px;color:var(--text-secondary)">Retries needed for fixes</span>
+                </li>
+              </ul>
+            </div>
+          `;
+          break;
+
+        default:
+          title.innerHTML = '📋 Details';
+          content = '<p style="color:var(--text-secondary)">No details available.</p>';
+      }
+
+      body.innerHTML = content;
+      modal.classList.add('active');
+    }
+
+    // Close detail modal
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.remove('active');
+    }
+
+    // Run sync workflow
+    async function runSyncWorkflow() {
+      closeDetailModal();
       try {
-        // In production:
-        // await fetch('/orchestrator/workflow', {
-        //   method: 'POST',
-        //   body: JSON.stringify({ workflow }),
-        // });
-        
-        alert(`Triggered workflow: ${workflow}`);
+        const response = await fetch('/api/workflow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workflow: 'self-improve' }),
+        });
+        const result = await response.json();
+        alert(`✅ Triggered sync workflow\nStatus: ${result.status}`);
         refreshData();
       } catch (error) {
-        alert(`Failed to trigger workflow: ${error.message}`);
+        alert(`❌ Failed to trigger sync: ${error.message}`);
       }
     }
+
+    // Show workflow modal
+    function triggerWorkflow() {
+      const modal = document.getElementById('workflowModal');
+      modal.classList.add('active');
+      document.getElementById('workflowSelect').value = '';
+    }
+
+    // Close modal
+    function closeModal() {
+      document.getElementById('workflowModal').classList.remove('active');
+    }
+
+    // Run the selected workflow
+    async function runSelectedWorkflow() {
+      const workflow = document.getElementById('workflowSelect').value;
+      if (!workflow) {
+        alert('Please select a workflow');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/workflow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workflow }),
+        });
+        const result = await response.json();
+        closeModal();
+        alert(`✅ Triggered workflow: ${workflow}\nStatus: ${result.status}`);
+        refreshData();
+      } catch (error) {
+        alert(`❌ Failed to trigger workflow: ${error.message}`);
+      }
+    }
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+          modal.classList.remove('active');
+        }
+      });
+    });
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(modal => {
+          modal.classList.remove('active');
+        });
+      }
+    });
 
     // Auto-refresh every 30 seconds
     setInterval(refreshData, 30000);

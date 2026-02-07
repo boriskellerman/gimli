@@ -1,0 +1,32 @@
+{
+  "id": "wf-ml78ksal-6gwwjb",
+  "workflow": "test-fix",
+  "status": "failed",
+  "startedAt": 1770161709117,
+  "inputs": {},
+  "stepResults": {
+    "run_tests": {
+      "sessionKey": "agent:iso:backend-1770161709118",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "analyze_failures": {
+      "sessionKey": "agent:iso:backend-1770161709119",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    }
+  },
+  "metrics": {
+    "totalTokens": 2000,
+    "durationMs": 2,
+    "stepsCompleted": 2,
+    "stepsTotal": 5
+  },
+  "currentStep": "implement_fixes",
+  "error": "undefined is not an object (evaluating 'items')",
+  "completedAt": 1770161709119,
+  "event": "completed",
+  "timestamp": "2026-02-03T23:35:09.119Z"
+}

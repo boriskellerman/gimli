@@ -1,0 +1,44 @@
+{
+  "id": "wf-ml78ji1l-ibrzjd",
+  "workflow": "self-improve",
+  "status": "failed",
+  "startedAt": 1770161649177,
+  "inputs": {},
+  "stepResults": {
+    "detect_bugs": {
+      "sessionKey": "agent:iso:backend-1770161649177",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "detect_test_gaps": {
+      "sessionKey": "agent:iso:backend-1770161649178",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "detect_performance": {
+      "sessionKey": "agent:iso:backend-1770161649178",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "prioritize_issues": {
+      "sessionKey": "agent:iso:orchestrator-1770161649178",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    }
+  },
+  "metrics": {
+    "totalTokens": 4000,
+    "durationMs": 1,
+    "stepsCompleted": 4,
+    "stepsTotal": 9
+  },
+  "currentStep": "fix_issues",
+  "error": "undefined is not an object (evaluating 'items')",
+  "completedAt": 1770161649178,
+  "event": "completed",
+  "timestamp": "2026-02-03T23:34:09.178Z"
+}

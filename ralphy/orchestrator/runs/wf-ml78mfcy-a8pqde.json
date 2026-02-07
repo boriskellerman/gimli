@@ -1,0 +1,67 @@
+{
+  "id": "wf-ml78mfcy-a8pqde",
+  "workflow": "bug-investigate",
+  "status": "success",
+  "startedAt": 1770161785666,
+  "inputs": {},
+  "stepResults": {
+    "understand": {
+      "sessionKey": "agent:iso:orchestrator-1770161785666",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "reproduce": {
+      "sessionKey": "agent:iso:backend-1770161785666",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "investigate": {
+      "sessionKey": "agent:iso:backend-1770161785667",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "plan_fix": {
+      "sessionKey": "agent:iso:orchestrator-1770161785667",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "implement_fix": {
+      "sessionKey": "agent:iso:backend-1770161785667",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "write_regression_test": {
+      "sessionKey": "agent:iso:backend-1770161785667",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "verify": {
+      "sessionKey": "agent:iso:backend-1770161785667",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "document": {
+      "sessionKey": "agent:iso:orchestrator-1770161785667",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    }
+  },
+  "metrics": {
+    "totalTokens": 8000,
+    "durationMs": 1,
+    "stepsCompleted": 8,
+    "stepsTotal": 8
+  },
+  "currentStep": "document",
+  "completedAt": 1770161785667,
+  "event": "completed",
+  "timestamp": "2026-02-03T23:36:25.667Z"
+}

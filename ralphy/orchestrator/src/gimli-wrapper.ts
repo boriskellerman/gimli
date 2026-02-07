@@ -40,12 +40,22 @@ interface WrapperMetrics {
   failedRuns: number;
 }
 
+interface ActiveWorkflow {
+  id: string;
+  name: string;
+  status: 'running' | 'pending' | 'success' | 'failed';
+  step?: string;
+  startTime: number;
+  duration?: string;
+}
+
 export class GimliWrapper {
   private executor: ADWExecutor;
   private gimliPath: string;
   private metricsPath: string;
   private metrics: WrapperMetrics;
   private isRunning: boolean = false;
+  private activeWorkflows: Map<string, ActiveWorkflow> = new Map();
 
   constructor(options: {
     gimliPath: string;
@@ -380,7 +390,66 @@ export class GimliWrapper {
    */
   async triggerWorkflow(name: string, inputs: Record<string, any> = {}): Promise<any> {
     console.log(`🎯 Manually triggering workflow: ${name}`);
-    return this.executor.runWorkflow(name, inputs);
+    
+    const workflowId = `${name}-${Date.now()}`;
+    const workflow: ActiveWorkflow = {
+      id: workflowId,
+      name,
+      status: 'running',
+      step: 'Starting...',
+      startTime: Date.now(),
+    };
+    
+    this.activeWorkflows.set(workflowId, workflow);
+    
+    try {
+      const result = await this.executor.runWorkflow(name, inputs);
+      workflow.status = 'success';
+      workflow.step = 'Completed';
+      this.metrics.totalWorkflowRuns++;
+      this.metrics.successfulRuns++;
+      this.saveMetrics();
+      
+      // Remove from active after 30 seconds
+      setTimeout(() => this.activeWorkflows.delete(workflowId), 30000);
+      
+      return result;
+    } catch (error) {
+      workflow.status = 'failed';
+      workflow.step = 'Failed';
+      this.metrics.totalWorkflowRuns++;
+      this.metrics.failedRuns++;
+      this.saveMetrics();
+      
+      // Remove from active after 30 seconds
+      setTimeout(() => this.activeWorkflows.delete(workflowId), 30000);
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Get list of active/recent workflows
+   */
+  getActiveWorkflows(): ActiveWorkflow[] {
+    const now = Date.now();
+    return Array.from(this.activeWorkflows.values()).map(w => ({
+      ...w,
+      duration: this.formatDuration(now - w.startTime),
+    }));
+  }
+
+  /**
+   * Format duration in human readable format
+   */
+  private formatDuration(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
   }
 }
 

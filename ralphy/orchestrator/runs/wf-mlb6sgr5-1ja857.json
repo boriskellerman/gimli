@@ -1,0 +1,67 @@
+{
+  "id": "wf-mlb6sgr5-1ja857",
+  "workflow": "bug-investigate",
+  "status": "success",
+  "startedAt": 1770400572881,
+  "inputs": {},
+  "stepResults": {
+    "understand": {
+      "sessionKey": "agent:cli:orchestrator-1770400572902",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "reproduce": {
+      "sessionKey": "agent:cli:backend-1770400572904",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "investigate": {
+      "sessionKey": "agent:cli:backend-1770400572906",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "plan_fix": {
+      "sessionKey": "agent:cli:orchestrator-1770400572908",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "implement_fix": {
+      "sessionKey": "agent:cli:backend-1770400572909",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "write_regression_test": {
+      "sessionKey": "agent:cli:backend-1770400572911",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "verify": {
+      "sessionKey": "agent:cli:backend-1770400572913",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    },
+    "document": {
+      "sessionKey": "agent:cli:orchestrator-1770400572914",
+      "output": "/bin/sh: 1: gimli: not found\n",
+      "tokens": 0,
+      "success": false
+    }
+  },
+  "metrics": {
+    "totalTokens": 0,
+    "durationMs": 33,
+    "stepsCompleted": 8,
+    "stepsTotal": 8
+  },
+  "currentStep": "document",
+  "completedAt": 1770400572914,
+  "event": "completed",
+  "timestamp": "2026-02-06T17:56:12.914Z"
+}

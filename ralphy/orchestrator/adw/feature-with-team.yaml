@@ -1,0 +1,168 @@
+# ADW: Feature With Team
+# Purpose: Build a feature using builder+validator agent pairs
+
+name: feature-with-team
+version: "1.0"
+description: |
+  Multi-agent feature development using the builder+validator pattern.
+  Every build step gets validated before proceeding.
+
+triggers:
+  - type: manual
+    command: "/adw feature-with-team"
+  - type: orchestrator
+    event: "plan-approved"
+
+inputs:
+  feature:
+    type: string
+    required: true
+    description: "Feature description or plan reference"
+  plan_file:
+    type: string
+    required: false
+    description: "Path to plan file (if pre-generated)"
+  max_retries:
+    type: number
+    default: 2
+    description: "Max retries per builder task"
+
+environment:
+  branch_strategy: worktree
+  isolation: sandbox
+  timeout_minutes: 120
+  max_parallel_agents: 4
+
+team:
+  orchestrator:
+    role: orchestrator
+    prompt: prompts/orchestrate-team.md
+    
+  builders:
+    - name: CodeBuilder
+      role: builder
+      prompt: agents/builder.md
+      focus: "Implementation code"
+      
+    - name: TestBuilder
+      role: builder
+      prompt: agents/builder.md
+      focus: "Test files"
+      
+    - name: DocBuilder
+      role: builder
+      prompt: agents/builder.md
+      focus: "Documentation"
+      
+  validators:
+    - name: CodeValidator
+      role: validator
+      prompt: agents/validator.md
+      validates: CodeBuilder
+      
+    - name: TestValidator
+      role: validator
+      prompt: agents/validator.md
+      validates: TestBuilder
+      
+    - name: DocValidator
+      role: validator
+      prompt: agents/validator.md
+      validates: DocBuilder
+
+steps:
+  - name: generate_plan
+    agent: orchestrator
+    condition: "!inputs.plan_file"
+    prompt: |
+      Generate a plan for this feature using the plan-with-team template.
+      
+      Feature: {{feature}}
+      
+      Use prompts/plan-with-team.md to create a detailed plan with:
+      1. Team member assignments (builders + validators)
+      2. Tasks with dependencies
+      3. Acceptance criteria for each task
+      
+      Save the plan to specs/{{feature_slug}}-plan.md
+    outputs:
+      - plan_file: string
+    validation:
+      - plan_file exists
+
+  - name: execute_plan
+    agent: orchestrator
+    depends_on: [generate_plan]
+    prompt: |
+      Execute the plan using the team orchestration workflow.
+      
+      Plan: {{generate_plan.plan_file || inputs.plan_file}}
+      
+      Follow prompts/orchestrate-team.md to:
+      1. Spawn builders for available tasks
+      2. Validate each builder's output
+      3. Handle retries if validation fails
+      4. Track progress and dependencies
+      
+      Use sessions_spawn for each agent.
+      Max retries per task: {{max_retries}}
+    outputs:
+      - tasks_completed: array
+      - tasks_failed: array
+      - execution_time_ms: number
+
+  - name: final_validation
+    agent: orchestrator
+    depends_on: [execute_plan]
+    prompt: |
+      Run final validation on the complete feature:
+      
+      1. Run full test suite: `npm test`
+      2. Run type check: `npx tsc --noEmit`
+      3. Check all files match the plan
+      4. Verify documentation is complete
+      
+      If any issues, list them clearly.
+    outputs:
+      - all_tests_pass: boolean
+      - type_check_pass: boolean
+      - issues: array
+
+  - name: generate_report
+    agent: orchestrator
+    depends_on: [final_validation]
+    prompt: |
+      Generate a completion report for this feature.
+      
+      Include:
+      - Feature summary
+      - Tasks completed vs failed
+      - Files created/modified
+      - Test coverage
+      - Any remaining issues
+      - Recommendations
+      
+      Save to specs/{{feature_slug}}-report.md
+    outputs:
+      - report_file: string
+
+result:
+  format: yaml
+  include:
+    - workflow_id
+    - duration_ms
+    - tasks_completed
+    - tasks_failed
+    - final_validation
+    - report_file
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      template: |
+        ### ADW: feature-with-team
+        - Feature: {{feature}}
+        - Tasks: {{tasks_completed.length}}/{{tasks_completed.length + tasks_failed.length}}
+        - Status: {{final_validation.all_tests_pass ? 'SUCCESS' : 'ISSUES'}}
+    - type: commit
+      condition: "final_validation.all_tests_pass"
+      message: "feat: {{feature}} [ADW: feature-with-team]"

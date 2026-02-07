@@ -11,6 +11,7 @@ import { join, extname } from 'path';
 import { GimliWrapper } from './gimli-wrapper';
 import { ABTestRunner } from './ab-testing';
 import { WorktreeManager } from './worktree-manager';
+import { KPITracker } from './kpi-tracker';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -33,8 +34,9 @@ interface DashboardState {
     failedRuns: number;
     bugsFixed: number;
     testsFixed: number;
+    securityIssuesResolved: number;
     upstreamSyncs: number;
-    costEstimate: number;
+    tokensEstimate: number;
   };
   kpis: {
     presence: number;
@@ -49,6 +51,7 @@ export class DashboardServer {
   private wrapper: GimliWrapper;
   private abRunner: ABTestRunner;
   private worktreeManager: WorktreeManager;
+  private kpiTracker: KPITracker;
   private dashboardPath: string;
   private startTime: number;
   private recentLogs: any[] = [];
@@ -73,6 +76,11 @@ export class DashboardServer {
     this.worktreeManager = new WorktreeManager({
       repoPath: options.gimliPath,
     });
+
+    this.kpiTracker = new KPITracker({
+      orchestratorPath: options.orchestratorPath,
+      tasksPath: '/home/gimli/gimli/TASKS.md',
+    });
   }
 
   /**
@@ -81,9 +89,14 @@ export class DashboardServer {
   start(port: number = 3888): void {
     const server = createServer((req, res) => this.handleRequest(req, res));
 
-    server.listen(port, '127.0.0.1', () => {
-      console.log(`\n🎛️ TAC Orchestrator Dashboard running at http://localhost:${port}`);
+    const host = process.env.HOST || '0.0.0.0';
+    server.listen(port, host, () => {
+      console.log(`\n🎛️ TAC Orchestrator Dashboard running at http://${host}:${port}`);
       console.log('   Press Ctrl+C to stop\n');
+      
+      // Add startup logs
+      this.log('info', 'TAC Orchestrator Dashboard started');
+      this.log('info', `Monitoring ${this.wrapper.getWorkflows().length} workflows`);
     });
   }
 
@@ -158,16 +171,35 @@ export class DashboardServer {
         return;
       }
 
-      // POST /api/workflow - Trigger a workflow
+      // POST /api/workflow - Trigger a workflow via Gimli main session
       if (url === '/api/workflow' && method === 'POST') {
         const body = await this.readBody(req);
         const { workflow, inputs } = JSON.parse(body);
         
-        // Run workflow in background
-        this.wrapper.triggerWorkflow(workflow, inputs || {}).catch(console.error);
+        // Log the trigger
+        this.log('info', `Workflow "${workflow}" triggered via dashboard`);
         
-        res.writeHead(202);
-        res.end(JSON.stringify({ status: 'accepted', workflow }));
+        // Send workflow request to Gimli main session
+        const gatewayUrl = process.env.GIMLI_GATEWAY_URL || 'http://localhost:18789';
+        const gatewayToken = process.env.GIMLI_GATEWAY_TOKEN || '';
+        
+        try {
+          // First, try the wrapper's method (uses ADW executor)
+          this.wrapper.triggerWorkflow(workflow, inputs || {})
+            .then(() => {
+              this.log('success', `Workflow "${workflow}" completed successfully`);
+            })
+            .catch((err) => {
+              this.log('error', `Workflow "${workflow}" failed: ${err.message}`);
+            });
+          
+          res.writeHead(202);
+          res.end(JSON.stringify({ status: 'accepted', workflow }));
+        } catch (error: any) {
+          this.log('error', `Failed to trigger workflow: ${error.message}`);
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: error.message }));
+        }
         return;
       }
 
@@ -195,6 +227,54 @@ export class DashboardServer {
         return;
       }
 
+      // POST /api/trigger-gimli - Send a message to Gimli main session to run a workflow
+      if (url === '/api/trigger-gimli' && method === 'POST') {
+        const body = await this.readBody(req);
+        const { workflow, inputs } = JSON.parse(body);
+        
+        const gatewayUrl = process.env.GIMLI_GATEWAY_URL || 'http://localhost:18789';
+        const gatewayToken = process.env.GIMLI_GATEWAY_TOKEN || '';
+        
+        // Build the workflow prompt
+        const workflowPrompts: Record<string, string> = {
+          'self-improve': `Run TAC self-improvement workflow:\n1. Check test health: \`npm test\`\n2. Fix any failing tests using sessions_spawn\n3. Log results to memory\nBe autonomous.`,
+          'test-fix': `Run TAC test-fix workflow:\n1. Run \`npm test\` to find failing tests\n2. For each failing test, spawn a sub-agent to fix it\n3. Verify fixes\n4. Log results`,
+          'security-audit': `Run TAC security audit:\n1. Run \`npm audit\`\n2. Scan for secrets in code\n3. Check permissions\n4. Log findings`,
+          'bug-investigate': `Investigate and fix bugs in Gimli:\n1. Check logs for errors\n2. Identify root causes\n3. Spawn sub-agents to fix\n4. Verify fixes`,
+          'plan-build': `Plan and build a feature: ${inputs?.feature || 'Check TASKS.md for next feature'}\n1. Analyze requirements\n2. Create implementation plan\n3. Spawn agents to build\n4. Test and document`,
+        };
+
+        const prompt = workflowPrompts[workflow] || `Run TAC workflow: ${workflow}`;
+        
+        try {
+          // Wake Gimli and send the workflow request
+          const response = await fetch(`${gatewayUrl}/api/wake`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${gatewayToken}`,
+            },
+            body: JSON.stringify({
+              sessionKey: 'agent:main:main',
+              text: prompt,
+            }),
+          });
+          
+          if (response.ok) {
+            this.log('info', `Sent workflow "${workflow}" to Gimli main session`);
+            res.writeHead(202);
+            res.end(JSON.stringify({ status: 'accepted', workflow, method: 'gimli-wake' }));
+          } else {
+            throw new Error(`Gateway returned ${response.status}`);
+          }
+        } catch (error: any) {
+          this.log('error', `Failed to trigger Gimli: ${error.message}`);
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: error.message }));
+        }
+        return;
+      }
+
       // 404 for unknown API routes
       res.writeHead(404);
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -209,6 +289,13 @@ export class DashboardServer {
    * Serve static files
    */
   private serveStatic(url: string, res: ServerResponse): void {
+    // Handle URLs without trailing slash - redirect to add it
+    if (url === '') {
+      res.writeHead(302, { 'Location': '/' });
+      res.end();
+      return;
+    }
+    
     // Default to index.html
     let filePath = url === '/' ? '/index.html' : url;
     filePath = join(this.dashboardPath, filePath);
@@ -251,28 +338,34 @@ export class DashboardServer {
       status: 'running',
       uptime: Date.now() - this.startTime,
       lastActivity: Date.now(),
-      activeWorkflows: [], // Would come from executor
-      agents: worktrees.map(wt => ({
-        id: wt.agentId || wt.branch,
-        branch: wt.branch,
-        status: wt.status,
-        path: wt.path,
-      })),
+      activeWorkflows: this.wrapper.getActiveWorkflows(),
+      agents: [
+        // Default orchestrator agent
+        {
+          id: 'Orchestrator',
+          branch: 'main',
+          status: this.wrapper.getActiveWorkflows().length > 0 ? 'working' : 'idle',
+          path: '/home/gimli/github/gimli',
+        },
+        // Add any active worktrees
+        ...worktrees.map(wt => ({
+          id: wt.agentId || wt.branch,
+          branch: wt.branch,
+          status: wt.status,
+          path: wt.path,
+        })),
+      ],
       metrics: {
         totalRuns: metrics.totalWorkflowRuns,
         successfulRuns: metrics.successfulRuns,
         failedRuns: metrics.failedRuns,
         bugsFixed: metrics.bugsFixed,
         testsFixed: metrics.testsFixed,
+        securityIssuesResolved: metrics.securityIssuesResolved,
         upstreamSyncs: metrics.upstreamSyncs,
-        costEstimate: metrics.totalWorkflowRuns * 0.61, // Rough estimate
+        tokensEstimate: metrics.totalWorkflowRuns * 50000, // Rough token estimate
       },
-      kpis: {
-        presence: 12, // Minutes of human attention needed
-        taskSize: 'L', // S/M/L/XL
-        streak: 23, // Consecutive successes
-        attempts: 1.2, // Avg retries per task
-      },
+      kpis: this.kpiTracker.getKPIs(),
       recentLogs: this.recentLogs.slice(-20),
     };
   }

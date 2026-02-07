@@ -89,6 +89,46 @@ The runtime that:
 - Executes steps in dependency order
 - Spawns agents via Gimli's `sessions_spawn`
 - Handles retries, validation, and logging
+- **Logs trajectories** for every workflow run
+
+### Trajectory Logging (`trajectory.ts`)
+
+Trajectories capture the "train of thought" for completed workflows:
+- **Chapters** - Logical phases (investigation, planning, implementation, validation)
+- **Events** - Decisions, actions, observations, reasoning, errors, checkpoints
+- **Retrospectives** - Summary, successes, improvements, lessons learned
+
+**Why trajectories?**
+- Help future agents understand past work
+- Enable learning from mistakes
+- Provide audit trail for debugging
+- Support confidence scoring
+
+**Storage:** `runs/trajectories/traj_*.json`
+
+**Schema:**
+```json
+{
+  "id": "traj_xxx",
+  "task": {"title": "Fix bug X", "workflowName": "bug-investigate"},
+  "chapters": [
+    {
+      "title": "Investigation",
+      "type": "investigation",
+      "events": [
+        {"type": "observation", "title": "Found root cause", "confidence": 0.9}
+      ]
+    }
+  ],
+  "retrospective": {
+    "summary": "Fixed X by doing Y",
+    "successes": ["Found root cause", "Fix verified"],
+    "improvements": ["Could have checked logs earlier"],
+    "lessons": ["Always check error boundaries"],
+    "confidence": 0.85
+  }
+}
+```
 
 ### AI Developer Workflows
 

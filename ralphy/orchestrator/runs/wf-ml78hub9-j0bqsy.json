@@ -1,0 +1,61 @@
+{
+  "id": "wf-ml78hub9-j0bqsy",
+  "workflow": "security-audit",
+  "status": "success",
+  "startedAt": 1770161571765,
+  "inputs": {},
+  "stepResults": {
+    "dependency_scan": {
+      "sessionKey": "agent:iso:backend-1770161571766",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "auth_review": {
+      "sessionKey": "agent:iso:backend-1770161571766",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "config_audit": {
+      "sessionKey": "agent:iso:backend-1770161571767",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "code_patterns": {
+      "sessionKey": "agent:iso:backend-1770161571767",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "permissions_review": {
+      "sessionKey": "agent:iso:backend-1770161571767",
+      "output": "[Agent backend would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "synthesize_report": {
+      "sessionKey": "agent:iso:orchestrator-1770161571767",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    },
+    "create_issues": {
+      "sessionKey": "agent:iso:orchestrator-1770161571767",
+      "output": "[Agent orchestrator would execute here]",
+      "tokens": 1000,
+      "success": true
+    }
+  },
+  "metrics": {
+    "totalTokens": 7000,
+    "durationMs": 2,
+    "stepsCompleted": 7,
+    "stepsTotal": 7
+  },
+  "currentStep": "create_issues",
+  "completedAt": 1770161571767,
+  "event": "completed",
+  "timestamp": "2026-02-03T23:32:51.767Z"
+}
