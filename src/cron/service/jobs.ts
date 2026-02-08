@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 
-import { computeNextRunAtMs } from "../schedule.js";
 import type {
   CronJob,
   CronJobCreate,
@@ -8,15 +7,28 @@ import type {
   CronPayload,
   CronPayloadPatch,
 } from "../types.js";
+import type { CronServiceState } from "./state.js";
+import { parseAbsoluteTimeMs } from "../parse.js";
+import { computeNextRunAtMs } from "../schedule.js";
 import {
   normalizeOptionalAgentId,
   normalizeOptionalText,
   normalizePayloadToSystemText,
   normalizeRequiredName,
 } from "./normalize.js";
-import type { CronServiceState } from "./state.js";
 
 const STUCK_RUN_MS = 2 * 60 * 60 * 1000;
+
+function resolveEveryAnchorMs(params: {
+  schedule: { everyMs: number; anchorMs?: number };
+  fallbackAnchorMs: number;
+}) {
+  const raw = params.schedule.anchorMs;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.max(0, Math.floor(raw));
+  }
+  return Math.max(0, Math.floor(params.fallbackAnchorMs));
+}
 
 export function assertSupportedJobSpec(job: Pick<CronJob, "sessionTarget" | "payload">) {
   if (job.sessionTarget === "main" && job.payload.kind !== "systemEvent") {
@@ -35,22 +47,49 @@ export function findJobOrThrow(state: CronServiceState, id: string) {
 
 export function computeJobNextRunAtMs(job: CronJob, nowMs: number): number | undefined {
   if (!job.enabled) return undefined;
+  if (job.schedule.kind === "every") {
+    const anchorMs = resolveEveryAnchorMs({
+      schedule: job.schedule,
+      fallbackAnchorMs: job.createdAtMs,
+    });
+    return computeNextRunAtMs({ ...job.schedule, anchorMs }, nowMs);
+  }
   if (job.schedule.kind === "at") {
     // One-shot jobs stay due until they successfully finish.
     if (job.state.lastStatus === "ok" && job.state.lastRunAtMs) return undefined;
-    return job.schedule.atMs;
+    // Handle both canonical `at` (string) and legacy `atMs` (number) fields.
+    const schedule = job.schedule as { at?: string; atMs?: number | string };
+    const atMs =
+      typeof schedule.atMs === "number" && Number.isFinite(schedule.atMs) && schedule.atMs > 0
+        ? schedule.atMs
+        : typeof schedule.atMs === "string"
+          ? parseAbsoluteTimeMs(schedule.atMs)
+          : typeof schedule.at === "string"
+            ? parseAbsoluteTimeMs(schedule.at)
+            : null;
+    return atMs !== null ? atMs : undefined;
   }
   return computeNextRunAtMs(job.schedule, nowMs);
 }
 
-export function recomputeNextRuns(state: CronServiceState) {
-  if (!state.store) return;
+export function recomputeNextRuns(state: CronServiceState): boolean {
+  if (!state.store) return false;
+  let changed = false;
   const now = state.deps.nowMs();
   for (const job of state.store.jobs) {
-    if (!job.state) job.state = {};
+    if (!job.state) {
+      job.state = {};
+      changed = true;
+    }
     if (!job.enabled) {
-      job.state.nextRunAtMs = undefined;
-      job.state.runningAtMs = undefined;
+      if (job.state.nextRunAtMs !== undefined) {
+        job.state.nextRunAtMs = undefined;
+        changed = true;
+      }
+      if (job.state.runningAtMs !== undefined) {
+        job.state.runningAtMs = undefined;
+        changed = true;
+      }
       continue;
     }
     const runningAt = job.state.runningAtMs;
@@ -60,9 +99,15 @@ export function recomputeNextRuns(state: CronServiceState) {
         "cron: clearing stuck running marker",
       );
       job.state.runningAtMs = undefined;
+      changed = true;
     }
-    job.state.nextRunAtMs = computeJobNextRunAtMs(job, now);
+    const next = computeJobNextRunAtMs(job, now);
+    if (job.state.nextRunAtMs !== next) {
+      job.state.nextRunAtMs = next;
+      changed = true;
+    }
   }
+  return changed;
 }
 
 export function nextWakeAtMs(state: CronServiceState) {

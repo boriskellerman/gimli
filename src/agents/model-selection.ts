@@ -40,13 +40,17 @@ export function isCliProvider(provider: string, cfg?: GimliConfig): boolean {
   return Object.keys(backends).some((key) => normalizeProviderId(key) === normalized);
 }
 
+const ANTHROPIC_MODEL_ALIASES: Record<string, string> = {
+  "opus-4.6": "claude-opus-4-6",
+  "opus-4.5": "claude-opus-4-5",
+  "sonnet-4.5": "claude-sonnet-4-5",
+};
+
 function normalizeAnthropicModelId(model: string): string {
   const trimmed = model.trim();
   if (!trimmed) return trimmed;
   const lower = trimmed.toLowerCase();
-  if (lower === "opus-4.5") return "claude-opus-4-5";
-  if (lower === "sonnet-4.5") return "claude-sonnet-4-5";
-  return trimmed;
+  return ANTHROPIC_MODEL_ALIASES[lower] ?? trimmed;
 }
 
 function normalizeProviderModelId(provider: string, model: string): string {
