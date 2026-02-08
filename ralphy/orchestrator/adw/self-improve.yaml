@@ -51,7 +51,7 @@ steps:
       
       Commands:
       ```bash
-      pnpm test 2>&1 | tail -100
+      npm test 2>&1 | tail -100
       grep -rn "TODO\|FIXME\|HACK\|XXX" src/ --include="*.ts" | head -50
       grep -rn "console.error\|throw new Error" src/ --include="*.ts" | head -30
       ```
@@ -169,7 +169,7 @@ steps:
       Run the full test suite to verify all fixes.
       
       ```bash
-      pnpm test 2>&1
+      npm test 2>&1
       ```
       
       Report:
