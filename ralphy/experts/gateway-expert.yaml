@@ -135,6 +135,9 @@ mental_model:
     - "Channel credentials must be stored securely"
 
 learnings:
+  - date: "2026-02-08"
+    context: "task completion"
+    learning: "WebSocket health checks should use exponential backoff starting at 5s"
   - date: "2026-02-02"
     context: "Initial setup"
     learning: "Gateway binds to localhost by default - this is correct and should not be changed"
