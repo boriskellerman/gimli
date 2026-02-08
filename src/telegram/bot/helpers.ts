@@ -170,12 +170,16 @@ export type TelegramReplyTarget = {
 
 export function describeReplyTarget(msg: TelegramMessage): TelegramReplyTarget | null {
   const reply = msg.reply_to_message;
-  const quote = msg.quote;
+  const externalReply = (msg as TelegramMessage & { external_reply?: TelegramMessage })
+    .external_reply;
+  const quoteText =
+    msg.quote?.text ??
+    (externalReply as (TelegramMessage & { quote?: { text?: string } }) | undefined)?.quote?.text;
   let body = "";
   let kind: TelegramReplyTarget["kind"] = "reply";
 
-  if (quote?.text) {
-    body = quote.text.trim();
+  if (quoteText) {
+    body = quoteText.trim();
     if (body) {
       kind = "quote";
     }
