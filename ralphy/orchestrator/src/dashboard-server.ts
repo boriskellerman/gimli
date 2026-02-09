@@ -8,6 +8,7 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
+import { execSync } from 'child_process';
 import { GimliWrapper } from './gimli-wrapper';
 import { ABTestRunner } from './ab-testing';
 import { WorktreeManager } from './worktree-manager';
@@ -275,6 +276,71 @@ export class DashboardServer {
         return;
       }
 
+      // GET /api/experts - Expert system status
+      if (url === '/api/experts' && method === 'GET') {
+        try {
+          const data = this.getExpertData();
+          res.writeHead(200);
+          res.end(JSON.stringify(data));
+        } catch (err: any) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ error: err.message, experts: [], totalLearnings: 0, totalTokens: 0 }));
+        }
+        return;
+      }
+
+      // GET /api/validation - Validation stats
+      if (url === '/api/validation' && method === 'GET') {
+        try {
+          const data = this.getValidationData();
+          res.writeHead(200);
+          res.end(JSON.stringify(data));
+        } catch (err: any) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ error: err.message, passRate: '0%', totalChecks: 0, recentChecks: [] }));
+        }
+        return;
+      }
+
+      // GET /api/context - Context budget
+      if (url === '/api/context' && method === 'GET') {
+        try {
+          const data = this.getContextData();
+          res.writeHead(200);
+          res.end(JSON.stringify(data));
+        } catch (err: any) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ error: err.message, files: [], totalTokens: 0, windowPercent: 0 }));
+        }
+        return;
+      }
+
+      // GET /api/github - GitHub issue poller status
+      if (url === '/api/github' && method === 'GET') {
+        try {
+          const data = this.getGitHubData();
+          res.writeHead(200);
+          res.end(JSON.stringify(data));
+        } catch (err: any) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ error: err.message, lastCheck: null, processedCount: 0 }));
+        }
+        return;
+      }
+
+      // GET /api/kpis - KPI data
+      if (url === '/api/kpis' && method === 'GET') {
+        try {
+          const data = this.getKPIData();
+          res.writeHead(200);
+          res.end(JSON.stringify(data));
+        } catch (err: any) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ error: err.message, presence: 0, streak: 0, attempts: 0, taskSize: 'M' }));
+        }
+        return;
+      }
+
       // 404 for unknown API routes
       res.writeHead(404);
       res.end(JSON.stringify({ error: 'Not found' }));
@@ -368,6 +434,157 @@ export class DashboardServer {
       kpis: this.kpiTracker.getKPIs(),
       recentLogs: this.recentLogs.slice(-20),
     };
+  }
+
+  /**
+   * Get expert system data by parsing expert YAML files directly
+   */
+  private getExpertData(): any {
+    const expertsDir = '/home/gimli/github/gimli/ralphy/experts';
+    const result: any = { experts: [], totalLearnings: 0, totalTokens: 0, expertCount: 0 };
+
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const files = fs.readdirSync(expertsDir).filter((f: string) => f.endsWith('-expert.yaml'));
+      result.expertCount = files.length;
+
+      let totalSize = 0;
+      for (const file of files) {
+        const filePath = path.join(expertsDir, file);
+        const stat = fs.statSync(filePath);
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n').length;
+        const learnings = (content.match(/^\s*- date:/gm) || []).length;
+        const name = file.replace('.yaml', '');
+
+        totalSize += stat.size;
+        result.totalLearnings += learnings;
+        result.experts.push({
+          name,
+          lines,
+          sizeBytes: stat.size,
+          sizeHuman: stat.size >= 1024 ? Math.round(stat.size / 1024) + 'KB' : stat.size + 'B',
+          learnings,
+          lastModified: stat.mtime.toISOString().split('T')[0],
+        });
+      }
+      result.totalTokens = Math.round(totalSize / 4); // ~4 chars per token
+    } catch (err) {
+      // Directory may not exist yet
+    }
+
+    return result;
+  }
+
+  /**
+   * Get validation stats from JSON files
+   */
+  private getValidationData(): any {
+    const statsPath = '/home/gimli/gimli/memory/validation-stats.json';
+    const logPath = '/home/gimli/gimli/memory/validation-log.jsonl';
+    const result: any = { passRate: '0%', totalChecks: 0, passed: 0, failed: 0, warned: 0, recentChecks: [] };
+
+    try {
+      if (existsSync(statsPath)) {
+        const stats = JSON.parse(readFileSync(statsPath, 'utf8'));
+        result.passRate = stats.passRate || '0%';
+        result.totalChecks = stats.totalChecks || 0;
+        result.passed = stats.passed || 0;
+        result.failed = stats.failed || 0;
+        result.lastUpdated = stats.lastUpdated || null;
+      }
+    } catch (e) { /* ignore */ }
+
+    try {
+      if (existsSync(logPath)) {
+        const lines = readFileSync(logPath, 'utf8').trim().split('\n');
+        const recent = lines.slice(-20);
+        result.recentChecks = recent.map((line: string) => {
+          try { return JSON.parse(line); } catch { return null; }
+        }).filter(Boolean);
+        // Count warns from recent
+        result.warned = result.recentChecks.filter((c: any) => c.status === 'warn').length;
+      }
+    } catch (e) { /* ignore */ }
+
+    return result;
+  }
+
+  /**
+   * Get context budget data by reading workspace files
+   */
+  private getContextData(): any {
+    const workspace = '/home/gimli/gimli';
+    const contextFiles = ['AGENTS.md', 'SOUL.md', 'USER.md', 'TOOLS.md', 'MEMORY.md', 'HEARTBEAT.md', 'IDENTITY.md'];
+    const contextWindow = 1000000;
+    const result: any = { files: [], totalBytes: 0, totalTokens: 0, windowSize: contextWindow, windowPercent: 0 };
+
+    for (const file of contextFiles) {
+      const filePath = join(workspace, file);
+      if (existsSync(filePath)) {
+        try {
+          const stat = require('fs').statSync(filePath);
+          const tokens = Math.round(stat.size / 4);
+          result.files.push({
+            name: file,
+            bytes: stat.size,
+            tokens,
+          });
+          result.totalBytes += stat.size;
+          result.totalTokens += tokens;
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    result.windowPercent = parseFloat(((result.totalTokens / contextWindow) * 100).toFixed(2));
+    return result;
+  }
+
+  /**
+   * Get GitHub issue poller state
+   */
+  private getGitHubData(): any {
+    const statePath = '/home/gimli/gimli/memory/tac-github-state.json';
+    const result: any = { lastCheck: null, processedCount: 0, processedIds: [] };
+
+    try {
+      if (existsSync(statePath)) {
+        const state = JSON.parse(readFileSync(statePath, 'utf8'));
+        result.lastCheck = state.lastCheck || null;
+        result.processedIds = state.processed || [];
+        result.processedCount = result.processedIds.length;
+      }
+    } catch (e) { /* ignore */ }
+
+    return result;
+  }
+
+  /**
+   * Get KPI data from kpi-state.json
+   */
+  private getKPIData(): any {
+    const kpiPath = join(
+      process.env.ORCHESTRATOR_PATH || '/home/gimli/github/gimli/ralphy/orchestrator',
+      'metrics', 'kpi-state.json'
+    );
+    const result: any = { presence: 0, streak: 0, attempts: 0, taskSize: 'M', totalTasks: 0, lastRunSuccess: false };
+
+    try {
+      if (existsSync(kpiPath)) {
+        const kpi = JSON.parse(readFileSync(kpiPath, 'utf8'));
+        result.presence = kpi.presenceMinutes || 0;
+        result.streak = kpi.consecutiveSuccesses || 0;
+        result.attempts = kpi.totalTasks > 0 ? parseFloat((kpi.totalAttempts / kpi.totalTasks).toFixed(1)) : 0;
+        result.taskSize = kpi.currentTaskSize || 'M';
+        result.totalTasks = kpi.totalTasks || 0;
+        result.totalAttempts = kpi.totalAttempts || 0;
+        result.lastRunSuccess = kpi.lastRunSuccess || false;
+        result.lastUpdated = kpi.lastUpdated ? new Date(kpi.lastUpdated).toISOString() : null;
+      }
+    } catch (e) { /* ignore */ }
+
+    return result;
   }
 
   /**

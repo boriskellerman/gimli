@@ -536,6 +536,202 @@
       color: var(--text-secondary);
       margin-left: auto;
     }
+
+    /* TAC Tools Cards */
+    .expert-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .expert-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .expert-dot.active { background: var(--accent-green); }
+    .expert-dot.stale { background: var(--accent-yellow); }
+
+    .expert-name {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .expert-learnings {
+      color: var(--accent-blue);
+      font-size: 12px;
+    }
+
+    .expert-summary {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+
+    .expert-summary span {
+      color: var(--text-secondary);
+    }
+
+    .expert-summary strong {
+      color: var(--text-primary);
+    }
+
+    .validation-gauge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .gauge-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .gauge-circle.good { background: rgba(34,197,94,0.15); color: var(--accent-green); border: 2px solid var(--accent-green); }
+    .gauge-circle.warn { background: rgba(234,179,8,0.15); color: var(--accent-yellow); border: 2px solid var(--accent-yellow); }
+    .gauge-circle.bad { background: rgba(239,68,68,0.15); color: var(--accent-red); border: 2px solid var(--accent-red); }
+
+    .gauge-detail {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .gauge-detail strong {
+      color: var(--text-primary);
+    }
+
+    .validation-list {
+      max-height: 140px;
+      overflow-y: auto;
+    }
+
+    .val-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 12px;
+      font-family: 'Monaco','Menlo',monospace;
+      border-bottom: 1px solid var(--bg-tertiary);
+    }
+
+    .val-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .val-dot.pass { background: var(--accent-green); }
+    .val-dot.warn { background: var(--accent-yellow); }
+    .val-dot.fail { background: var(--accent-red); }
+
+    .ctx-file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .ctx-file-name {
+      width: 100px;
+      text-align: right;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .ctx-bar-wrap {
+      flex: 1;
+      height: 14px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .ctx-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .ctx-tokens {
+      width: 70px;
+      text-align: right;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .ctx-summary {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 10px;
+      margin-top: 10px;
+      border-top: 1px solid var(--bg-tertiary);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .ctx-summary strong {
+      color: var(--text-primary);
+    }
+
+    .kpi-live-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .kpi-live-item {
+      text-align: center;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+    }
+
+    .kpi-live-value {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .kpi-live-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .kpi-live-item.success .kpi-live-value { color: var(--accent-green); }
+    .kpi-live-item.neutral .kpi-live-value { color: var(--accent-blue); }
+
+    .github-stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--bg-tertiary);
+      font-size: 14px;
+    }
+
+    .github-stat:last-child { border-bottom: none; }
+
+    .github-stat .label { color: var(--text-secondary); }
+    .github-stat .value { font-weight: 600; }
   </style>
 </head>
 <body>
@@ -663,6 +859,36 @@
       </div>
     </div>
 
+    <!-- TAC Tools Section -->
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon">🧠</span> Expert System</h2>
+        <div id="expertContent" style="color:var(--text-secondary);">Loading...</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="icon">✅</span> Validation</h2>
+        <div id="validationContent" style="color:var(--text-secondary);">Loading...</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="icon">📦</span> Context Budget</h2>
+        <div id="contextContent" style="color:var(--text-secondary);">Loading...</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon">🎯</span> KPIs (Live)</h2>
+        <div id="kpiLiveContent" style="color:var(--text-secondary);">Loading...</div>
+      </div>
+
+      <div class="card">
+        <h2><span class="icon">🐙</span> GitHub PETER</h2>
+        <div id="githubContent" style="color:var(--text-secondary);">Loading...</div>
+      </div>
+    </div>
+
     <!-- Weekly Trend -->
     <div class="card">
       <h2><span class="icon">📈</span> Weekly Trend (Issues Fixed)</h2>
@@ -742,6 +968,7 @@
         state = await response.json();
         console.log('Data refreshed:', state);
         updateUI();
+        await refreshTACData();
         if (btn) btn.textContent = '✅ Refreshed!';
         setTimeout(() => { if (btn) { btn.textContent = '🔄 Refresh'; btn.disabled = false; } }, 1500);
       } catch (error) {
@@ -877,6 +1104,148 @@
       }
       
       console.log('UI updated with real data');
+    }
+
+    // Fetch and render TAC tools data
+    async function refreshTACData() {
+      // Fetch all in parallel
+      const [experts, validation, context, github, kpis] = await Promise.all([
+        fetch('/api/experts').then(r => r.json()).catch(() => null),
+        fetch('/api/validation').then(r => r.json()).catch(() => null),
+        fetch('/api/context').then(r => r.json()).catch(() => null),
+        fetch('/api/github').then(r => r.json()).catch(() => null),
+        fetch('/api/kpis').then(r => r.json()).catch(() => null),
+      ]);
+
+      // Expert System
+      const expertEl = document.getElementById('expertContent');
+      if (expertEl && experts) {
+        const expertRows = (experts.experts || []).map(e => {
+          const isRecent = new Date(e.lastModified) > new Date(Date.now() - 7 * 86400000);
+          return `<div class="expert-row">
+            <span class="expert-dot ${isRecent ? 'active' : 'stale'}"></span>
+            <span class="expert-name">${e.name}</span>
+            <span class="expert-learnings">${e.learnings} learnings</span>
+            <span style="color:var(--text-secondary);font-size:11px">${e.sizeHuman}</span>
+          </div>`;
+        }).join('');
+        expertEl.innerHTML = `
+          <div class="expert-summary">
+            <span>Experts: <strong>${experts.expertCount || 0}</strong></span>
+            <span>Learnings: <strong>${experts.totalLearnings || 0}</strong></span>
+            <span>~<strong>${(experts.totalTokens || 0).toLocaleString()}</strong> tokens</span>
+          </div>
+          ${expertRows || '<div style="color:var(--text-secondary)">No experts found</div>'}
+        `;
+      }
+
+      // Validation
+      const valEl = document.getElementById('validationContent');
+      if (valEl && validation) {
+        const rateNum = parseFloat(validation.passRate) || 0;
+        const gaugeClass = rateNum >= 80 ? 'good' : rateNum >= 50 ? 'warn' : 'bad';
+        const checks = (validation.recentChecks || []).slice().reverse();
+        const checkRows = checks.map(c => `
+          <div class="val-entry">
+            <span class="val-dot ${c.status}"></span>
+            <span style="flex:1">${c.check || '—'}</span>
+            <span style="color:var(--text-secondary)">${c.detail || ''}</span>
+          </div>
+        `).join('');
+        valEl.innerHTML = `
+          <div class="validation-gauge">
+            <div class="gauge-circle ${gaugeClass}">${validation.passRate || '0%'}</div>
+            <div class="gauge-detail">
+              <div><strong>${validation.totalChecks || 0}</strong> total checks</div>
+              <div><span style="color:var(--accent-green)">✓ ${validation.passed || 0}</span> &nbsp;
+              <span style="color:var(--accent-red)">✗ ${validation.failed || 0}</span> &nbsp;
+              <span style="color:var(--accent-yellow)">⚠ ${validation.warned || 0}</span></div>
+            </div>
+          </div>
+          <div class="validation-list">${checkRows || '<div style="color:var(--text-secondary);font-size:12px;">No checks yet</div>'}</div>
+        `;
+      }
+
+      // Context Budget
+      const ctxEl = document.getElementById('contextContent');
+      if (ctxEl && context) {
+        const maxTokens = Math.max(...(context.files || []).map(f => f.tokens), 1);
+        const fileRows = (context.files || []).map(f => {
+          const pct = Math.round((f.tokens / maxTokens) * 100);
+          return `<div class="ctx-file-row">
+            <span class="ctx-file-name">${f.name}</span>
+            <div class="ctx-bar-wrap"><div class="ctx-bar-fill" style="width:${pct}%"></div></div>
+            <span class="ctx-tokens">~${f.tokens.toLocaleString()}</span>
+          </div>`;
+        }).join('');
+        ctxEl.innerHTML = `
+          ${fileRows}
+          <div class="ctx-summary">
+            <span>Total: <strong>~${(context.totalTokens || 0).toLocaleString()}</strong> tokens</span>
+            <span>Window: <strong>${context.windowPercent || 0}%</strong> used</span>
+          </div>
+        `;
+      }
+
+      // KPIs (Live)
+      const kpiEl = document.getElementById('kpiLiveContent');
+      if (kpiEl && kpis) {
+        kpiEl.innerHTML = `
+          <div class="kpi-live-grid">
+            <div class="kpi-live-item neutral">
+              <div class="kpi-live-value">${kpis.presence || 0}m</div>
+              <div class="kpi-live-label">Presence</div>
+            </div>
+            <div class="kpi-live-item ${kpis.streak >= 3 ? 'success' : 'neutral'}">
+              <div class="kpi-live-value">${kpis.streak || 0}</div>
+              <div class="kpi-live-label">Streak</div>
+            </div>
+            <div class="kpi-live-item neutral">
+              <div class="kpi-live-value">${kpis.attempts || 0}</div>
+              <div class="kpi-live-label">Attempts/Task</div>
+            </div>
+            <div class="kpi-live-item neutral">
+              <div class="kpi-live-value">${kpis.taskSize || 'M'}</div>
+              <div class="kpi-live-label">Task Size</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);text-align:center;">
+            ${kpis.totalTasks || 0} tasks • ${kpis.totalAttempts || 0} attempts • 
+            Last run: <span style="color:${kpis.lastRunSuccess ? 'var(--accent-green)' : 'var(--accent-red)'}">${kpis.lastRunSuccess ? '✓ Pass' : '✗ Fail'}</span>
+          </div>
+        `;
+      }
+
+      // GitHub PETER
+      const ghEl = document.getElementById('githubContent');
+      if (ghEl && github) {
+        const lastCheck = github.lastCheck
+          ? new Date(github.lastCheck).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' })
+          : 'Never';
+        const timeSince = github.lastCheck
+          ? Math.round((Date.now() - new Date(github.lastCheck).getTime()) / 60000)
+          : null;
+        const timeAgo = timeSince !== null ? `${timeSince}m ago` : '';
+        ghEl.innerHTML = `
+          <div class="github-stat">
+            <span class="label">Last Poll</span>
+            <span class="value">${lastCheck}</span>
+          </div>
+          ${timeAgo ? `<div class="github-stat"><span class="label">Time Since</span><span class="value">${timeAgo}</span></div>` : ''}
+          <div class="github-stat">
+            <span class="label">Processed Issues</span>
+            <span class="value">${github.processedCount || 0}</span>
+          </div>
+          ${github.processedIds && github.processedIds.length > 0 ? `
+          <div class="github-stat">
+            <span class="label">Issue IDs</span>
+            <span class="value" style="font-size:12px">${github.processedIds.join(', ')}</span>
+          </div>` : ''}
+          <div style="margin-top:10px;text-align:center;font-size:11px;color:var(--text-secondary);">
+            🤖 PETER — Proactive External Trigger & Event Reactor
+          </div>
+        `;
+      }
     }
 
     // Show detail modal for a specific card
