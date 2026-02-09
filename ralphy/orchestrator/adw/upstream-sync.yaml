@@ -1,0 +1,147 @@
+# ADW: Upstream Sync Workflow
+# Purpose: Cherry-pick changes from OpenClaw upstream safely
+
+name: upstream-sync
+version: "1.0"
+description: |
+  Syncs Gimli with upstream OpenClaw changes via cherry-pick strategy.
+  Never merges upstream directly (unrelated git histories).
+  Analyzes changes, picks relevant ones, resolves conflicts, verifies.
+
+triggers:
+  - type: scheduled
+    cron: "0 4 * * 1"  # Weekly Monday 4am
+  - type: manual
+    command: "/adw upstream-sync"
+
+inputs:
+  upstream_repo:
+    type: string
+    default: "https://github.com/openclaw/openclaw.git"
+  max_commits:
+    type: integer
+    default: 20
+    description: "Max upstream commits to analyze"
+
+environment:
+  branch_strategy: worktree
+  branch_prefix: "sync/"
+  isolation: sandbox
+  timeout_minutes: 60
+  max_retries: 1
+
+steps:
+  - name: fetch_upstream
+    agent: orchestrator
+    prompt: |
+      Fetch latest upstream changes.
+      
+      1. `git remote add upstream {{upstream_repo}} 2>/dev/null || true`
+      2. `git fetch upstream main`
+      3. `git log --oneline upstream/main -{{max_commits}}`
+      4. Identify commits not yet in our tree
+      
+      List new commits with: hash, title, files changed, category
+    outputs:
+      - new_commits: array
+      - total_behind: integer
+
+  - name: analyze_relevance
+    agent: orchestrator
+    depends_on: [fetch_upstream]
+    model: sonnet
+    prompt: |
+      Analyze which upstream commits are relevant to us.
+      
+      New commits: {{fetch_upstream.new_commits}}
+      
+      Categorize each commit:
+      - PICK: Relevant to our setup (bug fixes, features we use, security)
+      - SKIP: Not relevant (features we don't use, platform-specific)
+      - REVIEW: Needs human review (breaking changes, config changes)
+      
+      Our stack: Telegram, cron, memory, TTS, browser, sub-agents, skills.
+      We DON'T use: WhatsApp, Discord, Slack (yet).
+      
+      ⚠️ IMPORTANT: Never merge upstream. Cherry-pick only.
+    outputs:
+      - picks: array
+      - skips: array
+      - reviews: array
+
+  - name: cherry_pick
+    agent: builder
+    depends_on: [analyze_relevance]
+    condition: "analyze_relevance.picks.length > 0"
+    model: codex
+    for_each: "analyze_relevance.picks"
+    prompt: |
+      Cherry-pick this commit safely.
+      
+      Commit: {{item}}
+      
+      1. `git cherry-pick {{item.hash}} --no-commit`
+      2. If conflicts: analyze and resolve (prefer our version for config)
+      3. If clean: stage the changes
+      4. Run tests to verify nothing breaks
+      5. If tests fail: revert and skip
+      
+      Report: picked or skipped with reason.
+    outputs:
+      - picked: boolean
+      - conflicts: array
+      - resolution: string
+    on_failure:
+      log: true
+      continue: true
+
+  - name: verify_sync
+    agent: validator
+    depends_on: [cherry_pick]
+    model: sonnet
+    prompt: |
+      Verify the sync is clean.
+      
+      1. Run test suite
+      2. Check for merge conflict markers in any file
+      3. Verify no files were accidentally deleted
+      4. Check git status is clean
+    outputs:
+      - tests_pass: boolean
+      - conflicts_remain: boolean
+      - clean: boolean
+    validation:
+      - conflicts_remain == false
+
+  - name: report
+    agent: orchestrator
+    depends_on: [verify_sync]
+    prompt: |
+      Generate sync report.
+      
+      Picked: {{cherry_pick}}
+      Skipped: {{analyze_relevance.skips}}
+      Needs review: {{analyze_relevance.reviews}}
+      
+      Create a summary for Mike:
+      - What was picked and why
+      - What was skipped and why
+      - What needs his review
+      - Any issues encountered
+    outputs:
+      - report: string
+
+result:
+  format: yaml
+  include:
+    - commits_picked
+    - commits_skipped
+    - needs_review
+    - tests_pass
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      section: "## Upstream Sync"
+    - type: commit
+      message: "sync: cherry-pick upstream changes [ADW: upstream-sync]"
+      condition: "commits_picked > 0"

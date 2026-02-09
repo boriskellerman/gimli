@@ -1,0 +1,140 @@
+# ADW: Review & Document Workflow
+# Purpose: Auto-generate documentation, changelogs, and review notes after code changes
+
+name: review-document
+version: "1.0"
+description: |
+  Post-implementation workflow that reviews code changes, generates documentation,
+  updates changelogs, and creates review summaries. Pairs with plan-build or bug-investigate.
+
+triggers:
+  - type: post_workflow
+    after: [plan-build, bug-investigate, test-fix]
+  - type: manual
+    command: "/adw review-document"
+
+inputs:
+  changed_files:
+    type: array
+    required: true
+    description: "List of files modified in the implementation"
+  commit_range:
+    type: string
+    description: "Git commit range to review (e.g., HEAD~3..HEAD)"
+  task_id:
+    type: string
+    description: "Related TASK-XXX id"
+
+environment:
+  branch_strategy: same  # Works on current branch
+  isolation: none
+  timeout_minutes: 30
+  max_retries: 1
+
+steps:
+  - name: gather_changes
+    agent: orchestrator
+    prompt: |
+      Gather all changes for review.
+      
+      Changed files: {{changed_files}}
+      Commit range: {{commit_range}}
+      
+      1. Run `git diff {{commit_range}}` to see all changes
+      2. Run `git log --oneline {{commit_range}}` for commit messages
+      3. Identify: new files, modified files, deleted files
+      4. Categorize changes: features, fixes, refactors, docs, tests
+    outputs:
+      - diff_summary: string
+      - commits: array
+      - categories: object
+
+  - name: code_review
+    agent: reviewer
+    depends_on: [gather_changes]
+    model: codex
+    load_expert: gateway-expert.yaml
+    prompt: |
+      Review these code changes for quality.
+      
+      Changes: {{gather_changes.diff_summary}}
+      
+      Check for:
+      1. Code correctness and logic errors
+      2. Error handling completeness
+      3. Type safety
+      4. Security issues (exposed secrets, injection risks)
+      5. Performance concerns
+      6. Code style consistency
+      
+      Rate: APPROVE, SUGGEST, or REQUEST_CHANGES
+      List specific issues with file:line references.
+    outputs:
+      - rating: enum [approve, suggest, request_changes]
+      - issues: array
+      - suggestions: array
+
+  - name: generate_docs
+    agent: builder
+    depends_on: [gather_changes]
+    model: sonnet
+    prompt: |
+      Generate or update documentation for these changes.
+      
+      Categories: {{gather_changes.categories}}
+      Changed files: {{changed_files}}
+      
+      1. If new public APIs were added, generate JSDoc comments
+      2. If README needs updating, create a patch
+      3. If architecture changed, update relevant docs
+      4. Generate a human-readable summary of what changed and why
+    outputs:
+      - docs_updated: array
+      - summary: string
+
+  - name: update_changelog
+    agent: orchestrator
+    depends_on: [gather_changes]
+    model: sonnet
+    prompt: |
+      Update the changelog with these changes.
+      
+      Commits: {{gather_changes.commits}}
+      Categories: {{gather_changes.categories}}
+      Task: {{task_id}}
+      
+      Add entries to CHANGELOG.md (create if needed) following Keep a Changelog format:
+      - Added: new features
+      - Changed: modifications
+      - Fixed: bug fixes
+      - Security: security-related changes
+    outputs:
+      - changelog_entry: string
+
+  - name: create_review_summary
+    agent: orchestrator
+    depends_on: [code_review, generate_docs, update_changelog]
+    prompt: |
+      Create a final review summary.
+      
+      Code Review: {{code_review.rating}} - {{code_review.issues}}
+      Docs: {{generate_docs.summary}}
+      Changelog: {{update_changelog.changelog_entry}}
+      
+      Compile into a concise review report suitable for PR description
+      or task completion notes.
+    outputs:
+      - review_report: string
+      - ready_to_merge: boolean
+
+result:
+  format: yaml
+  include:
+    - review_report
+    - code_review_rating
+    - docs_updated
+    - ready_to_merge
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      section: "## Code Review"

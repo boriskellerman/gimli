@@ -1,0 +1,161 @@
+# ADW: Deploy Workflow
+# Purpose: Deploy changes to production (restart services, verify health)
+
+name: deploy
+version: "1.0"
+description: |
+  Deploy workflow for Gimli services. Commits changes, restarts affected
+  services, verifies health, and rolls back if anything breaks.
+
+triggers:
+  - type: post_workflow
+    after: [plan-build, review-document]
+    condition: "review.ready_to_merge == true"
+  - type: manual
+    command: "/adw deploy"
+
+inputs:
+  services:
+    type: array
+    default: [gateway]
+    description: "Services to restart after deploy"
+  commit_message:
+    type: string
+    description: "Commit message for the deploy"
+  dry_run:
+    type: boolean
+    default: false
+    description: "If true, show what would happen without doing it"
+
+environment:
+  branch_strategy: same
+  isolation: none
+  timeout_minutes: 15
+  max_retries: 1
+
+steps:
+  - name: pre_deploy_check
+    agent: orchestrator
+    prompt: |
+      Pre-deploy health check.
+      
+      Services to deploy: {{services}}
+      Dry run: {{dry_run}}
+      
+      1. Check current service status:
+         ```bash
+         systemctl --user status gimli-gateway.service 2>/dev/null | head -5
+         systemctl --user status gimli-portal.service 2>/dev/null | head -5
+         systemctl --user status kanban-dashboard.service 2>/dev/null | head -5
+         systemctl --user status tac-dashboard.service 2>/dev/null | head -5
+         ```
+      2. Check for uncommitted changes: `git status --short`
+      3. Record current git hash for rollback: `git rev-parse HEAD`
+      4. Verify no active workflows running
+    outputs:
+      - services_healthy: boolean
+      - rollback_hash: string
+      - uncommitted_changes: boolean
+
+  - name: commit_and_push
+    agent: orchestrator
+    depends_on: [pre_deploy_check]
+    condition: "dry_run == false"
+    prompt: |
+      Commit and push changes.
+      
+      Message: {{commit_message}}
+      Uncommitted: {{pre_deploy_check.uncommitted_changes}}
+      
+      If there are uncommitted changes:
+      1. `git add -A`
+      2. `git commit -m "{{commit_message}}"`
+      3. `git push origin main`
+      
+      If no uncommitted changes, skip.
+    outputs:
+      - committed: boolean
+      - pushed: boolean
+
+  - name: restart_services
+    agent: orchestrator
+    depends_on: [commit_and_push]
+    condition: "dry_run == false"
+    prompt: |
+      Restart affected services.
+      
+      Services: {{services}}
+      
+      For each service:
+      1. `systemctl --user restart <service>.service`
+      2. Wait 5 seconds
+      3. `systemctl --user is-active <service>.service`
+      4. Check logs for startup errors
+      
+      Service name mapping:
+      - gateway → gimli-gateway.service
+      - portal → gimli-portal.service
+      - kanban → kanban-dashboard.service
+      - tac → tac-dashboard.service
+    outputs:
+      - restarted: array
+      - failed: array
+
+  - name: post_deploy_verify
+    agent: validator
+    depends_on: [restart_services]
+    model: sonnet
+    prompt: |
+      Verify deployment health.
+      
+      Restarted: {{restart_services.restarted}}
+      Failed: {{restart_services.failed}}
+      
+      1. Check each service is running
+      2. Verify ports are listening:
+         - Gateway: 18789
+         - Portal: 6969
+         - Kanban: 3889
+         - TAC: 3888
+      3. Run basic health checks:
+         - `curl -s http://localhost:18789/ | head -5`
+         - `curl -s http://localhost:6969/ | head -5`
+      4. Check logs for errors in last 30 seconds
+    outputs:
+      - all_healthy: boolean
+      - issues: array
+    validation:
+      - all_healthy == true
+
+  - name: rollback
+    agent: orchestrator
+    depends_on: [post_deploy_verify]
+    condition: "post_deploy_verify.all_healthy == false"
+    prompt: |
+      ROLLBACK REQUIRED — services unhealthy after deploy.
+      
+      Rollback hash: {{pre_deploy_check.rollback_hash}}
+      Issues: {{post_deploy_verify.issues}}
+      
+      1. `git reset --hard {{pre_deploy_check.rollback_hash}}`
+      2. Restart all affected services
+      3. Verify health after rollback
+      4. Alert Mike about the failed deployment
+    outputs:
+      - rolled_back: boolean
+      - health_restored: boolean
+
+result:
+  format: yaml
+  include:
+    - deployed
+    - services_restarted
+    - health_status
+    - rollback_needed
+  notify:
+    - type: log
+      path: "memory/{{date}}.md"
+      section: "## Deployment"
+    - type: commit
+      message: "deploy: {{commit_message}}"
+      condition: "dry_run == false"
