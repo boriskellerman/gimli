@@ -79,6 +79,7 @@ steps:
 
   - name: build
     agent: backend|frontend|gateway|channels  # Selected based on components
+    model: codex
     depends_on: [plan]
     parallel: true  # Can spawn multiple sub-agents
     prompt: |
@@ -98,6 +99,7 @@ steps:
 
   - name: test
     agent: backend
+    model: sonnet
     depends_on: [build]
     prompt: |
       Write and run tests for the implemented feature.
@@ -138,6 +140,7 @@ steps:
 
   - name: review
     agent: orchestrator
+    model: sonnet
     depends_on: [document]
     prompt: |
       Final review of the implementation:

@@ -60,6 +60,7 @@ steps:
 
   - name: reproduce
     agent: backend|gateway|channels  # Based on components
+    model: codex
     depends_on: [understand]
     prompt: |
       Attempt to reproduce this bug.
@@ -86,6 +87,7 @@ steps:
 
   - name: investigate
     agent: backend
+    model: codex
     depends_on: [reproduce]
     condition: "reproduce.reproduced == true"
     load_expert_if:
@@ -137,6 +139,7 @@ steps:
 
   - name: implement_fix
     agent: backend|frontend|gateway
+    model: codex
     depends_on: [plan_fix]
     prompt: |
       Implement the bug fix.
@@ -176,6 +179,7 @@ steps:
 
   - name: verify
     agent: backend
+    model: sonnet
     depends_on: [write_regression_test]
     prompt: |
       Verify the fix is complete and doesn't break anything.

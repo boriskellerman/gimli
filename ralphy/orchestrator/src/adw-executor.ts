@@ -5,8 +5,10 @@
  * spawning agents, coordinating steps, and tracking results.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
+import { tmpdir } from 'os';
 import * as yaml from 'js-yaml';
 import { TaskTracker, Task, Plan, TeamMember } from './task-tracker';
 import { TrajectoryLogger, Trajectory, TrajectoryChapter } from './trajectory';
@@ -23,6 +25,7 @@ interface ADWStep {
   parallel?: boolean;
   for_each?: string;
   load_expert?: string;
+  model?: string;  // 'codex' | 'kimi' | 'sonnet' | 'opus' | undefined (default)
   on_failure?: {
     retry?: boolean;
     max_attempts?: number;
@@ -360,37 +363,137 @@ export class ADWExecutor {
       if (!Array.isArray(items)) {
         console.warn(`  Warning: for_each variable '${step.for_each}' is not an array (got ${typeof items}), wrapping as single item`);
         const itemPrompt = prompt.replace(/\{\{item\}\}/g, JSON.stringify(items));
-        const result = await this.spawnAgent(agentType, itemPrompt);
+        const result = await this.spawnAgent(agentType, itemPrompt, step.model);
         return { items: [result], tokens: result.tokens || 0 };
       }
       
       const results = [];
       for (const item of items) {
         const itemPrompt = prompt.replace(/\{\{item\}\}/g, JSON.stringify(item));
-        const result = await this.spawnAgent(agentType, itemPrompt);
+        const result = await this.spawnAgent(agentType, itemPrompt, step.model);
         results.push(result);
       }
       return { items: results, tokens: results.reduce((sum, r) => sum + (r.tokens || 0), 0) };
     }
 
     // Single execution
-    return await this.spawnAgent(agentType, prompt);
+    return await this.spawnAgent(agentType, prompt, step.model);
   }
 
   /**
    * Spawn an agent to execute a task
-   * This integrates with Gimli's sessions_spawn via Gateway API
+   * Routes to different model backends based on step.model field.
    */
-  private async spawnAgent(agentType: string, prompt: string): Promise<AgentSpawnResult> {
-    console.log(`  Spawning ${agentType} agent...`);
+  private async spawnAgent(agentType: string, prompt: string, model?: string): Promise<AgentSpawnResult> {
+    console.log(`  Spawning ${agentType} agent (model: ${model || 'default'})...`);
     console.log(`  Prompt length: ${prompt.length} chars`);
 
-    // Get Gateway connection details from environment or config
+    // Route based on model
+    switch (model) {
+      case 'codex':
+        return this.spawnCodexAgent(prompt);
+      case 'kimi':
+        return this.spawnKimiAgent(prompt);
+      case 'sonnet':
+        return this.spawnSonnetAgent(agentType, prompt);
+      default:
+        // Existing behavior — Gateway API → CLI fallback
+        return this.spawnDefaultAgent(agentType, prompt);
+    }
+  }
+
+  /**
+   * Spawn agent via OpenAI Codex CLI
+   */
+  private async spawnCodexAgent(prompt: string): Promise<AgentSpawnResult> {
+    const tmpFile = join(tmpdir(), `adw-codex-${Date.now()}.txt`);
+    writeFileSync(tmpFile, prompt);
+    try {
+      const output = execSync(`codex exec "$(cat ${tmpFile})"`, {
+        encoding: 'utf-8',
+        timeout: 300000,
+        cwd: '/home/gimli/github/gimli',
+      });
+      return { sessionKey: `codex-${Date.now()}`, output, tokens: 0, success: true };
+    } catch (error: any) {
+      console.error(`  Codex agent error: ${error.message}`);
+      return { sessionKey: `codex-${Date.now()}`, output: error.stdout || error.message, tokens: 0, success: false };
+    } finally {
+      try { unlinkSync(tmpFile); } catch {}
+    }
+  }
+
+  /**
+   * Spawn agent via Kimi CLI (Moonshot AI — 262K context)
+   */
+  private async spawnKimiAgent(prompt: string): Promise<AgentSpawnResult> {
+    const tmpFile = join(tmpdir(), `adw-kimi-${Date.now()}.txt`);
+    writeFileSync(tmpFile, prompt);
+    try {
+      // Use temp file to avoid shell escaping issues with large prompts
+      const output = execSync(`kimi --prompt "$(cat ${tmpFile})" --quiet`, {
+        encoding: 'utf-8',
+        timeout: 300000,
+        cwd: '/home/gimli/github/gimli',
+      });
+      return { sessionKey: `kimi-${Date.now()}`, output, tokens: 0, success: true };
+    } catch (error: any) {
+      console.error(`  Kimi agent error: ${error.message}`);
+      return { sessionKey: `kimi-${Date.now()}`, output: error.stdout || error.message, tokens: 0, success: false };
+    } finally {
+      try { unlinkSync(tmpFile); } catch {}
+    }
+  }
+
+  /**
+   * Spawn agent via Gateway API with Sonnet model override
+   */
+  private async spawnSonnetAgent(agentType: string, prompt: string): Promise<AgentSpawnResult> {
     const gatewayUrl = process.env.GIMLI_GATEWAY_URL || 'http://localhost:18789';
     const gatewayToken = process.env.GIMLI_GATEWAY_TOKEN || '';
 
     try {
-      // Call Gimli Gateway to spawn a sub-agent session
+      const response = await fetch(`${gatewayUrl}/api/sessions/spawn`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${gatewayToken}`,
+        },
+        body: JSON.stringify({
+          task: prompt,
+          label: `adw-sonnet-${agentType}-${Date.now()}`,
+          model: 'anthropic/claude-sonnet-4-5',
+          timeoutSeconds: 300,
+          cleanup: 'keep',
+        }),
+      });
+
+      if (!response.ok) {
+        console.log(`  Sonnet API failed (${response.status}), falling back to CLI...`);
+        return await this.spawnAgentViaCLI(agentType, prompt);
+      }
+
+      const result: any = await response.json();
+      return {
+        sessionKey: result.sessionKey || `agent:sonnet:${agentType}-${Date.now()}`,
+        output: result.output || result.message || '',
+        tokens: result.usage?.totalTokens || 0,
+        success: result.ok !== false,
+      };
+    } catch (error: any) {
+      console.log(`  Sonnet Gateway error: ${error.message}, falling back to CLI...`);
+      return await this.spawnAgentViaCLI(agentType, prompt);
+    }
+  }
+
+  /**
+   * Default agent spawn via Gateway API (Opus/default model)
+   */
+  private async spawnDefaultAgent(agentType: string, prompt: string): Promise<AgentSpawnResult> {
+    const gatewayUrl = process.env.GIMLI_GATEWAY_URL || 'http://localhost:18789';
+    const gatewayToken = process.env.GIMLI_GATEWAY_TOKEN || '';
+
+    try {
       const response = await fetch(`${gatewayUrl}/api/sessions/spawn`, {
         method: 'POST',
         headers: {
@@ -401,18 +504,16 @@ export class ADWExecutor {
           task: prompt,
           label: `adw-${agentType}-${Date.now()}`,
           timeoutSeconds: 300,
-          cleanup: 'keep', // Keep session for review
+          cleanup: 'keep',
         }),
       });
 
       if (!response.ok) {
-        // Fallback to CLI if API fails
         console.log(`  API failed (${response.status}), falling back to CLI...`);
         return await this.spawnAgentViaCLI(agentType, prompt);
       }
 
       const result: any = await response.json();
-      
       return {
         sessionKey: result.sessionKey || `agent:iso:${agentType}-${Date.now()}`,
         output: result.output || result.message || '',
@@ -429,14 +530,9 @@ export class ADWExecutor {
    * Fallback: Spawn agent via Gimli CLI
    */
   private async spawnAgentViaCLI(agentType: string, prompt: string): Promise<AgentSpawnResult> {
-    const { execSync } = require('child_process');
-    const fs = require('fs');
-    const os = require('os');
-    const path = require('path');
-
     // Write prompt to temp file (avoid shell escaping issues)
-    const tempFile = path.join(os.tmpdir(), `adw-prompt-${Date.now()}.txt`);
-    fs.writeFileSync(tempFile, prompt);
+    const tempFile = join(tmpdir(), `adw-prompt-${Date.now()}.txt`);
+    writeFileSync(tempFile, prompt);
 
     try {
       const cmd = `gimli agent --message "$(cat ${tempFile})" --timeout 300 2>&1`;
@@ -449,7 +545,7 @@ export class ADWExecutor {
       });
 
       // Clean up temp file
-      fs.unlinkSync(tempFile);
+      unlinkSync(tempFile);
 
       return {
         sessionKey: `agent:cli:${agentType}-${Date.now()}`,
@@ -459,7 +555,7 @@ export class ADWExecutor {
       };
     } catch (error: any) {
       // Clean up temp file on error
-      try { fs.unlinkSync(tempFile); } catch {}
+      try { unlinkSync(tempFile); } catch {}
       
       console.error(`  CLI error: ${error.message}`);
       return {

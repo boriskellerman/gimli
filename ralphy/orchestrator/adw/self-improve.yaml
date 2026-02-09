@@ -38,6 +38,7 @@ environment:
 steps:
   - name: detect_bugs
     agent: backend
+    model: sonnet
     condition: "focus in ['bugs', 'all']"
     prompt: |
       Scan for bugs and issues in the codebase.
@@ -63,6 +64,7 @@ steps:
 
   - name: detect_test_gaps
     agent: backend
+    model: sonnet
     condition: "focus in ['tests', 'all']"
     prompt: |
       Identify gaps in test coverage.
@@ -87,6 +89,7 @@ steps:
 
   - name: detect_performance
     agent: backend
+    model: sonnet
     condition: "focus in ['performance', 'all']"
     prompt: |
       Identify performance issues.
@@ -136,6 +139,7 @@ steps:
 
   - name: fix_issues
     agent: backend|gateway|channels
+    model: codex
     depends_on: [prioritize_issues]
     parallel: false
     for_each: "prioritize_issues.selected_issues"
