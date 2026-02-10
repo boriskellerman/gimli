@@ -4,9 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import JSON5 from "json5";
-import type { OpenClawConfig, ConfigFileSnapshot, LegacyConfigIssue } from "./types.js";
 import { loadDotEnv } from "../infra/dotenv.js";
-import { resolveRequiredHomeDir } from "../infra/home-dir.js";
 
 import {
   loadShellEnvFallback,

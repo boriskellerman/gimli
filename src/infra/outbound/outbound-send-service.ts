@@ -6,8 +6,6 @@ import { appendAssistantMessageToSessionTranscript } from "../../config/sessions
 import type { GatewayClientMode, GatewayClientName } from "../../utils/message-channel.js";
 import type { OutboundSendDeps } from "./deliver.js";
 import type { MessagePollResult, MessageSendResult } from "./message.js";
-import { dispatchChannelMessageAction } from "../../channels/plugins/message-actions.js";
-import { appendAssistantMessageToSessionTranscript } from "../../config/sessions.js";
 import { throwIfAborted } from "./abort.js";
 import { sendMessage, sendPoll } from "./message.js";
 

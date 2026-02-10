@@ -22,8 +22,6 @@ import {
   resolveMirroredTranscriptText,
 } from "../../config/sessions.js";
 import type { NormalizedOutboundPayload } from "./payloads.js";
-import { markdownToSignalTextChunks, type SignalTextStyleRange } from "../../signal/format.js";
-import { sendMessageSignal } from "../../signal/send.js";
 import { throwIfAborted } from "./abort.js";
 import { normalizeReplyPayloadsForDelivery } from "./payloads.js";
 import type { OutboundChannel } from "./targets.js";
