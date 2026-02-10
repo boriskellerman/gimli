@@ -30,6 +30,7 @@ Complete fork from Gimli/Gimli with full rebranding and security hardening.
 - **#3560**: Memory flush now runs BEFORE auto-compaction truncation via `onBeforeCompact` callback, preserving extracted memories
 - **#3594**: Error-pattern message rewriting now only applies to short texts (<500 chars) that look like actual API errors, not conversational text
 - Fixed duplicate `gimli/plugin-sdk` key in plugin loader alias (rebranding artifact)
+- Gateway: no more post-compaction amnesia; injected transcript writes now preserve Pi session `parentId` chain
 
 ### Testing
 - 110 security tests passing (rate limiter, encryption, injection detection, audit logging, CSRF, external content, audit)

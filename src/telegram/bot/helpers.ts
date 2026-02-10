@@ -170,37 +170,40 @@ export type TelegramReplyTarget = {
 
 export function describeReplyTarget(msg: TelegramMessage): TelegramReplyTarget | null {
   const reply = msg.reply_to_message;
-  const quote = msg.quote;
+  const externalReply = (msg as TelegramMessage & { external_reply?: TelegramMessage })
+    .external_reply;
+  const quoteText = msg.quote?.text ?? externalReply?.quote?.text;
   let body = "";
   let kind: TelegramReplyTarget["kind"] = "reply";
 
-  if (quote?.text) {
-    body = quote.text.trim();
+  if (typeof quoteText === "string") {
+    body = quoteText.trim();
     if (body) {
       kind = "quote";
     }
   }
 
-  if (!body && reply) {
-    const replyBody = (reply.text ?? reply.caption ?? "").trim();
+  const replyLike = reply ?? externalReply;
+  if (!body && replyLike) {
+    const replyBody = (replyLike.text ?? replyLike.caption ?? "").trim();
     body = replyBody;
     if (!body) {
-      if (reply.photo) body = "<media:image>";
-      else if (reply.video) body = "<media:video>";
-      else if (reply.audio || reply.voice) body = "<media:audio>";
-      else if (reply.document) body = "<media:document>";
+      if (replyLike.photo) body = "<media:image>";
+      else if (replyLike.video) body = "<media:video>";
+      else if (replyLike.audio || replyLike.voice) body = "<media:audio>";
+      else if (replyLike.document) body = "<media:document>";
       else {
-        const locationData = extractTelegramLocation(reply);
+        const locationData = extractTelegramLocation(replyLike);
         if (locationData) body = formatLocationText(locationData);
       }
     }
   }
   if (!body) return null;
-  const sender = reply ? buildSenderName(reply) : undefined;
-  const senderLabel = sender ? `${sender}` : "unknown sender";
+  const sender = replyLike ? buildSenderName(replyLike) : undefined;
+  const senderLabel = sender ?? "unknown sender";
 
   return {
-    id: reply?.message_id ? String(reply.message_id) : undefined,
+    id: replyLike?.message_id ? String(replyLike.message_id) : undefined,
     sender: senderLabel,
     body,
     kind,

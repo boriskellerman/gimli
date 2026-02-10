@@ -6,6 +6,7 @@ import { appendAssistantMessageToSessionTranscript } from "../../config/sessions
 import type { GatewayClientMode, GatewayClientName } from "../../utils/message-channel.js";
 import type { OutboundSendDeps } from "./deliver.js";
 import type { MessagePollResult, MessageSendResult } from "./message.js";
+import { throwIfAborted } from "./abort.js";
 import { sendMessage, sendPoll } from "./message.js";
 
 export type OutboundGatewayContext = {
@@ -55,14 +56,6 @@ function extractToolPayload(result: AgentToolResult<unknown>): unknown {
     }
   }
   return result.content ?? result;
-}
-
-function throwIfAborted(abortSignal?: AbortSignal): void {
-  if (abortSignal?.aborted) {
-    const err = new Error("Message send aborted");
-    err.name = "AbortError";
-    throw err;
-  }
 }
 
 export async function executeSendAction(params: {
