@@ -716,6 +716,7 @@ async function dispatchDiscordCommandInteraction(params: {
   const conversationLabel = isDirectMessage ? (user.globalName ?? user.username) : channelId;
   const ctxPayload = finalizeInboundContext({
     Body: prompt,
+    BodyForAgent: prompt,
     RawBody: prompt,
     CommandBody: prompt,
     CommandArgs: commandArgs,

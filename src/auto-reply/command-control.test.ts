@@ -1,21 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
-import type { GimliConfig } from "../config/config.js";
+import type { GimliConfig } from "../config/types.gimli.js";
+import type { MsgContext } from "./templating.js";
 import { setActivePluginRegistry } from "../plugins/runtime.js";
-import { createTestRegistry } from "../test-utils/channel-plugins.js";
+import { createOutboundTestPlugin, createTestRegistry } from "../test-utils/channel-plugins.js";
 import { resolveCommandAuthorization } from "./command-auth.js";
 import { hasControlCommand, hasInlineCommandTokens } from "./command-detection.js";
 import { listChatCommands } from "./commands-registry.js";
 import { parseActivationCommand } from "./group-activation.js";
 import { parseSendPolicyCommand } from "./send-policy.js";
-import type { MsgContext } from "./templating.js";
+
+const createRegistry = () =>
+  createTestRegistry([
+    {
+      pluginId: "discord",
+      plugin: createOutboundTestPlugin({ id: "discord", outbound: { deliveryMode: "direct" } }),
+      source: "test",
+    },
+  ]);
 
 beforeEach(() => {
-  setActivePluginRegistry(createTestRegistry([]));
+  setActivePluginRegistry(createRegistry());
 });
 
 afterEach(() => {
-  setActivePluginRegistry(createTestRegistry([]));
+  setActivePluginRegistry(createRegistry());
 });
 
 describe("resolveCommandAuthorization", () => {
@@ -133,6 +141,252 @@ describe("resolveCommandAuthorization", () => {
     expect(auth.senderId).toBe("+41796666864");
     expect(auth.isAuthorizedSender).toBe(true);
   });
+
+  it("uses explicit owner allowlist when allowFrom is wildcard", () => {
+    const cfg = {
+      commands: { ownerAllowFrom: ["whatsapp:+15551234567"] },
+      channels: { whatsapp: { allowFrom: ["*"] } },
+    } as GimliConfig;
+
+    const ownerCtx = {
+      Provider: "whatsapp",
+      Surface: "whatsapp",
+      From: "whatsapp:+15551234567",
+      SenderE164: "+15551234567",
+    } as MsgContext;
+    const ownerAuth = resolveCommandAuthorization({
+      ctx: ownerCtx,
+      cfg,
+      commandAuthorized: true,
+    });
+    expect(ownerAuth.senderIsOwner).toBe(true);
+    expect(ownerAuth.isAuthorizedSender).toBe(true);
+
+    const otherCtx = {
+      Provider: "whatsapp",
+      Surface: "whatsapp",
+      From: "whatsapp:+19995551234",
+      SenderE164: "+19995551234",
+    } as MsgContext;
+    const otherAuth = resolveCommandAuthorization({
+      ctx: otherCtx,
+      cfg,
+      commandAuthorized: true,
+    });
+    expect(otherAuth.senderIsOwner).toBe(false);
+    expect(otherAuth.isAuthorizedSender).toBe(false);
+  });
+
+  it("uses owner allowlist override from context when configured", () => {
+    setActivePluginRegistry(
+      createTestRegistry([
+        {
+          pluginId: "discord",
+          plugin: createOutboundTestPlugin({
+            id: "discord",
+            outbound: { deliveryMode: "direct" },
+          }),
+          source: "test",
+        },
+      ]),
+    );
+    const cfg = {
+      channels: { discord: {} },
+    } as GimliConfig;
+
+    const ctx = {
+      Provider: "discord",
+      Surface: "discord",
+      From: "discord:123",
+      SenderId: "123",
+      OwnerAllowFrom: ["discord:123"],
+    } as MsgContext;
+
+    const auth = resolveCommandAuthorization({
+      ctx,
+      cfg,
+      commandAuthorized: true,
+    });
+
+    expect(auth.senderIsOwner).toBe(true);
+    expect(auth.ownerList).toEqual(["123"]);
+  });
+
+  describe("commands.allowFrom", () => {
+    it("uses commands.allowFrom global list when configured", () => {
+      const cfg = {
+        commands: {
+          allowFrom: {
+            "*": ["user123"],
+          },
+        },
+        channels: { whatsapp: { allowFrom: ["+different"] } },
+      } as GimliConfig;
+
+      const authorizedCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:user123",
+        SenderId: "user123",
+      } as MsgContext;
+
+      const authorizedAuth = resolveCommandAuthorization({
+        ctx: authorizedCtx,
+        cfg,
+        commandAuthorized: true,
+      });
+
+      expect(authorizedAuth.isAuthorizedSender).toBe(true);
+
+      const unauthorizedCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:otheruser",
+        SenderId: "otheruser",
+      } as MsgContext;
+
+      const unauthorizedAuth = resolveCommandAuthorization({
+        ctx: unauthorizedCtx,
+        cfg,
+        commandAuthorized: true,
+      });
+
+      expect(unauthorizedAuth.isAuthorizedSender).toBe(false);
+    });
+
+    it("ignores commandAuthorized when commands.allowFrom is configured", () => {
+      const cfg = {
+        commands: {
+          allowFrom: {
+            "*": ["user123"],
+          },
+        },
+        channels: { whatsapp: { allowFrom: ["+different"] } },
+      } as GimliConfig;
+
+      const authorizedCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:user123",
+        SenderId: "user123",
+      } as MsgContext;
+
+      const authorizedAuth = resolveCommandAuthorization({
+        ctx: authorizedCtx,
+        cfg,
+        commandAuthorized: false,
+      });
+
+      expect(authorizedAuth.isAuthorizedSender).toBe(true);
+
+      const unauthorizedCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:otheruser",
+        SenderId: "otheruser",
+      } as MsgContext;
+
+      const unauthorizedAuth = resolveCommandAuthorization({
+        ctx: unauthorizedCtx,
+        cfg,
+        commandAuthorized: false,
+      });
+
+      expect(unauthorizedAuth.isAuthorizedSender).toBe(false);
+    });
+
+    it("uses commands.allowFrom provider-specific list over global", () => {
+      const cfg = {
+        commands: {
+          allowFrom: {
+            "*": ["globaluser"],
+            whatsapp: ["+15551234567"],
+          },
+        },
+        channels: { whatsapp: { allowFrom: ["*"] } },
+      } as GimliConfig;
+
+      // User in global list but not in whatsapp-specific list
+      const globalUserCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:globaluser",
+        SenderId: "globaluser",
+      } as MsgContext;
+
+      const globalAuth = resolveCommandAuthorization({
+        ctx: globalUserCtx,
+        cfg,
+        commandAuthorized: true,
+      });
+
+      // Provider-specific list overrides global, so globaluser is not authorized
+      expect(globalAuth.isAuthorizedSender).toBe(false);
+
+      // User in whatsapp-specific list
+      const whatsappUserCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:+15551234567",
+        SenderE164: "+15551234567",
+      } as MsgContext;
+
+      const whatsappAuth = resolveCommandAuthorization({
+        ctx: whatsappUserCtx,
+        cfg,
+        commandAuthorized: true,
+      });
+
+      expect(whatsappAuth.isAuthorizedSender).toBe(true);
+    });
+
+    it("falls back to channel allowFrom when commands.allowFrom not set", () => {
+      const cfg = {
+        channels: { whatsapp: { allowFrom: ["+15551234567"] } },
+      } as GimliConfig;
+
+      const authorizedCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:+15551234567",
+        SenderE164: "+15551234567",
+      } as MsgContext;
+
+      const auth = resolveCommandAuthorization({
+        ctx: authorizedCtx,
+        cfg,
+        commandAuthorized: true,
+      });
+
+      expect(auth.isAuthorizedSender).toBe(true);
+    });
+
+    it("allows all senders when commands.allowFrom includes wildcard", () => {
+      const cfg = {
+        commands: {
+          allowFrom: {
+            "*": ["*"],
+          },
+        },
+        channels: { whatsapp: { allowFrom: ["+specific"] } },
+      } as GimliConfig;
+
+      const anyUserCtx = {
+        Provider: "whatsapp",
+        Surface: "whatsapp",
+        From: "whatsapp:anyuser",
+        SenderId: "anyuser",
+      } as MsgContext;
+
+      const auth = resolveCommandAuthorization({
+        ctx: anyUserCtx,
+        cfg,
+        commandAuthorized: true,
+      });
+
+      expect(auth.isAuthorizedSender).toBe(true);
+    });
+  });
 });
 
 describe("control command parsing", () => {
@@ -214,12 +468,12 @@ describe("control command parsing", () => {
   it("ignores telegram commands addressed to other bots", () => {
     expect(
       hasControlCommand("/help@otherbot", undefined, {
-        botUsername: "gimli",
+        botUsername: "openclaw",
       }),
     ).toBe(false);
     expect(
-      hasControlCommand("/help@gimli", undefined, {
-        botUsername: "gimli",
+      hasControlCommand("/help@openclaw", undefined, {
+        botUsername: "openclaw",
       }),
     ).toBe(true);
   });

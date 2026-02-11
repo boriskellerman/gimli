@@ -146,21 +146,17 @@ export async function processMessage(params: {
         sender: m.sender,
         body: m.body,
         timestamp: m.timestamp,
-        messageId: m.id,
       }));
       combinedBody = buildHistoryContextFromEntries({
         entries: historyEntries,
         currentMessage: combinedBody,
         excludeLast: false,
         formatEntry: (entry) => {
-          const bodyWithId = entry.messageId
-            ? `${entry.body}\n[message_id: ${entry.messageId}]`
-            : entry.body;
           return formatInboundEnvelope({
             channel: "WhatsApp",
             from: conversationId,
             timestamp: entry.timestamp,
-            body: bodyWithId,
+            body: entry.body,
             chatType: "group",
             senderLabel: entry.sender,
             envelope: envelopeOptions,
@@ -255,8 +251,21 @@ export async function processMessage(params: {
       ? (resolveIdentityNamePrefix(params.cfg, params.route.agentId) ?? "[gimli]")
       : undefined);
 
+  const inboundHistory =
+    params.msg.chatType === "group"
+      ? (params.groupHistory ?? params.groupHistories.get(params.groupHistoryKey) ?? []).map(
+          (entry) => ({
+            sender: entry.sender,
+            body: entry.body,
+            timestamp: entry.timestamp,
+          }),
+        )
+      : undefined;
+
   const ctxPayload = finalizeInboundContext({
     Body: combinedBody,
+    BodyForAgent: params.msg.body,
+    InboundHistory: inboundHistory,
     RawBody: params.msg.body,
     CommandBody: params.msg.body,
     From: params.msg.from,
