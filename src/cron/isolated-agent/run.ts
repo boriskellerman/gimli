@@ -203,7 +203,7 @@ export async function runCronIsolatedAgentTurn(params: {
   // Respect session model override — check session.modelOverride before falling
   // back to the default config model. This ensures /model changes are honoured
   // by cron and isolated agent runs.
-  if (!modelOverride && !hooksGmailModelApplied) {
+  if (!modelOverrideRaw && !hooksGmailModelApplied) {
     const sessionModelOverride = cronSession.sessionEntry.modelOverride?.trim();
     if (sessionModelOverride) {
       const sessionProviderOverride =
