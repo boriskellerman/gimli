@@ -140,13 +140,86 @@ Trajectories capture the "train of thought" for completed workflows:
 | `security-audit` | Weekly / on-demand | Comprehensive security scan |
 | `self-improve` | Nightly | Continuous autonomous improvement |
 
-### Agent Experts
+### Agent Expert System (`expert-manager.ts`) — Act→Learn→Reuse
 
-Specialized knowledge bases in YAML:
+The expert system is how agents get smarter over time:
+
+1. **LOAD** — Before a task, the ExpertManager auto-selects relevant experts based on task description and affected files
+2. **ACT** — Agent works with expert knowledge injected into its context
+3. **LEARN** — After task completion, learnings (patterns, anti-patterns, debugging tips, common errors) are extracted from results
+4. **REUSE** — Learnings are appended to expert YAML files, enriching future agent context
+
+**Expert Files:** `ralphy/experts/`
 - `gateway-expert.yaml` - WebSocket, sessions, connections
 - `channel-expert.yaml` - Telegram, Discord, WhatsApp
 - `database-expert.yaml` - Data layer, queries, migrations
 - `security-expert.yaml` - Auth, sandboxing, credentials
+- `frontend-expert.yaml` - Portal, webchat, dashboards, CSS
+- `plugin-expert.yaml` - Skills, MCP, hooks, extensions
+
+**Features:**
+- Auto-detection: experts are selected by keyword + file path matching
+- Deduplication: similar learnings bump occurrence count instead of adding duplicates
+- Pruning: each category is capped (default 25) — lowest-value learnings are pruned first
+- Compact context: only top learnings and key info are injected (not the full YAML)
+
+```typescript
+// Usage
+const expertMgr = executor.getExpertManager();
+
+// Auto-select experts for a task
+const selection = expertMgr.selectExperts('Fix WebSocket reconnection', ['src/gateway/ws.ts']);
+// → Selects gateway-expert, builds compact context string
+
+// Record learnings after a workflow
+expertMgr.recordLearnings({
+  workflowName: 'bug-investigate',
+  runId: 'wf-abc123',
+  domain: 'gateway',
+  learnings: [
+    { category: 'pattern', title: 'Exponential backoff', description: '...', confidence: 0.9 },
+  ],
+});
+```
+
+### Validation Pipeline (`validation-pipeline.ts`) — Closed-Loop Verification
+
+The validation pipeline ensures agent-produced code actually works:
+
+1. **Auto-detect** checks based on project structure (TypeScript, Python, shell, test suite, build)
+2. **Run checks** after build steps (type checking, linting, syntax, tests)
+3. **Retry loop** — on failure, error context is fed back to the agent for auto-fix
+4. **Metrics** — track first-pass rate, common failures, retry counts
+
+**Built-in checks:**
+| Check | Language | Required | Description |
+|-------|----------|----------|-------------|
+| `tsc-type-check` | TypeScript | ✅ | `tsc --noEmit` |
+| `eslint` | TS/JS | ⚠️ advisory | Lint check |
+| `python-syntax` | Python | ✅ | `py_compile` |
+| `bash-syntax` | Shell | ✅ | `bash -n` |
+| `shellcheck` | Shell | ⚠️ advisory | Static analysis |
+| `test-suite` | Any | ✅ | `npm test` |
+| `build-check` | Any | ✅ | `npm run build` |
+
+```typescript
+// Usage
+const pipeline = executor.getValidationPipeline();
+
+// Validate everything
+const result = await pipeline.validateAll();
+// → { allPassed: true, passedCount: 4, failedCount: 0, errorSummary: '' }
+
+// Validate with retry loop (agent fixes errors between attempts)
+const retryResult = await pipeline.validateWithRetry({
+  maxRetries: 2,
+  onRetry: async (attempt, errorSummary) => {
+    // Feed errorSummary back to agent for fixing
+    await agent.fix(errorSummary);
+  },
+});
+// → { finalResult, attempts: 2, passedOnAttempt: 2 }
+```
 
 ## 🚀 Usage
 

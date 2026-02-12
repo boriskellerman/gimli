@@ -23,6 +23,12 @@ export type CompactionIndicatorStatus = {
   completedAt: number | null;
 };
 
+export type ChatReplyTo = {
+  text: string;
+  role: string;
+  key: string;
+};
+
 export type ChatProps = {
   sessionKey: string;
   onSessionKeyChange: (next: string) => void;
@@ -56,6 +62,9 @@ export type ChatProps = {
   // Image attachments
   attachments?: ChatAttachment[];
   onAttachmentsChange?: (attachments: ChatAttachment[]) => void;
+  // Reply-to state
+  replyTo?: ChatReplyTo | null;
+  onReplyTo?: (reply: ChatReplyTo | null) => void;
   // Event handlers
   onRefresh: () => void;
   onToggleFocusMode: () => void;
@@ -146,6 +155,32 @@ function handlePaste(
   }
 }
 
+function renderReplyPreview(props: ChatProps) {
+  if (!props.replyTo || !props.onReplyTo) return nothing;
+  const who = props.replyTo.role === "user" ? "You" : props.assistantName;
+  const preview = props.replyTo.text.length > 120
+    ? props.replyTo.text.slice(0, 120) + "…"
+    : props.replyTo.text;
+
+  return html`
+    <div class="chat-reply-preview">
+      <div class="chat-reply-preview__bar"></div>
+      <div class="chat-reply-preview__content">
+        <span class="chat-reply-preview__who">${who}</span>
+        <span class="chat-reply-preview__text">${preview}</span>
+      </div>
+      <button
+        class="chat-reply-preview__close"
+        type="button"
+        aria-label="Cancel reply"
+        @click=${() => props.onReplyTo?.(null)}
+      >
+        ${icons.x}
+      </button>
+    </div>
+  `;
+}
+
 function renderAttachmentPreview(props: ChatProps) {
   const attachments = props.attachments ?? [];
   if (attachments.length === 0) return nothing;
@@ -228,6 +263,7 @@ export function renderChat(props: ChatProps) {
         if (item.kind === "group") {
           return renderMessageGroup(item, {
             onOpenSidebar: props.onOpenSidebar,
+            onReply: props.onReplyTo,
             showReasoning,
             assistantName: props.assistantName,
             assistantAvatar: assistantIdentity.avatar,
@@ -328,6 +364,7 @@ export function renderChat(props: ChatProps) {
         : nothing}
 
       <div class="chat-compose">
+        ${renderReplyPreview(props)}
         ${renderAttachmentPreview(props)}
         <div class="chat-compose__row">
           <label class="field chat-compose__field">

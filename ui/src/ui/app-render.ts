@@ -433,6 +433,7 @@ export function renderApp(state: AppViewState) {
                 state.sessionKey = next;
                 state.chatMessage = "";
                 state.chatAttachments = [];
+                state.chatReplyTo = null;
                 state.chatStream = null;
                 state.chatStreamStartedAt = null;
                 state.chatRunId = null;
@@ -481,6 +482,8 @@ export function renderApp(state: AppViewState) {
               onDraftChange: (next) => (state.chatMessage = next),
               attachments: state.chatAttachments,
               onAttachmentsChange: (next) => (state.chatAttachments = next),
+              replyTo: state.chatReplyTo,
+              onReplyTo: (reply) => (state.chatReplyTo = reply),
               onSend: () => state.handleSendChat(),
               canAbort: Boolean(state.chatRunId),
               onAbort: () => void state.handleAbortChat(),

@@ -1,6 +1,7 @@
 import { abortChatRun, loadChatHistory, sendChatMessage } from "./controllers/chat";
 import { loadSessions } from "./controllers/sessions";
 import { generateUUID } from "./uuid";
+import type { ChatReplyTo } from "./views/chat";
 import { resetToolStream } from "./app-tool-stream";
 import { scheduleChatScroll } from "./app-scroll";
 import { setLastActiveSessionKey } from "./app-settings";
@@ -14,6 +15,7 @@ type ChatHost = {
   connected: boolean;
   chatMessage: string;
   chatAttachments: ChatAttachment[];
+  chatReplyTo: ChatReplyTo | null;
   chatQueue: ChatQueueItem[];
   chatRunId: string | null;
   chatSending: boolean;
@@ -112,6 +114,18 @@ export function removeQueuedMessage(host: ChatHost, id: string) {
   host.chatQueue = host.chatQueue.filter((item) => item.id !== id);
 }
 
+function buildQuotedMessage(message: string, replyTo: ChatReplyTo | null): string {
+  if (!replyTo) return message;
+  const quotedText = replyTo.text.length > 200
+    ? replyTo.text.slice(0, 200) + "…"
+    : replyTo.text;
+  const quoteLine = quotedText
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+  return message ? `${quoteLine}\n\n${message}` : quoteLine;
+}
+
 export async function handleSendChat(
   host: ChatHost,
   messageOverride?: string,
@@ -119,7 +133,9 @@ export async function handleSendChat(
 ) {
   if (!host.connected) return;
   const previousDraft = host.chatMessage;
-  const message = (messageOverride ?? host.chatMessage).trim();
+  const rawMessage = (messageOverride ?? host.chatMessage).trim();
+  const replyTo = messageOverride == null ? host.chatReplyTo : null;
+  const message = buildQuotedMessage(rawMessage, replyTo);
   const attachments = host.chatAttachments ?? [];
   const attachmentsToSend = messageOverride == null ? attachments : [];
   const hasAttachments = attachmentsToSend.length > 0;
@@ -134,8 +150,9 @@ export async function handleSendChat(
 
   if (messageOverride == null) {
     host.chatMessage = "";
-    // Clear attachments when sending
+    // Clear attachments and reply state when sending
     host.chatAttachments = [];
+    host.chatReplyTo = null;
   }
 
   if (isChatBusy(host)) {

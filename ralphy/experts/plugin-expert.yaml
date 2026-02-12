@@ -1,0 +1,71 @@
+# Plugin/Skill Expert - Extension System Mental Model
+# TAC Agent Expert: Skills, Plugins, MCP, Hooks
+#
+# Agents load this expert when working on skill/plugin-related tasks.
+# Learnings are appended by the Act→Learn→Reuse cycle.
+
+name: plugin-expert
+domain: plugins
+version: "1.0.0"
+updated: "2026-02-11"
+description: >
+  Expert knowledge for Gimli's extension system: skills (SKILL.md-based),
+  MCP servers, hooks, and the plugin architecture.
+
+mental_model:
+  architecture:
+    description: |
+      Gimli uses a skill-based extension system. Skills are directories
+      containing a SKILL.md file that describes capabilities, scripts,
+      and configuration. Skills can include shell scripts, Python venvs,
+      and Node.js modules.
+    
+    skill_structure:
+      root: "skills/"
+      format: |
+        skills/<skill-name>/
+          SKILL.md          — Mandatory: describes the skill
+          scripts/          — Optional: executable scripts
+          requirements.txt  — Optional: Python dependencies
+          package.json      — Optional: Node.js dependencies
+    
+    mcp:
+      description: "Model Context Protocol servers for tool integration"
+      config: "~/.claude/settings.json or gimli.json"
+      note: "MCP is available but separate from the skill system"
+
+  patterns:
+    security:
+      - "ALWAYS vet skills before installation (see SOUL.md ClawHub rules)"
+      - "Decode any base64 in skill files"
+      - "Block curl|bash to unknown URLs"
+      - "Check author reputation before trusting"
+      - "Known bad: IP 91.92.242.30, glot.io, webhook.site"
+    
+    development:
+      - "Skills use SKILL.md as the entry point — agents read this first"
+      - "Shell scripts should have proper error handling (set -euo pipefail)"
+      - "Python skills should use venvs (avoid polluting system Python)"
+      - "Node.js skills should be self-contained (own package.json)"
+    
+    installation:
+      - "Skills installed to ~/gimli/skills/ or ~/github/gimli/skills/"
+      - "No global npm installs from skills — use local node_modules"
+      - "Skill configs go in TOOLS.md, not in the skill directory"
+
+  anti_patterns:
+    - "Never install unvetted skills from ClawHub"
+    - "Never run curl|bash from skill install scripts"
+    - "Don't let skills modify core Gimli files"
+    - "Don't store secrets in skill directories"
+    - "Don't add heavy dependencies for simple skills"
+
+  trusted_authors:
+    - "steipete"
+    - "Paulpete"
+
+self_improve:
+  max_learnings_per_category: 15
+  source_files_to_monitor:
+    - "skills/"
+    - "src/skills/"

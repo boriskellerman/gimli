@@ -12,6 +12,7 @@ import {
   formatReasoningMarkdown,
 } from "./message-extract";
 import { extractToolCards, renderToolCardSidebar } from "./tool-cards";
+import type { ChatReplyTo } from "../views/chat";
 
 type ImageBlock = {
   url: string;
@@ -108,6 +109,7 @@ export function renderMessageGroup(
   group: MessageGroup,
   opts: {
     onOpenSidebar?: (content: string) => void;
+    onReply?: (reply: ChatReplyTo | null) => void;
     showReasoning: boolean;
     assistantName?: string;
     assistantAvatar?: string | null;
@@ -143,11 +145,14 @@ export function renderMessageGroup(
           renderGroupedMessage(
             item.message,
             {
+              key: item.key,
+              role: normalizedRole,
               isStreaming:
                 group.isStreaming && index === group.messages.length - 1,
               showReasoning: opts.showReasoning,
             },
             opts.onOpenSidebar,
+            opts.onReply,
           ),
         )}
         <div class="chat-group-footer">
@@ -224,13 +229,42 @@ function renderMessageImages(images: ImageBlock[]) {
   `;
 }
 
+function renderReplyButton(
+  message: unknown,
+  key: string,
+  role: string,
+  onReply?: (reply: ChatReplyTo | null) => void,
+) {
+  if (!onReply) return nothing;
+  const text = extractTextCached(message)?.trim();
+  if (!text) return nothing;
+
+  return html`
+    <button
+      class="chat-reply-btn"
+      type="button"
+      aria-label="Reply to this message"
+      title="Reply"
+      @click=${(e: Event) => {
+        e.stopPropagation();
+        onReply({ text, role, key });
+      }}
+    >
+      <svg viewBox="0 0 24 24" width="14" height="14"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+    </button>
+  `;
+}
+
 function renderGroupedMessage(
   message: unknown,
-  opts: { isStreaming: boolean; showReasoning: boolean },
+  opts: { key?: string; role?: string; isStreaming: boolean; showReasoning: boolean },
   onOpenSidebar?: (content: string) => void,
+  onReply?: (reply: ChatReplyTo | null) => void,
 ) {
   const m = message as Record<string, unknown>;
   const role = typeof m.role === "string" ? m.role : "unknown";
+  const msgKey = opts.key ?? "";
+  const groupRole = opts.role ?? role;
   const isToolResult =
     isToolResultMessage(message) ||
     role.toLowerCase() === "toolresult" ||
@@ -254,10 +288,11 @@ function renderGroupedMessage(
     : null;
   const markdown = markdownBase;
   const canCopyMarkdown = role === "assistant" && Boolean(markdown?.trim());
+  const canReply = !isToolResult && !opts.isStreaming && Boolean(markdown?.trim());
 
   const bubbleClasses = [
     "chat-bubble",
-    canCopyMarkdown ? "has-copy" : "",
+    canCopyMarkdown || canReply ? "has-actions" : "",
     opts.isStreaming ? "streaming" : "",
     "fade-in",
   ]
@@ -274,7 +309,10 @@ function renderGroupedMessage(
 
   return html`
     <div class="${bubbleClasses}">
-      ${canCopyMarkdown ? renderCopyAsMarkdownButton(markdown!) : nothing}
+      <div class="chat-bubble-actions">
+        ${canReply ? renderReplyButton(message, msgKey, groupRole, onReply) : nothing}
+        ${canCopyMarkdown ? renderCopyAsMarkdownButton(markdown!) : nothing}
+      </div>
       ${renderMessageImages(images)}
       ${reasoningMarkdown
         ? html`<div class="chat-thinking">${unsafeHTML(

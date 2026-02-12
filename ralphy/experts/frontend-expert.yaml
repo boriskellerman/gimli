@@ -1,0 +1,91 @@
+# Frontend Expert - UI/Dashboard/Portal Mental Model
+# TAC Agent Expert: Browser UI, CSS, HTML, Webchat
+#
+# Agents load this expert when working on UI-related tasks.
+# Learnings are appended by the Act→Learn→Reuse cycle.
+
+name: frontend-expert
+domain: frontend
+version: "1.0.0"
+updated: "2026-02-11"
+description: >
+  Expert knowledge for Gimli's frontend systems: Portal (port 6969),
+  Gateway webchat UI (port 18789), TAC Dashboard (port 3888),
+  Kanban Board (port 3889). Covers HTML, CSS, vanilla JS patterns,
+  file structure, and build tooling.
+
+mental_model:
+  architecture:
+    description: |
+      Gimli has multiple frontend surfaces, all server-rendered or vanilla JS.
+      No React/Vue/Next.js — everything is plain HTML+CSS+JS served by Node.js.
+    
+    surfaces:
+      portal:
+        port: 6969
+        tech: "Express + server-side HTML generation"
+        location: "portal/"
+        description: "Main dashboard — stats, weather, quick actions, file explorer"
+        service: "gimli-portal.service (systemd --user)"
+      
+      webchat:
+        port: 18789
+        tech: "Vanilla TypeScript, compiled with tsc"
+        location: "ui/src/"
+        description: "Gateway's built-in webchat interface"
+        build: "npm run build (from project root)"
+        note: "Part of the main Gimli build — changes here affect gateway"
+      
+      tac_dashboard:
+        port: 3888
+        tech: "Express + static HTML"
+        location: "ralphy/orchestrator/dashboard/"
+        service: "tac-dashboard.service"
+      
+      kanban:
+        port: 3889
+        tech: "Express + dynamic HTML"
+        location: "portal/ (shared server, different routes)"
+        service: "gimli-portal.service (same service)"
+
+  patterns:
+    css:
+      - "Use CSS custom properties (--var) for theming"
+      - "Dark theme is default across all surfaces"
+      - "Font stack: Inter for body, JetBrains Mono for code"
+      - "Animated gradient backgrounds on Portal"
+      - "Hover-reveal patterns for action buttons (webchat reply, copy)"
+    
+    javascript:
+      - "No bundler — vanilla JS or TS compiled with tsc"
+      - "Event delegation for dynamic content"
+      - "Toast notifications instead of alert() (Portal)"
+      - "Modal pattern: overlay + content, close on Escape or click-outside"
+      - "Loading states with spinners on async actions"
+    
+    html:
+      - "Server-side HTML generation via template literals"
+      - "No backticks in comments inside template literals (use \\x60)"
+      - "Semantic HTML elements where practical"
+
+  anti_patterns:
+    - "Don't use alert() — use toast notifications"
+    - "Don't add React/Vue/framework dependencies"
+    - "Don't use CDN resources — bundle everything locally"
+    - "Don't break mobile responsive layouts"
+    - "Don't hardcode port numbers — use config"
+
+  common_issues:
+    - symptom: "Styles not updating"
+      fix: "Check browser cache, add cache-bust query param"
+    - symptom: "Port already in use"
+      fix: "Check systemctl --user status, kill stale process"
+    - symptom: "Build errors in webchat UI"
+      fix: "Run npm run build from project root, not ui/"
+
+self_improve:
+  max_learnings_per_category: 20
+  source_files_to_monitor:
+    - "ui/src/"
+    - "portal/"
+    - "ralphy/orchestrator/dashboard/"

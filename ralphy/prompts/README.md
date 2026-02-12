@@ -1,186 +1,121 @@
-# Closed-Loop Prompts
+# Composable Prompt Library
 
-> Specialized prompts implementing the Request → Validate → Resolve pattern for autonomous agent workflows.
+> TAC Leverage Point #3 (Prompt) — Reusable building blocks for agent task execution.
 
-## Overview
-
-Closed-loop prompts enable agents to self-validate their work and self-correct when validation fails. This moves agents from "best effort" to "verified output," enabling higher-trust autonomous workflows.
-
-## The Request → Validate → Resolve Pattern
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│  ┌─────────┐      ┌──────────┐      ┌─────────┐            │
-│  │ REQUEST │ ──▶  │ VALIDATE │ ──▶  │ RESOLVE │ ─┐         │
-│  └─────────┘      └──────────┘      └─────────┘  │         │
-│       │                 │                 │      │         │
-│       │                 │                 │      │         │
-│  Gather context    Check against      Fix issues │         │
-│  and constraints   acceptance          and retry │         │
-│                    criteria                      │         │
-│       │                 │                        │         │
-│       ▼                 ▼                        ▼         │
-│  ┌─────────┐      ┌──────────┐      ┌─────────────┐        │
-│  │ Execute │      │  PASS?   │      │ Iteration < │        │
-│  │  Task   │      │          │      │    max?     │        │
-│  └─────────┘      └──────────┘      └─────────────┘        │
-│                        │                   │               │
-│                   YES  │  NO          YES  │  NO           │
-│                        ▼                   ▼               │
-│                   ┌────────┐         Loop back    ┌───────┐│
-│                   │COMPLETE│         to VALIDATE  │ FAIL  ││
-│                   └────────┘                      └───────┘│
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+prompts/
+├── sections/           # Reusable building blocks (Lego pieces)
+│   ├── task-variables.md       # Standard variable definitions
+│   ├── codebase-context.md     # Gimli codebase overview
+│   ├── relevant-files.md       # File discovery commands
+│   ├── examples.md             # Pattern discovery & common patterns
+│   ├── workspace-rules.md      # Git, code, testing standards
+│   ├── validation-rules.md     # Self-validation checklist
+│   ├── security-checklist.md   # Security review checklist
+│   ├── iteration-tracking.md   # Attempt tracking & escalation
+│   ├── expert-loading.md       # Act→Learn→Reuse integration
+│   └── output-format.md        # Standard output format
+│
+├── meta/               # Assembled meta-prompts (composed from sections)
+│   ├── bug.md          # /bug — investigation & fix
+│   ├── feature.md      # /feature — implementation
+│   ├── chore.md        # /chore — maintenance & cleanup
+│   └── research.md     # /research — investigation & analysis
+│
+├── closed-loops/       # Self-validating prompt chains
+│   ├── testing-closed-loop.md
+│   ├── reviewing-closed-loop.md
+│   └── documenting-closed-loop.md
+│
+└── assemble.sh         # CLI to assemble prompts with variables
 ```
 
-## Available Prompts
+## Quick Start
 
-| Prompt | Purpose | Key Validation Criteria |
-|--------|---------|------------------------|
-| [testing-closed-loop.md](./testing-closed-loop.md) | Write and validate tests | Tests pass, coverage met, lint clean |
-| [reviewing-closed-loop.md](./reviewing-closed-loop.md) | Code review with quality checks | Comments specific, actionable, accurate |
-| [documenting-closed-loop.md](./documenting-closed-loop.md) | Documentation with accuracy checks | Matches code, examples work, links valid |
+### Assemble a prompt
+```bash
+# Generate a bug-fix prompt
+./assemble.sh bug --task-id TASK-123 --title "Fix gateway crash" --scope gateway --priority high
 
-## Usage
+# Generate a feature prompt
+./assemble.sh feature --task-id TASK-124 --title "Add reply button" --criteria "Button appears on hover"
 
-### Standalone Usage
+# Generate a research prompt
+./assemble.sh research --task-id TASK-125 --title "Evaluate MCP servers"
+```
 
-Each prompt can be used directly by providing the required inputs:
-
+### Use in ADW workflows
 ```yaml
-# Example: Run testing prompt
-target: src/agents/identity.ts
-scope: unit
-coverage_threshold: 80
-max_iterations: 3
+# In an ADW definition:
+steps:
+  - name: implement
+    prompt: meta/feature.md
+    variables:
+      TASK_ID: "{{task.id}}"
+      TASK_TITLE: "{{task.title}}"
+      SCOPE: "{{task.scope}}"
 ```
 
-### ADW (AI Developer Workflow) Integration
-
-Chain prompts together for end-to-end workflows:
-
+### Use in sub-agent delegation
 ```
-plan-feature → build → [testing-closed-loop] → [reviewing-closed-loop] → [documenting-closed-loop] → merge
-```
+You are a coding agent. Follow this prompt exactly:
 
-### Sub-Agent Delegation
-
-Use as specialized sub-agents with focused context:
-
-```yaml
-# O-Agent delegates to test agent
-delegate:
-  agent: testing-agent
-  prompt: testing-closed-loop.md
-  input:
-    target: "{{files_changed}}"
-    coverage_threshold: 80
+[paste assembled prompt here]
 ```
 
 ## Design Principles
 
-### 1. Explicit Acceptance Criteria
-Every prompt defines clear, measurable criteria for success. Agents don't guess whether their work is done—they verify.
+1. **Composable** — Sections are independent building blocks. Meta-prompts assemble them.
+2. **Self-validating** — Every prompt includes validation steps. Agents verify their own work.
+3. **Learning-enabled** — Expert loading + learning capture creates institutional knowledge.
+4. **Iteration-tracked** — Failed attempts are recorded, not discarded.
+5. **Template-compatible** — Variables use `{{VARIABLE}}` syntax for easy substitution.
 
-### 2. Bounded Iterations
-Maximum iteration limits prevent infinite loops while allowing reasonable self-correction attempts.
+## Section Inventory
 
-### 3. Specific Failure Handling
-Each failure type has a defined resolution strategy. Agents know exactly how to fix each type of issue.
+| Section | Purpose | Used By |
+|---------|---------|---------|
+| task-variables | Define standard variable schema | All meta-prompts |
+| codebase-context | Orient agent in the Gimli codebase | bug, feature, chore |
+| relevant-files | File discovery patterns | bug, feature |
+| examples | Pattern matching in existing code | feature |
+| workspace-rules | Git, coding, testing standards | feature, chore |
+| validation-rules | Self-check after completion | bug, feature, chore |
+| security-checklist | Security review gate | bug, feature |
+| iteration-tracking | Track attempts, know when to escalate | bug |
+| expert-loading | Load/save domain expertise | bug, feature |
+| output-format | Standard completion report | All |
 
-### 4. Output Verification
-Prompts include mechanisms to verify outputs match reality (e.g., cross-checking docs against code signatures).
+## Adding New Sections
 
-### 5. Iteration History
-Tracking what was tried and what failed enables better debugging and prevents repeated mistakes.
-
-## Common Parameters
-
-All closed-loop prompts share these parameters:
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `target` | string | required | What to operate on |
-| `max_iterations` | number | 3 | Self-correction attempts before failing |
-
-## Creating New Closed-Loop Prompts
-
-To add a new specialized prompt:
-
-1. **Define the Request Phase**
-   - What inputs are needed?
-   - What context must be gathered first?
-   - What's the core task?
-
-2. **Define Acceptance Criteria**
-   - What must be true for success?
-   - How can each criterion be verified?
-   - What tools/commands verify each criterion?
-
-3. **Define Resolution Strategies**
-   - For each failure type, what's the fix?
-   - What should NOT be done (e.g., "don't delete failing tests")?
-   - When should the agent escalate vs. retry?
-
-4. **Define Output Format**
-   - What does success look like?
-   - What does failure look like?
-   - How is iteration history reported?
-
-### Template
-
+Create a new file in `sections/` following this pattern:
 ```markdown
-# {{Name}} Closed-Loop Prompt
+## Section Name
 
-## Purpose
-{{one_line_description}}
+[Content that any meta-prompt can include]
 
-## Request Phase
-### Input Schema
-{{yaml_schema}}
+**Commands:**
+\`\`\`bash
+# Useful commands for this section
+\`\`\`
 
-### Context Requirements
-{{what_to_gather}}
-
-### Initial Task
-{{task_description}}
-
-## Validate Phase
-### Acceptance Criteria
-{{table_of_criteria}}
-
-### Validation Method
-{{how_to_check}}
-
-## Resolve Phase
-### Self-Correction Rules
-{{what_to_do_on_failure}}
-
-### Iteration Tracking
-{{tracking_format}}
-
-## Output Format
-{{success_and_failure_formats}}
+**Checklist:**
+- [ ] Item 1
+- [ ] Item 2
 ```
 
-## TAC Alignment
+## Adding New Meta-Prompts
 
-These prompts implement key TAC principles:
-
-- **Tactic 5: Add Feedback Loops** - Validation phase provides automated feedback
-- **Tactic 6: One Agent, One Purpose** - Each prompt has a single, focused purpose
-- **Leverage Point 6: Testing** - Testing prompt enables test-driven agent workflows
-- **Leverage Point 8: Documentation** - Documenting prompt keeps docs accurate
-
-## Future Additions
-
-Planned closed-loop prompts:
-- `refactoring-closed-loop.md` - Refactor with behavior preservation
-- `migration-closed-loop.md` - Database/API migrations with rollback
-- `security-audit-closed-loop.md` - Security scanning with remediation
+1. Create `meta/<type>.md`
+2. List which sections it assembles from
+3. Define the task-specific process
+4. Include standard output format
+5. Add constraints and escalation rules
+6. Update this README
 
 ---
 
-*Part of the TAC Orchestrator (Phase 9, Grade 4) implementation*
+*Part of the TAC Orchestrator — Composable Prompt Library (MT-4)*
+*Created: 2026-02-11*

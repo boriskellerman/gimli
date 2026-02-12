@@ -12,6 +12,8 @@ import { tmpdir } from 'os';
 import * as yaml from 'js-yaml';
 import { TaskTracker, Task, Plan, TeamMember } from './task-tracker';
 import { TrajectoryLogger, Trajectory, TrajectoryChapter } from './trajectory';
+import { ExpertManager, type Learning, type ExpertSelection } from './expert-manager';
+import { ValidationPipeline, type ValidationSuiteResult } from './validation-pipeline';
 
 // Types for ADW definitions
 interface ADWStep {
@@ -84,17 +86,22 @@ export class ADWExecutor {
   private activeRuns: Map<string, WorkflowRun> = new Map();
   private taskTracker: TaskTracker;
   private trajectoryLogger: TrajectoryLogger;
+  private expertManager: ExpertManager;
+  private validationPipeline: ValidationPipeline;
+  private projectRoot: string;
 
   constructor(options: {
     workflowsDir: string;
     runsDir: string;
     expertsDir: string;
     trajectoriesDir?: string;
+    projectRoot?: string;
   }) {
     this.workflowsDir = options.workflowsDir;
     this.runsDir = options.runsDir;
     this.expertsDir = options.expertsDir;
     this.trajectoriesDir = options.trajectoriesDir || join(this.runsDir, 'trajectories');
+    this.projectRoot = options.projectRoot || '/home/gimli/github/gimli';
 
     // Initialize task tracker for multi-agent coordination
     this.taskTracker = new TaskTracker({
@@ -103,6 +110,16 @@ export class ADWExecutor {
 
     // Initialize trajectory logger for train-of-thought capture
     this.trajectoryLogger = new TrajectoryLogger(this.trajectoriesDir);
+
+    // Initialize expert manager (Act→Learn→Reuse cycle)
+    this.expertManager = new ExpertManager(this.expertsDir);
+
+    // Initialize validation pipeline (closed-loop validation)
+    this.validationPipeline = new ValidationPipeline({
+      projectRoot: this.projectRoot,
+      metricsPath: join(this.runsDir, 'metrics', 'validation-metrics.json'),
+      autoDetect: true,
+    });
 
     // Ensure directories exist
     if (!existsSync(this.runsDir)) {
@@ -115,6 +132,20 @@ export class ADWExecutor {
    */
   getTaskTracker(): TaskTracker {
     return this.taskTracker;
+  }
+
+  /**
+   * Get the expert manager for external access
+   */
+  getExpertManager(): ExpertManager {
+    return this.expertManager;
+  }
+
+  /**
+   * Get the validation pipeline for external access
+   */
+  getValidationPipeline(): ValidationPipeline {
+    return this.validationPipeline;
   }
 
   /**
@@ -254,7 +285,7 @@ export class ADWExecutor {
         const chapterType = this.inferChapterType(step.name);
         this.trajectoryLogger.startChapter(step.name, chapterType);
 
-        // Load expert if specified
+        // Load expert context — explicit or auto-detected
         let expertContext = '';
         if (step.load_expert) {
           expertContext = this.loadExpert(step.load_expert);
@@ -263,6 +294,16 @@ export class ADWExecutor {
             `Expert context loaded (${expertContext.length} chars)`,
             { agent: step.agent }
           );
+        } else {
+          // Auto-select experts based on step prompt content
+          expertContext = this.autoLoadExperts(step.prompt);
+          if (expertContext) {
+            this.trajectoryLogger.logObservation(
+              'Auto-loaded relevant experts',
+              `Expert context auto-selected (${expertContext.length} chars)`,
+              { agent: step.agent }
+            );
+          }
         }
 
         // Build the prompt with variable substitution
@@ -312,6 +353,9 @@ export class ADWExecutor {
       }
 
       run.status = 'success';
+
+      // --- LEARN PHASE: Extract learnings from this workflow run ---
+      this.extractAndRecordLearnings(workflowName, run);
       
       // Complete trajectory with retrospective
       this.trajectoryLogger.completeTrajectory({
@@ -568,6 +612,117 @@ export class ADWExecutor {
   }
 
   /**
+   * Run post-build validation checks on the workflow output.
+   * Returns validation result and error context for retry.
+   */
+  async runPostBuildValidation(run: WorkflowRun): Promise<ValidationSuiteResult> {
+    console.log(`[${run.id}] Running post-build validation...`);
+
+    // Collect files modified across all build steps
+    const modifiedFiles: string[] = [];
+    for (const [_stepName, result] of Object.entries(run.stepResults)) {
+      if (result?.files_modified) {
+        modifiedFiles.push(...result.files_modified);
+      }
+      if (result?.filesModified) {
+        modifiedFiles.push(...result.filesModified);
+      }
+    }
+
+    if (modifiedFiles.length > 0) {
+      return await this.validationPipeline.validateFiles(modifiedFiles);
+    } else {
+      return await this.validationPipeline.validateAll();
+    }
+  }
+
+  /**
+   * Extract learnings from a completed workflow run and record them
+   * in the appropriate expert files. This is the LEARN phase of Act→Learn→Reuse.
+   */
+  private extractAndRecordLearnings(workflowName: string, run: WorkflowRun): void {
+    try {
+      const learnings: Array<{
+        category: Learning['category'];
+        title: string;
+        description: string;
+        confidence: number;
+        tags: string[];
+      }> = [];
+
+      // Extract learnings from step results
+      for (const [stepName, result] of Object.entries(run.stepResults)) {
+        if (!result || result.skipped) continue;
+
+        // Learn from failures (anti-patterns and common errors)
+        if (result.success === false) {
+          learnings.push({
+            category: 'common_error',
+            title: `${workflowName}/${stepName} failure`,
+            description: `Step "${stepName}" failed: ${(result.error || result.output || 'unknown').substring(0, 200)}`,
+            confidence: 0.6,
+            tags: [workflowName, stepName, 'failure'],
+          });
+        }
+
+        // Learn from validation results
+        if (result.validationResult) {
+          const valResult = result.validationResult as ValidationSuiteResult;
+          for (const check of valResult.results.filter((r: any) => !r.passed)) {
+            learnings.push({
+              category: 'common_error',
+              title: `Validation failure: ${check.check}`,
+              description: `${check.check} failed during ${workflowName}: ${(check.error || check.output || '').substring(0, 200)}`,
+              confidence: 0.7,
+              tags: [workflowName, 'validation', check.check],
+            });
+          }
+        }
+
+        // Learn from successful patterns
+        if (result.success !== false && result.output) {
+          // Look for pattern indicators in output
+          const output = String(result.output).toLowerCase();
+          if (output.includes('refactor') || output.includes('pattern')) {
+            learnings.push({
+              category: 'pattern',
+              title: `Successful pattern in ${stepName}`,
+              description: `Step "${stepName}" in ${workflowName} completed successfully. Output excerpt: ${String(result.output).substring(0, 200)}`,
+              confidence: 0.5,
+              tags: [workflowName, stepName, 'success'],
+            });
+          }
+        }
+      }
+
+      // Determine domain from workflow name
+      const domainMap: Record<string, string> = {
+        'plan-build': 'gateway',
+        'bug-investigate': 'gateway',
+        'test-fix': 'gateway',
+        'security-audit': 'security',
+        'self-improve': 'gateway',
+        'deploy': 'gateway',
+        'review-document': 'gateway',
+      };
+
+      const domain = domainMap[workflowName] || 'gateway';
+
+      if (learnings.length > 0) {
+        const added = this.expertManager.recordLearnings({
+          workflowName,
+          runId: run.id,
+          domain,
+          learnings,
+        });
+        console.log(`[${run.id}] Recorded ${added} new learnings to ${domain} expert`);
+      }
+    } catch (error) {
+      console.warn(`[${run.id}] Failed to extract learnings: ${error}`);
+    }
+  }
+
+  /**
    * Select the appropriate agent based on context
    */
   private selectAgent(agentSpec: string, run: WorkflowRun): string {
@@ -587,14 +742,39 @@ export class ADWExecutor {
   }
 
   /**
-   * Load an expert YAML file for context
+   * Load an expert YAML file for context.
+   * Now uses ExpertManager for intelligent context building (includes learnings).
    */
   private loadExpert(expertName: string): string {
+    // Strip file extension if provided (e.g., "database-expert.yaml" → "database-expert")
+    const name = expertName.replace(/\.(yaml|yml)$/, '');
+    const expert = this.expertManager.getExpert(name);
+
+    if (expert) {
+      // Use ExpertManager's smart context builder (includes learnings)
+      const selection = this.expertManager.selectExperts(expert.domain || name);
+      return selection.contextString || readFileSync(join(this.expertsDir, expertName), 'utf-8');
+    }
+
+    // Fallback: raw file read
     const path = join(this.expertsDir, expertName);
     if (existsSync(path)) {
       return readFileSync(path, 'utf-8');
     }
     console.warn(`Expert not found: ${expertName}`);
+    return '';
+  }
+
+  /**
+   * Auto-select and load relevant experts based on task description.
+   * Called when no explicit load_expert is set in a step.
+   */
+  private autoLoadExperts(taskDescription: string, affectedFiles: string[] = []): string {
+    const selection = this.expertManager.selectExperts(taskDescription, affectedFiles);
+    if (selection.experts.length > 0) {
+      console.log(`  Auto-loaded experts: ${selection.experts.map(e => e.name).join(', ')} (~${selection.estimatedTokens} tokens)`);
+      return selection.contextString;
+    }
     return '';
   }
 
