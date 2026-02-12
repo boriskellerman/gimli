@@ -50,8 +50,8 @@ const AUTH_CHOICE_GROUP_DEFS: {
   {
     value: "minimax",
     label: "MiniMax",
-    hint: "M2.1 (recommended)",
-    choices: ["minimax-api", "minimax-api-lightning"],
+    hint: "M2.5 (recommended)",
+    choices: ["minimax-portal", "minimax-api", "minimax-api-lightning"],
   },
   {
     value: "qwen",
@@ -177,10 +177,10 @@ export function buildAuthChoiceOptions(params: {
     label: "OpenCode Zen (multi-model proxy)",
     hint: "Claude, GPT, Gemini via opencode.ai/zen",
   });
-  options.push({ value: "minimax-api", label: "MiniMax M2.1" });
+  options.push({ value: "minimax-api", label: "MiniMax M2.5" });
   options.push({
     value: "minimax-api-lightning",
-    label: "MiniMax M2.1 Lightning",
+    label: "MiniMax M2.5 Lightning",
     hint: "Faster, higher output cost",
   });
   if (params.includeSkip) {

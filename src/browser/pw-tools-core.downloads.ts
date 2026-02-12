@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import type { Page } from "playwright-core";
@@ -22,7 +23,7 @@ import {
 function buildTempDownloadPath(fileName: string): string {
   const id = crypto.randomUUID();
   const safeName = fileName.trim() ? fileName.trim() : "download.bin";
-  return path.join("/tmp/gimli/downloads", `${id}-${safeName}`);
+  return path.join(os.tmpdir(), "gimli", "downloads", `${id}-${safeName}`);
 }
 
 function createPageDownloadWaiter(page: Page, timeoutMs: number) {

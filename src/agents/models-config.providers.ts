@@ -18,6 +18,7 @@ type ModelsConfig = NonNullable<GimliConfig["models"]>;
 export type ProviderConfig = NonNullable<ModelsConfig["providers"]>[string];
 
 const MINIMAX_API_BASE_URL = "https://api.minimax.chat/v1";
+const MINIMAX_PORTAL_BASE_URL = "https://api.minimax.io/anthropic";
 const MINIMAX_DEFAULT_MODEL_ID = "MiniMax-M2.1";
 const MINIMAX_DEFAULT_VISION_MODEL_ID = "MiniMax-VL-01";
 const MINIMAX_DEFAULT_CONTEXT_WINDOW = 200000;
@@ -256,10 +257,64 @@ function buildMinimaxProvider(): ProviderConfig {
         maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
       },
       {
+        id: "MiniMax-M2.1-lightning",
+        name: "MiniMax M2.1 Lightning",
+        reasoning: false,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
         id: MINIMAX_DEFAULT_VISION_MODEL_ID,
         name: "MiniMax VL 01",
         reasoning: false,
         input: ["text", "image"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+        reasoning: true,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.5-Lightning",
+        name: "MiniMax M2.5 Lightning",
+        reasoning: true,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+    ],
+  };
+}
+
+function buildMinimaxPortalProvider(): ProviderConfig {
+  return {
+    baseUrl: MINIMAX_PORTAL_BASE_URL,
+    api: "anthropic-messages",
+    models: [
+      {
+        id: MINIMAX_DEFAULT_MODEL_ID,
+        name: "MiniMax M2.1",
+        reasoning: false,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+        reasoning: true,
+        input: ["text"],
         cost: MINIMAX_API_COST,
         contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
         maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
