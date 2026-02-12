@@ -482,28 +482,43 @@ pnpm dev:dashboard
 ## 📁 Full Directory Structure
 
 ```
-ralphy/orchestrator/
-├── README.md
-├── package.json
-├── tsconfig.json
-├── src/
-│   ├── adw-executor.ts      # Workflow runtime
-│   ├── gimli-wrapper.ts     # Main orchestrator
-│   ├── worktree-manager.ts  # Git worktree handling
-│   ├── ab-testing.ts        # A/B test runner
-│   ├── dashboard-server.ts  # Dashboard API
-│   └── cli.ts               # CLI interface
-├── adw/
-│   ├── plan-build.yaml
-│   ├── test-fix.yaml
-│   ├── bug-investigate.yaml
-│   ├── security-audit.yaml
-│   └── self-improve.yaml
-├── dashboard/
-│   └── index.html           # Dashboard UI
-├── runs/                    # Workflow logs
-├── metrics/                 # Cumulative metrics
-└── ab-results/              # A/B test results
+ralphy/
+├── experts/                    # Agent Expert YAML files
+│   ├── gateway-expert.yaml
+│   ├── channel-expert.yaml
+│   ├── database-expert.yaml
+│   ├── security-expert.yaml
+│   ├── frontend-expert.yaml    # NEW: Portal, webchat, dashboards
+│   └── plugin-expert.yaml      # NEW: Skills, MCP, hooks
+├── orchestrator/
+│   ├── README.md
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── src/
+│   │   ├── adw-executor.ts         # Workflow runtime + expert/validation integration
+│   │   ├── expert-manager.ts       # NEW: Act→Learn→Reuse expert system
+│   │   ├── validation-pipeline.ts  # NEW: Closed-loop validation
+│   │   ├── gimli-wrapper.ts        # Main orchestrator
+│   │   ├── trajectory.ts           # Trajectory logging
+│   │   ├── task-tracker.ts         # Multi-agent task coordination
+│   │   ├── kpi-tracker.ts          # KPI metrics
+│   │   ├── worktree-manager.ts     # Git worktree handling
+│   │   ├── ab-testing.ts           # A/B test runner
+│   │   ├── dashboard-server.ts     # Dashboard API
+│   │   └── cli.ts                  # CLI interface
+│   ├── test/
+│   │   ├── expert-manager.test.ts      # NEW: 8 tests
+│   │   └── validation-pipeline.test.ts # NEW: 7 tests
+│   ├── adw/
+│   │   ├── plan-build.yaml
+│   │   ├── test-fix.yaml
+│   │   ├── bug-investigate.yaml
+│   │   ├── security-audit.yaml
+│   │   └── self-improve.yaml
+│   ├── dashboard/
+│   │   └── index.html           # Dashboard UI
+│   ├── runs/                    # Workflow logs + trajectories
+│   └── metrics/                 # Cumulative metrics + validation metrics
 ```
 
 ---

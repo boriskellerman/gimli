@@ -1,12 +1,37 @@
 {
   "humanInteractions": 0,
-  "lastInteractionTime": 1770156000000,
+  "lastInteractionTime": 0,
   "presenceMinutes": 0,
-  "consecutiveSuccesses": 4,
+  "consecutiveSuccesses": 3,
   "lastRunSuccess": true,
-  "totalAttempts": 6,
-  "totalTasks": 5,
-  "currentTaskSize": "M",
-  "lastUpdated": 1770825687044,
-  "periodStart": 1770825687043
+  "totalAttempts": 9,
+  "totalTasks": 62,
+  "currentTaskSize": "XL",
+  "lastUpdated": 1770869514949,
+  "periodStart": 1770869514949,
+  "extended": {
+    "taskBoard": {
+      "backlog": 4,
+      "inProgress": 2,
+      "readyForReview": 1,
+      "onHold": 13,
+      "blocked": 11,
+      "done": 62
+    },
+    "workflowRuns": {
+      "total": 9,
+      "successful": 6,
+      "failed": 3,
+      "successRate": 66.66
+    },
+    "validation": {
+      "firstPassRate": 0,
+      "totalRuns": 0
+    },
+    "context": {
+      "bootTokens": 17099,
+      "windowPct": 1.7099,
+      "modelWindow": 1000000
+    }
+  }
 }
