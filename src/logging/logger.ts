@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { Logger as TsLogger } from "tslog";
@@ -10,9 +11,18 @@ import { type LogLevel, levelToMinLevel, normalizeLogLevel } from "./levels.js";
 import { readLoggingConfig } from "./config.js";
 import { loggingState } from "./state.js";
 
-// Pin to /tmp so mac Debug UI and docs match; os.tmpdir() can be a per-user
-// randomized path on macOS which made the “Open log” button a no-op.
-export const DEFAULT_LOG_DIR = "/tmp/gimli";
+// Prefer /tmp/gimli so macOS Debug UI and docs match, but fall back to
+// os.tmpdir() on platforms where /tmp is read-only (e.g. Termux/Android).
+function resolveDefaultLogDir(): string {
+  try {
+    fs.mkdirSync("/tmp/gimli", { recursive: true });
+    return "/tmp/gimli";
+  } catch {
+    return path.join(os.tmpdir(), "gimli");
+  }
+}
+
+export const DEFAULT_LOG_DIR = resolveDefaultLogDir();
 export const DEFAULT_LOG_FILE = path.join(DEFAULT_LOG_DIR, "gimli.log"); // legacy single-file path
 
 const LOG_PREFIX = "gimli";

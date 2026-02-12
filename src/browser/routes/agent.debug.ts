@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import type { BrowserRouteContext } from "../server-context.js";
@@ -112,7 +113,7 @@ export function registerBrowserAgentDebugRoutes(
       const pw = await requirePwAi(res, "trace stop");
       if (!pw) return;
       const id = crypto.randomUUID();
-      const dir = "/tmp/gimli";
+      const dir = path.join(os.tmpdir(), "gimli");
       await fs.mkdir(dir, { recursive: true });
       const tracePath = out.trim() || path.join(dir, `browser-trace-${id}.zip`);
       await pw.traceStopViaPlaywright({
